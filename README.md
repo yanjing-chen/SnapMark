@@ -18,9 +18,12 @@ SnapMark is a *new* project, independent of Flameshot OCR. It preserves the nati
 
 ## How the capture bridge works
 
-GNOME's Print Screen interface normally stores screenshots in the user's XDG Pictures/Screenshots folder. SnapMark watches that folder with `Gio.FileMonitor`. It waits for the new file to stop changing, and then opens the editor. No system hotkeys, GNOME settings or screenshot application internals are modified.
+GNOME's Print Screen interface saves screenshots in a localized folder; for example `~/图片/截图` on Chinese GNOME, or `~/Pictures/Screenshots` on English GNOME. SnapMark watches that folder with `Gio.FileMonitor`. It waits for the new file to stop changing, and then opens the editor. No system hotkeys, GNOME settings or screenshot application internals are modified.
 
 **Limitations:** If a screenshot is copied only to the clipboard without creating a file, directory monitoring will not see it. Some GNOME configurations save screenshots somewhere else: the detection path must then be adjusted or a later integration must be added. GNOME Wayland can prevent background applications from automatically receiving focus, even if a new editor window is presented. Both behaviors need actual GNOME 50 acceptance testing.
+
+
+For a manually configured screenshot directory outside the standard Pictures tree, set `SNAPMARK_SCREENSHOT_DIR=/absolute/path` in the environment **before** starting the watcher. Without an override SnapMark monitors existing recognized screenshot folders and the Pictures root; it only auto-opens newly created images with screenshot-like filenames. Close any previously running `--watch` instance before testing an updated AppImage.
 
 ## Local development — Ryzen 7 6800H / Ubuntu GNOME Wayland
 

@@ -13,7 +13,7 @@ gi.require_foreign('cairo')
 
 from gi.repository import Adw, Gio, GLib
 from .editor import EditorWindow
-from .watch import ScreenshotWatcher, screenshot_directories
+from .watch import ScreenshotWatcher
 
 APP_ID = 'io.github.yanjingchen.SnapMark'
 
@@ -65,13 +65,6 @@ class SnapMarkApplication(Adw.Application):
     def start_watching(self):
         if self.watcher is not None:
             return
-        # Create the standard GNOME screenshot folder if not present yet,
-        # so monitoring works even before the first screenshot.
-        folder = screenshot_directories()[0]
-        try:
-            folder.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            print(f'SnapMark: cannot create screenshot folder: {exc}', flush=True)
         self.watcher = ScreenshotWatcher(self.show_editor)
         watched = self.watcher.start()
         if not watched:
