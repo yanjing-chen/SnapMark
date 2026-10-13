@@ -60,7 +60,7 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1440x900x24' \
             dbus-run-session -- timeout 60 \
-            ./dist/SnapMark-0.1.0-x86_64.AppImage --smoke-test
+            ./dist/SnapMark-0.3.0-x86_64.AppImage --smoke-test
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4

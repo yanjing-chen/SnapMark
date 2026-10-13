@@ -4,7 +4,7 @@ A minimal GNOME-native screenshot annotation editor, made with **Python 3 + GTK4
 
 SnapMark is a *new* project, independent of Flameshot OCR. It preserves the native GNOME `Print Screen` UI. When GNOME creates a screenshot file, a lightweight background watcher detects it and opens a SnapMark editor window for annotation.
 
-**Version:** v0.1.0, initial implementation / testing candidate. This is not a verified GNOME 50 production release.
+**Version:** v0.3.0, initial implementation / testing candidate. This is not a verified GNOME 50 production release.
 
 ## First-stage features
 
@@ -88,7 +88,7 @@ CI runs these tests, launches the GTK application in Xvfb, assembles a GTK4/liba
 
 ### AppImage build
 
-Ubuntu 24.04 is the baseline runner. The artifact and release asset consist **only of** `SnapMark-0.1.0-x86_64.AppImage`. Build from source with `bash scripts/build-appimage.sh` after installing the CI dependencies. On machines using another Python runtime, use the GitHub Actions build for the most reproducible result.
+Ubuntu 24.04 is the baseline runner. The artifact and release asset consist **only of** `SnapMark-0.3.0-x86_64.AppImage`. Build from source with `bash scripts/build-appimage.sh` after installing the CI dependencies. On machines using another Python runtime, use the GitHub Actions build for the most reproducible result.
 
 ## Create the new GitHub repository
 
@@ -114,3 +114,14 @@ The script verifies the `yanjing-chen` account, refuses to overwrite an existing
 Initial version concentrates on screenshot annotation and export. More tools, further preferences and separate OCR development can be evaluated later.
 
 License: MIT.
+
+## v0.3.0 — Editable annotation layers
+
+- Lower-right Layers shows current marks; click a row or use the Select tool on canvas.
+- A dashed selection box with four handles supports dragging and corner resizing.
+- Change selected color/width/fill/opacity/font in the right panel.
+- Delete/Backspace removes a selected layer; all mutations are undoable.
+- Text can be edited by double-clicking its selected annotation.
+- Preferences has left-side General navigation with login autostart and screenshot folder.
+- Direct rendering tests now register the Cairo GI foreign type in paint.py.
+- Original screenshot remains unchanged; selection outlines are not exported.

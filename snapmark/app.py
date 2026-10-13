@@ -45,8 +45,31 @@ class SnapMarkApplication(Adw.Application):
                 return 0
         self.activate()
         if options.contains('smoke-test'):
-            GLib.timeout_add(1000, self._end_smoke)
+            GLib.timeout_add(200, self._smoke_editor)
+            GLib.timeout_add(1700, self._end_smoke)
         return 0
+
+    def _smoke_editor(self):
+        # Xvfb CI verifies construction of BOTH the layers UI and Preferences.
+        # Fail loudly if the new GTK4 API is unavailable in the AppImage.
+        try:
+            from .model import Mark
+            window = self.windows[-1]
+            assert window.paned is not None and window.layers is not None
+            window.history.push(Mark('rectangle', 5, 5, 50, 40))
+            window._refresh_layers()
+            assert window.layers.get_row_at_index(0) is not None
+            window.select_layer(0)
+            assert window.selected_index == 0
+            window.show_preferences()
+            assert window._preferences_window is not None
+            print('SnapMark: GTK4 layers + Preferences smoke PASS', flush=True)
+        except Exception:
+            import traceback
+            import os
+            traceback.print_exc()
+            os._exit(1)  # Test-only failure; do not misreport a passing CI run.
+        return False
 
     def _end_smoke(self):
         self.quit()
@@ -61,6 +84,20 @@ class SnapMarkApplication(Adw.Application):
         if window in self.windows:
             self.windows.remove(window)
         return False
+
+    def stop_watching(self):
+        if self.watcher is None:
+            return
+        self.watcher.stop()
+        self.watcher = None
+        self.release()
+        print('SnapMark: screenshot watcher stopped', flush=True)
+
+    def refresh_watching(self):
+        if self.watcher is None:
+            return
+        self.stop_watching()
+        self.start_watching()
 
     def start_watching(self):
         if self.watcher is not None:
