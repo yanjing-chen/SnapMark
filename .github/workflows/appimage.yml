@@ -25,7 +25,15 @@ jobs:
             gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
             gir1.2-pango-1.0 libgtk-4-1 libadwaita-1-0 \
             gobject-introspection libgdk-pixbuf2.0-bin \
-            xvfb dbus-x11 curl file desktop-file-utils
+            xvfb dbus-x11 curl file desktop-file-utils \
+            librsvg2-2 librsvg2-common
+
+      - name: Verify SVG shared library and GdkPixbuf loader
+        run: |
+          test -r /usr/lib/x86_64-linux-gnu/librsvg-2.so.2
+          test -r /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
+          ldd /usr/lib/x86_64-linux-gnu/librsvg-2.so.2 | tee /tmp/snapmark-librsvg-ldd.txt
+          ! grep -q 'not found' /tmp/snapmark-librsvg-ldd.txt
 
       - name: Static compilation and model regression tests
         run: |
