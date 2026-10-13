@@ -1,0 +1,69 @@
+name: Build SnapMark AppImage
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    name: AppImage · x86_64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install GTK4, libadwaita and PyGObject
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-gi python3-cairo python3-gi-cairo \
+            gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 \
+            gir1.2-pango-1.0 libgtk-4-1 libadwaita-1-0 \
+            gobject-introspection libgdk-pixbuf2.0-bin \
+            xvfb dbus-x11 curl file desktop-file-utils
+
+      - name: Static compilation and model regression tests
+        run: |
+          /usr/bin/python3 -m compileall -q snapmark
+          /usr/bin/python3 -m unittest discover -s tests -v
+          desktop-file-validate assets/io.github.yanjingchen.SnapMark.desktop
+
+      - name: GTK GUI smoke test (Xvfb, not a GNOME Wayland acceptance test)
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1440x900x24' \
+            dbus-run-session -- timeout 35 /usr/bin/python3 -m snapmark.app --smoke-test
+
+      - name: Build one AppImage (no DEB or other package formats)
+        run: bash scripts/build-appimage.sh
+
+      - name: AppImage startup smoke test (Xvfb)
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          xvfb-run -a -s '-screen 0 1440x900x24' \
+            dbus-run-session -- timeout 60 \
+            ./dist/SnapMark-0.1.0-x86_64.AppImage --smoke-test
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SnapMark-x86_64-AppImage
+          path: dist/*.AppImage
+          if-no-files-found: error
+
+      - name: Publish only AppImage on version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.AppImage
+          fail_on_unmatched_files: true

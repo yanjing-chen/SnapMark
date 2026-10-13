@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=SnapMark Screenshot Watcher
+Comment=Open SnapMark automatically after GNOME screenshots
+Exec=snapmark --watch
+Icon=io.github.yanjingchen.SnapMark
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

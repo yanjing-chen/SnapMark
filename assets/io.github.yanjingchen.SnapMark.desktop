@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SnapMark
+Comment=Native GNOME screenshot annotator
+Exec=snapmark
+Icon=io.github.yanjingchen.SnapMark
+Terminal=false
+Categories=Graphics;GTK;
+Keywords=Screenshot;Annotation;Image;
+StartupNotify=true
