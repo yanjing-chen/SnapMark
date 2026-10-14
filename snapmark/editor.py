@@ -165,8 +165,8 @@ class EditorWindow(Adw.ApplicationWindow):
         tool_scroll = Gtk.ScrolledWindow()
         tool_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
         root.append(tool_scroll)
-        self._plugin_tools = tools
         tools = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
+        self._plugin_tools = tools
         tools.set_halign(Gtk.Align.CENTER)
         tools.set_margin_top(7)
         tools.set_margin_bottom(7)
