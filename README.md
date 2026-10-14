@@ -178,6 +178,21 @@ verified on the target machine. The Roadmap is updated with each release.*
 - [ ] **B:** Optional Runtime installer **without** bundled AI models; avoid changing running services.
 - [ ] **B:** Runtime installation/connection error and recovery tests.
 
+
+<!-- SNAPMARK_RUNTIME_B1_ROADMAP -->
+**v0.6.0-B1 progress — code complete, real-desktop validation pending:**
+
+- [x] Separate Preferences → AI Runtime page; integration disabled by default.
+- [x] Connect to existing `127.0.0.1:8111` via read-only API calls.
+- [x] Display service health, registered models, and Runtime-reported backend.
+- [x] Auto backend preference by default; no global backend changes.
+- [x] Integration settings stored independently; disable never stops Runtime.
+- [x] Offline tests for connection failures, bad URLs and configuration safety.
+- [ ] **B1 acceptance:** GNOME Wayland GUI, live Runtime 0.8.0 API, and AppImage CI.
+- [ ] **B2:** Verified Runtime installer, safe local-model registration and related tests.
+
+See `docs/AI_RUNTIME.md` for supported API calls and current limitations.
+
 ### v0.7.0 — Lightweight OCR plugin
 
 - [ ] PP-OCRv5 **and** PP-OCRv6, with model-family and model/size/language selection.

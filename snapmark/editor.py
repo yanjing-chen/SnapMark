@@ -1169,6 +1169,8 @@ class EditorWindow(Adw.ApplicationWindow):
         stack.add_titled(page, 'general', 'General')
         from .plugin_ui import PluginPreferences
         self._plugin_preferences = PluginPreferences(window, stack)
+        from .ai_runtime_ui import AIRuntimePreferences
+        self._runtime_preferences = AIRuntimePreferences(window, stack)
         for ident, (title, builder) in self.plugin_host.settings_factories.items():
             plugin_page = builder(self)
             stack.add_titled(plugin_page, 'plugin-' + ident, title)
