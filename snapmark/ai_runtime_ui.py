@@ -1,4 +1,4 @@
-"""AI Runtime Preferences: read-only service inspection and local bundle preview."""
+"""AI Runtime Preferences: read-only status and explicit local model registration."""
 from __future__ import annotations
 
 import threading
@@ -7,6 +7,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 from .ai_runtime import (BACKEND_PREFERENCES, RUNTIME_PROJECT, RuntimeSettings,
                          RuntimeIntegrationError, probe_runtime)
 from .model_bundle import ModelBundleError, inspect_gguf_files, inspect_gguf_folder
+from .runtime_registration import inspect_registration, register_reviewed_model
 
 
 class AIRuntimePreferences:
@@ -18,6 +19,8 @@ class AIRuntimePreferences:
         self.model_rows = []
         self.preview_rows = []
         self.preview_generation = 0
+        self.registration_generation = 0
+        self.registration_in_progress = False
         self.widgets = {}
         page = Adw.PreferencesPage()
         stack.add_titled(page, 'ai-runtime', 'AI Runtime')
@@ -98,8 +101,8 @@ class AIRuntimePreferences:
         install.add(guide)
         select = Adw.PreferencesGroup(title='Preview local GGUF model bundle', description=(
             'Select multiple GGUF files or a folder. SnapMark detects main weights, '
-            'mmproj and split GGUF pieces together. This is a read-only preview: '
-            'registration awaits verification of Runtime 0.8.0 write API.'))
+            'mmproj and split GGUF pieces together. Registration of one complete '
+            'non-split bundle requires separate inspection and explicit confirmation.'))
         page.add(select)
         buttons_row = Adw.ActionRow(title='Choose model files', subtitle=(
             'Supports one main GGUF plus mmproj, and numbered GGUF shards.'))
@@ -153,6 +156,7 @@ class AIRuntimePreferences:
         self.widgets['actual'].set_subtitle('Not checked')
         self.widgets['loaded'].set_subtitle('Not checked')
         self._set_models(())
+        self.registration_generation += 1
         if enabled:
             self._start_probe(self.config['endpoint'])
 
@@ -181,6 +185,7 @@ class AIRuntimePreferences:
 
     def _start_probe(self, endpoint):
         self.generation += 1
+        self.registration_generation += 1
         generation = self.generation
         self.widgets['status'].set_subtitle('Connecting…')
         self.widgets['check'].set_sensitive(False)
@@ -331,4 +336,90 @@ class AIRuntimePreferences:
             row = Adw.ActionRow(title=bundle.name, subtitle=' · '.join(pieces))
             group.add(row)
             self.preview_rows.append(row)
+            if bundle.ready_for_review and bundle.main and not bundle.shards and len(bundle.projectors) <= 1:
+                inspect_button = Gtk.Button(label='Inspect with Runtime…')
+                inspect_button.set_valign(Gtk.Align.CENTER)
+                inspect_button.set_sensitive(self.config['enabled'])
+                inspect_button.connect('clicked', self._inspect_bundle, bundle)
+                row.add_suffix(inspect_button)
+        return False
+
+    def _inspect_bundle(self, button, bundle):
+        if not self.config['enabled'] or self.registration_in_progress:
+            return
+        self.registration_generation += 1
+        generation = self.registration_generation
+        endpoint = self.config['endpoint']
+        button.set_sensitive(False)
+        self.registration_in_progress = True
+
+        def worker():
+            try:
+                review, error = inspect_registration(endpoint, bundle), None
+            except (RuntimeIntegrationError, OSError, ValueError) as exc:
+                review, error = None, str(exc)
+            GLib.idle_add(self._inspect_done, generation, button, review, error)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _inspect_done(self, generation, button, review, error):
+        self.registration_in_progress = False
+        if generation != self.registration_generation or not self.config['enabled']:
+            return False
+        button.set_sensitive(True)
+        if error:
+            self._message('Runtime inspection failed', error)
+            return False
+        payload = review.payload
+        message = '\n'.join((
+            'Model ID: ' + payload['id'],
+            'Purpose: ' + payload['type'],
+            'Main GGUF: ' + payload['model_path'],
+            'Projector: ' + (payload['mmproj_path'] or 'None'),
+            'Context: ' + str(payload['context_size']),
+            'GPU layers: ' + str(payload['gpu_layers']),
+            'Warnings: ' + ('; '.join(review.notes) if review.notes else 'None'),
+            '',
+            'The model files remain in place. Register only if you trust their origin. '
+            'This changes the external Runtime custom-model registry, not the model files.'
+        ))
+        dialog = Adw.MessageDialog(transient_for=self.window,
+                                   heading='Register this local model?', body=message)
+        dialog.add_response('cancel', 'Cancel')
+        dialog.add_response('register', 'Register model')
+        dialog.set_response_appearance('register', Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response('cancel')
+        dialog.set_close_response('cancel')
+        dialog.connect('response', self._registration_response, review)
+        dialog.present()
+        return False
+
+    def _registration_response(self, _dialog, response, review):
+        if response != 'register' or not self.config['enabled'] or self.registration_in_progress:
+            return
+        if self.config['endpoint'] != review.endpoint:
+            self._message('Connection changed', 'Reconnect and inspect the model again.')
+            return
+        self.registration_in_progress = True
+        self.registration_generation += 1
+        generation = self.registration_generation
+
+        def worker():
+            try:
+                result, error = register_reviewed_model(review, confirmed=True), None
+            except (RuntimeIntegrationError, OSError, ValueError) as exc:
+                result, error = None, str(exc)
+            GLib.idle_add(self._registration_done, generation, result, error)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _registration_done(self, generation, result, error):
+        self.registration_in_progress = False
+        if generation != self.registration_generation:
+            return False
+        if error:
+            self._message('Registration failed', error)
+        else:
+            self._message('Model registered',
+                          result['id'] + ' was added to Local AI Runtime. No model files were moved.')
+            if self.config['enabled']:
+                self._start_probe(self.config['endpoint'])
         return False

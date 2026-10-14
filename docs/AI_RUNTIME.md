@@ -66,3 +66,37 @@ files. The existing Runtime model registry and global backend preference are
 left untouched. Runtime 0.8.0 registration API, release download URL and
 checksum must be verified before B2-B can provide an actual **Register** or
 **Install Runtime** action. No dummy button claims success.
+
+## v0.6.0-B2-B: confirmed local-model registration
+
+Runtime source revision `3d9c8dd` (0.8.0) has `POST /v1/models/inspect`
+(non-mutating) and `POST /v1/models/custom` (registry **upsert**, mutating),
+with `GET /v1/models/custom` and `GET /v1/models?refresh=1` for collision
+checks. It supports `model_path` and `mmproj_path` on a single logical model.
+
+After selecting a local GGUF bundle, click **Inspect with Runtime…** to query
+Runtime's inspector. Inspection is not registration. A review dialog lists the
+proposed model ID, type, main GGUF, projector path, context and GPU layers.
+Clicking **Register model** explicitly opts into an external Runtime registry
+change. All network operations run in background threads; no model weights
+are downloaded, moved or copied, and Runtime's global backend preferences and
+running service are not intentionally changed. A newly registered model is
+not automatically loaded.
+
+To prevent unintentional overwrites, the first implementation allows only new
+IDs. Both catalog and custom registries are checked before inspection and
+again just before registration, and source-file size/mtime must be unchanged.
+**Note:** Runtime's registration API is an *upsert*, not an atomic create-only
+API; concurrent changes by a different client in the small interval between
+check and POST are not completely preventable. This is not a guaranteed
+transactional lock across processes.
+
+Registration intentionally requires a **local HTTP loopback** endpoint (not
+remote URLs or HTTPS) because the service must access the selected local file
+paths. Projector bundles with multiple ambiguous projectors or split GGUF
+weights are preview-only pending proven Runtime compatibility. Installed
+catalog models are never overwritten by this flow.
+
+Runtime **one-click installation remains deferred** until a concrete stable
+installer/download and digest verification policy is known. The standalone
+Runtime installation remains under user control.

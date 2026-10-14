@@ -259,3 +259,18 @@ No model is uploaded, downloaded, or changed. See `docs/AI_RUNTIME.md`.
 `snapmark-vX.Y.Z` produce **AppImage only**, while `ocr-vX.Y.Z` and
 `translation-vX.Y.Z` produce independent **ZIP** plugins with `.sha256` files.
 No DEB/RPM, no embedded advanced AI models.
+
+<!-- SNAPMARK_RUNTIME_B2B_ROADMAP -->
+**v0.6.0-B2-B — local registration implemented; real GNOME/Runtime acceptance pending:**
+
+- [x] Verify Runtime 0.8.0 `/v1/models/inspect`, `/v1/models/custom` and `mmproj_path` contracts from source/tests.
+- [x] Local-only GGUF inspection using Runtime's own metadata/compatibility analyzer.
+- [x] Display model ID, purpose, main file, mmproj and settings before registration.
+- [x] Separate, explicit user confirmation for a Runtime registry write; never copy/download models.
+- [x] Reject existing model IDs; reject changed files, ambiguous bundles and unverified GGUF shards.
+- [x] Refresh registered models after successful registration.
+- [x] Automated fake-Runtime regression tests for inspect/register/duplicate/race safeguards.
+- [ ] **B2-B acceptance:** Confirm main GGUF + mmproj registration on the real Ryzen 7 6800H Runtime 0.8.0; GitHub Actions AppImage.
+- [ ] **B2-C:** Optional safe one-click Runtime installation after verifying official release artifact checksums, supported platform, and upgrade strategy.
+
+This action is opt-in: **Inspect with Runtime… → Review → Register model**. Registration updates the external Local AI Runtime registry only after explicit confirmation; the files remain where the user selected them. It never auto-loads a model or modifies global CPU/Vulkan/CUDA preferences. See `docs/AI_RUNTIME.md`.
