@@ -92,6 +92,31 @@ class SnapMarkApplication(Adw.Application):
             from .model import Mark
             window = self.windows[-1]
             assert window.paned is not None and window.layers is not None
+            # Actually exercise the packaged executable, not Python modules
+            # shadowing it from the GitHub runner's checkout directory.
+            import os
+            if os.environ.get('APPDIR'):
+                module = Path(__file__).resolve()
+                assert module.is_relative_to(Path(os.environ['APPDIR']).resolve()), (
+                    f'AppImage imported external source: {module}')
+                print(f'SnapMark: bundled module verified: {module}', flush=True)
+                schema = Gio.SettingsSchemaSource.get_default()
+                assert schema is not None, 'Bundled GLib GSettings schema source missing'
+                assert any(schema.list_schemas(True)), (
+                    'Bundled GSettings schemas appear to be empty')
+                # If PNGs cannot be decoded from the AppDir, opening GNOME
+                # screenshots will fail even though the tray icon uses Cairo.
+                from gi.repository import GdkPixbuf
+                icon_path = Path(os.environ['APPDIR']) / (
+                    'usr/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
+                check_png = GdkPixbuf.Pixbuf.new_from_file(str(icon_path))
+                assert check_png.get_width() == 32
+            for field in ('font_options', 'custom_stroke', 'custom_fill'):
+                assert getattr(window, field, None) is not None, (
+                    f'Editor failed to initialize {field}')
+            window.tool_buttons['text'].set_active(True)
+            assert window.font_options.get_visible()
+            window.tool_buttons['select'].set_active(True)
             # Status notifier protocol and packaged icon must serialize with
             # real GLib variants, even when the runner has no tray host.
             for prop, signature in (('IconPixmap', 'a(iiay)'), ('ToolTip', '(sa(iiay)ss)'),

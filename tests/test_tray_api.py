@@ -9,13 +9,21 @@ except ImportError:
 if gi is not None:
     gi.require_version('GdkPixbuf', '2.0')
     from gi.repository import GLib, Gio
-    from snapmark.tray import TrayIndicator, ITEM_XML, MENU_XML
+    from snapmark.tray import TrayIndicator, ITEM_XML, MENU_XML, icon_argb_pixmap
 
 
 @unittest.skipIf(gi is None, 'PyGObject unavailable locally; CI must execute this')
 class TrayApiTests(unittest.TestCase):
     def make_indicator(self):
         return TrayIndicator(lambda: None, lambda: None, lambda: None)
+
+    def test_bundled_icon_has_correct_argb_dimensions(self):
+        pixmaps = icon_argb_pixmap()
+        self.assertEqual(len(pixmaps), 1, 'Tray PNG must be a decodable 32px icon')
+        self.assertEqual(pixmaps[0][0:2], (32, 32))
+        raw = pixmaps[0][2]
+        self.assertEqual(len(raw), 32 * 32 * 4)
+        self.assertTrue(any(raw[index] for index in range(0, len(raw), 4)))
 
     def test_dbus_xml_interfaces(self):
         self.assertEqual(Gio.DBusNodeInfo.new_for_xml(ITEM_XML).interfaces[0].name,

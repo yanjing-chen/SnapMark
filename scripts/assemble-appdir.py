@@ -70,6 +70,18 @@ def main() -> None:
     (APP / 'usr/share/snapmark').mkdir(parents=True)
     shutil.copytree(ROOT / 'snapmark', APP / 'usr/share/snapmark/snapmark',
                     ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    # The tray resource is loaded from the mounted AppDir, independently of
+    # the runner checkout and any icons installed on the host machine.
+    tray_assets = APP / 'usr/share/snapmark/assets'
+    tray_assets.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / 'assets/io.github.yanjingchen.SnapMark-32.png', tray_assets)
+
+    # Bundled libgio must have compiled schemas on runners that lack a GNOME
+    # session; GTK/libadwaita query these even during the headless smoke test.
+    system_schemas = Path('/usr/share/glib-2.0/schemas')
+    if not (system_schemas / 'gschemas.compiled').is_file():
+        raise RuntimeError('Missing compiled GLib schemas: /usr/share/glib-2.0/schemas/gschemas.compiled')
+    shutil.copytree(system_schemas, APP / 'usr/share/glib-2.0/schemas')
 
     interpreter = Path(sys.executable).resolve()
     cpfile(interpreter, APP / 'usr/bin/python3')

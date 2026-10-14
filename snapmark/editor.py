@@ -639,23 +639,33 @@ class EditorWindow(Adw.ApplicationWindow):
             app.set_accels_for_action(f'win.{name}', keys)
 
     def _tool_toggled(self, button, code):
-        if button.get_active():
-            self.tool = code
-            if hasattr(self, 'font_options'):
-                selected = self._selected_mark()
-            self.font_options.set_visible(code == 'text' or (code == 'select' and selected is not None and selected.tool == 'text'))
+        if not button.get_active():
+            return
+        self.tool = code
+        # The first toggle fires while _build_ui() is still constructing
+        # the properties pane. Do not access a widget before it exists.
+        if not hasattr(self, 'font_options'):
+            return
+        selected = self._selected_mark()
+        self.font_options.set_visible(
+            code == 'text' or (code == 'select' and selected is not None
+                               and selected.tool == 'text'))
 
     def _color_toggled(self, button, color):
-        if button.get_active():
-            self.color = color
+        if not button.get_active():
+            return
+        self.color = color
+        if hasattr(self, 'custom_stroke'):
             self._change_selected(color=color)
-        self._sync_custom_picker(self.custom_stroke, color)
+            self._sync_custom_picker(self.custom_stroke, color)
 
     def _fill_color_toggled(self, button, color):
-        if button.get_active():
-            self.fill_color = color
+        if not button.get_active():
+            return
+        self.fill_color = color
+        if hasattr(self, 'custom_fill'):
             self._change_selected(fill_color=color)
-        self._sync_custom_picker(self.custom_fill, color)
+            self._sync_custom_picker(self.custom_fill, color)
 
     def _width_changed(self, scale):
         self.stroke = float(scale.get_value())

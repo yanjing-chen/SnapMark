@@ -5,9 +5,13 @@ APPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export APPDIR="$APPDIR"
 export PYTHONHOME="$APPDIR/usr"
 export PYTHONPATH="$APPDIR/usr/lib/python3/dist-packages:$APPDIR/usr/share/snapmark"
+# -m normally prepends the current directory to sys.path; that made the CI
+# smoke test import the checkout rather than the installed AppImage files.
+export PYTHONSAFEPATH=1
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export XDG_DATA_DIRS="$APPDIR/usr/share${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export PYTHONDONTWRITEBYTECODE=1
 # Rebuild cache using actual AppImage mount paths, avoiding build-time absolute paths.

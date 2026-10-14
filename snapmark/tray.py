@@ -4,9 +4,12 @@ GNOME Shell needs an SNI/AppIndicator host; no GTK3 or Qt process is loaded.
 The indicator gracefully does nothing without a host.
 """
 import os
+import sys
 from pathlib import Path
 
-from gi.repository import GdkPixbuf, Gio, GLib
+import cairo
+
+from gi.repository import Gio, GLib
 
 ITEM_PATH = '/StatusNotifierItem'
 MENU_PATH = '/MenuBar'
@@ -58,31 +61,53 @@ MENU_ITEMS = {1: 'Open SnapMark', 2: 'Preferences', 3: 'Quit SnapMark'}
 
 
 def icon_file():
-    candidates = [Path(__file__).resolve().parent.parent / 'assets' / 'io.github.yanjingchen.SnapMark-32.png']
-    candidates.append(Path.home() / '.local/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
+    # An AppImage must resolve its icon from the mounted AppDir, never the
+    # GitHub Actions checkout or a possibly stale icon in the user's home.
     appdir = os.environ.get('APPDIR')
+    candidates = []
     if appdir:
         candidates.append(Path(appdir) / 'usr/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
+        candidates.append(Path(appdir) / 'usr/share/snapmark/assets/io.github.yanjingchen.SnapMark-32.png')
+    else:
+        candidates.append(Path(__file__).resolve().parent.parent / 'assets' / 'io.github.yanjingchen.SnapMark-32.png')
+    candidates.append(Path.home() / '.local/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
     return next((f for f in candidates if f.is_file()), None)
 
 
 def icon_argb_pixmap():
+    """Read the tray PNG via Cairo, independent of GdkPixbuf loader caches.
+
+    StatusNotifierItem expects one 32x32 image in A,R,G,B byte order.
+    Cairo exposes native-endian premultiplied ARGB32, converted here to
+    straight-alpha A,R,G,B pixels for the D-Bus payload.
+    """
     path = icon_file()
     if path is None:
         return []
-    pb = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), 32, 32, True)
-    if pb.get_width() != 32 or pb.get_height() != 32:
+    try:
+        surface = cairo.ImageSurface.create_from_png(str(path))
+        if surface.get_width() != 32 or surface.get_height() != 32:
+            raise ValueError(f'Unexpected status icon dimensions: {path}')
+        if surface.get_format() != cairo.FORMAT_ARGB32:
+            raise ValueError(f'Unexpected Cairo pixel format: {path}')
+        surface.flush()
+        raw = surface.get_data()
+        stride = surface.get_stride()
+        argb = bytearray()
+        for y in range(32):
+            for x in range(32):
+                i = y * stride + x * 4
+                if sys.byteorder == 'little':
+                    b, g, r, a = raw[i:i + 4]
+                else:
+                    a, r, g, b = raw[i:i + 4]
+                if a:
+                    r, g, b = (min(255, (v * 255 + a // 2) // a) for v in (r, g, b))
+                argb.extend((a, r, g, b))
+        return [(32, 32, bytes(argb))]
+    except (OSError, cairo.Error, ValueError) as exc:
+        print(f'SnapMark: failed to read bundled tray icon {path}: {exc}', flush=True)
         return []
-    raw, stride = pb.get_pixels(), pb.get_rowstride()
-    channels = pb.get_n_channels()
-    argb = bytearray()
-    for y in range(32):
-        for x in range(32):
-            i = y * stride + x * channels
-            r, g, b = raw[i:i + 3]
-            a = raw[i + 3] if channels == 4 else 255
-            argb.extend((a, r, g, b))
-    return [(32, 32, bytes(argb))]
 
 
 class TrayIndicator:
@@ -99,6 +124,9 @@ class TrayIndicator:
         try:
             self.bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
             self.pixmaps = icon_argb_pixmap()
+            if not self.pixmaps:
+                print('SnapMark: status icon unavailable; the editor will remain accessible', flush=True)
+                return False
             for path, xml, method, getprop in ((ITEM_PATH, ITEM_XML, self._item_call, self._item_prop),
                                                 (MENU_PATH, MENU_XML, self._menu_call, self._menu_prop)):
                 info = Gio.DBusNodeInfo.new_for_xml(xml).interfaces[0]
