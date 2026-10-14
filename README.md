@@ -111,3 +111,11 @@ for a real GNOME Wayland test. The AppImage needs a usable desktop session.
 - `.github/workflows/appimage.yml` — test and AppImage CI.
 
 Copyright © SnapMark contributors. License: MIT.
+
+## v0.4.1 editing improvements
+
+- The image eraser clears original image pixels to transparent PNG pixels (undoable).
+- The blur and mosaic filters respect the Opacity slider.
+- Custom colors use a compact four-color picker button.
+- Preferences are non-modal; GNOME system file chooser dimming while open is normal.
+- A tray host may be required to display StatusNotifierItem icons on GNOME.

@@ -49,7 +49,8 @@ def _mosaic(cr, m, pixbuf):
     Gdk.cairo_set_source_pixbuf(cr, small, 0, 0)
     cr.get_source().set_filter(cairo.FILTER_NEAREST)
     cr.rectangle(0, 0, tiny_width, tiny_height)
-    cr.fill()
+    cr.clip()
+    cr.paint_with_alpha(max(0., min(1., m.opacity)))
     cr.restore()
 
 
@@ -77,7 +78,8 @@ def _blur(cr, mark, pixbuf):
     cr.save()
     Gdk.cairo_set_source_pixbuf(cr, blurred_pixbuf, x0, y0)
     cr.rectangle(x0, y0, w, h)
-    cr.fill()
+    cr.clip()
+    cr.paint_with_alpha(max(0., min(1., mark.opacity)))
     cr.restore()
 
 
@@ -89,6 +91,26 @@ def paint_mark(cr, m, pixbuf=None):
         _blur(cr, m, pixbuf)
         return
     if m.tool == 'eraser':
+        if not m.points:
+            return
+        cr.save()
+        # CLEAR removes underlying pixels including the original screenshot,
+        # producing real transparency in the exported PNG. Undo is handled by
+        # the ordinary editable mark history.
+        cr.set_operator(cairo.OPERATOR_CLEAR)
+        cr.set_line_width(max(6, m.width * 3))
+        cr.set_line_cap(cairo.LINE_CAP_ROUND)
+        cr.set_line_join(cairo.LINE_JOIN_ROUND)
+        cr.move_to(*m.points[0])
+        for point in m.points[1:]:
+            cr.line_to(*point)
+        if len(m.points) == 1:
+            x, y = m.points[0]
+            cr.arc(x, y, max(3, m.width * 1.5), 0, math.tau)
+            cr.fill()
+        else:
+            cr.stroke()
+        cr.restore()
         return
     cr.save()
     cr.set_source_rgba(*hex_rgba(m.color))

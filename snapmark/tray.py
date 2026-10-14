@@ -179,7 +179,10 @@ class TrayIndicator:
         props = {'Category': GLib.Variant('s', 'ApplicationStatus'),
                  'Id': GLib.Variant('s', 'snapmark'), 'Title': GLib.Variant('s', 'SnapMark'),
                  'Status': GLib.Variant('s', 'Active'), 'WindowId': GLib.Variant('i', 0),
-                 'IconName': GLib.Variant('s', 'io.github.yanjingchen.SnapMark'),
+                 # The SNI host may prefer IconName over IconPixmap. An uninstalled
+                 # AppImage icon name commonly renders as '…' in GNOME trays.
+                 # Send bundled ARGB pixel data as the authoritative icon.
+                 'IconName': GLib.Variant('s', ''),
                  'IconPixmap': GLib.Variant('a(iiay)', self.pixmaps),
                  'Menu': GLib.Variant('o', MENU_PATH), 'ItemIsMenu': GLib.Variant('b', False),
                  'OverlayIconName': GLib.Variant('s', ''),

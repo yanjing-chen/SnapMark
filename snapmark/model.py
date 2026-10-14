@@ -30,6 +30,8 @@ class Mark:
             return bool(self.text.strip())
         if self.tool in ('pen', 'highlighter'):
             return len(self.points) > 1
+        if self.tool == 'eraser':
+            return len(self.points) >= 1
         return hypot(self.x2 - self.x1, self.y2 - self.y1) >= 2
 
 
@@ -53,9 +55,10 @@ def mark_bounds(mark):
     Text metrics in pixels depend on font rendering; margin around bounds
     leaves useful handles even when an unusual font is chosen.
     """
-    if mark.tool in ('pen', 'highlighter') and mark.points:
+    if mark.tool in ('pen', 'highlighter', 'eraser') and mark.points:
         xs, ys = zip(*mark.points)
-        padding = max(mark.width * (2.5 if mark.tool == 'highlighter' else .5), 2.)
+        padding = max(mark.width * (2.5 if mark.tool == 'highlighter' else
+                                    1.5 if mark.tool == 'eraser' else .5), 2.)
         return min(xs) - padding, min(ys) - padding, max(xs) + padding, max(ys) + padding
     if mark.tool == 'text':
         size = font_size(mark)
@@ -68,9 +71,12 @@ def mark_bounds(mark):
 
 def mark_touches(mark, x, y, radius=12.):
     """Hit-test a visible mark, with a modest tolerance for strokes."""
-    if mark.tool in ('pen', 'highlighter'):
+    if mark.tool in ('pen', 'highlighter', 'eraser'):
         pts = mark.points
-        width = mark.width * (5 if mark.tool == 'highlighter' else 1)
+        width = mark.width * (5 if mark.tool == 'highlighter' else
+                              3 if mark.tool == 'eraser' else 1)
+        if mark.tool == 'eraser' and len(pts) == 1:
+            return hypot(x - pts[0][0], y - pts[0][1]) <= radius + width / 2
         return any(_distance_to_segment(x, y, *a, *b) <= radius + width / 2
                    for a, b in zip(pts, pts[1:]))
     if mark.tool in ('line', 'arrow'):

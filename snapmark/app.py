@@ -124,6 +124,9 @@ class SnapMarkApplication(Adw.Application):
                 variant = self.tray._item_prop(None, None, None, None, prop)
                 assert variant.get_type_string() == signature
             assert self.tray.pixmaps, 'AppImage status icon missing'
+            assert window.custom_stroke.has_css_class('snapmark-custom-color')
+            assert window.custom_fill.has_css_class('snapmark-custom-color')
+            assert self.tray._item_prop(None, None, None, None, 'IconName').unpack() == ''
             window.history.push(Mark('rectangle', 5, 5, 50, 40))
             window._refresh_layers()
             assert window.layers.get_row_at_index(0) is not None
@@ -131,6 +134,7 @@ class SnapMarkApplication(Adw.Application):
             assert window.selected_index == 0
             window.show_preferences()
             assert window._preferences_window is not None
+            assert not window._preferences_window.get_modal()
             print('SnapMark: GTK4 layers + Preferences smoke PASS', flush=True)
         except Exception:
             import traceback

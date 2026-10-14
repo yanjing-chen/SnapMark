@@ -46,9 +46,13 @@ def draw_tool_icon(_widget, cr, _width, _height, tool):
         cr.move_to(14, 4); cr.line_to(25, 23); cr.line_to(3, 23)
         cr.close_path(); cr.stroke()
     elif tool == 'pen':
-        cr.move_to(6, 23); cr.line_to(11, 24); cr.line_to(24, 8)
-        cr.line_to(20, 4); cr.close_path(); cr.stroke()
-        cr.move_to(9, 20); cr.line_to(20, 8); cr.stroke()
+        # Sharpened wooden pencil (graphite point, two wooden edges, rear cap).
+        cr.move_to(3, 25); cr.line_to(8, 17)
+        cr.line_to(22, 3); cr.line_to(26, 7)
+        cr.line_to(12, 21); cr.close_path(); cr.stroke()
+        cr.move_to(8, 17); cr.line_to(12, 21); cr.stroke()
+        cr.move_to(3, 25); cr.line_to(7, 23); cr.stroke()
+        cr.move_to(19, 6); cr.line_to(23, 10); cr.stroke()
     elif tool == 'highlighter':
         # Chisel-tip marker silhouette, not a colored painted line.
         cr.move_to(8, 25); cr.line_to(3, 20); cr.line_to(16, 5)
@@ -82,6 +86,7 @@ class EditorWindow(Adw.ApplicationWindow):
         super().__init__(application=app, title='SnapMark', default_width=1220,
                          default_height=790)
         self.set_size_request(680, 460)
+        self.add_css_class('snapmark-window')
         self.filename = None
         self.pixbuf = None
         self.history = History()
@@ -96,7 +101,6 @@ class EditorWindow(Adw.ApplicationWindow):
         self._syncing_controls = False
         self.tool_buttons = {}
         self.settings = Settings()
-        self._custom_color_sync = False
         self.color_buttons = {}
         self.fill_buttons = {}
         self.color = COLORS[0]
@@ -121,8 +125,10 @@ class EditorWindow(Adw.ApplicationWindow):
         toolbar_view.add_top_bar(header)
 
         undo = Gtk.Button(icon_name='edit-undo-symbolic', tooltip_text='Undo (Ctrl+Z)')
+        undo.add_css_class('snapmark-quiet')
         undo.connect('clicked', lambda *_: self.undo())
         redo = Gtk.Button(icon_name='edit-redo-symbolic', tooltip_text='Redo (Ctrl+Shift+Z)')
+        redo.add_css_class('snapmark-quiet')
         redo.connect('clicked', lambda *_: self.redo())
         header.pack_start(undo)
         header.pack_start(redo)
@@ -152,7 +158,7 @@ class EditorWindow(Adw.ApplicationWindow):
         previous = None
         for code, label in TOOLS:
             button = Gtk.ToggleButton(tooltip_text=label)
-            button.add_css_class('flat')
+            button.add_css_class('snapmark-tool')
             button.set_size_request(73, 64)
             inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
             inner.set_valign(Gtk.Align.CENTER)
@@ -267,7 +273,20 @@ class EditorWindow(Adw.ApplicationWindow):
             .canvas-background { background: alpha(@window_fg_color, 0.055); }
             .properties { border-left: 1px solid alpha(@window_fg_color, 0.08); }
             .statusbar { min-height: 39px; border-top: 1px solid alpha(@window_fg_color, 0.09); }
-            .palette button { padding: 1px; min-width: 29px; min-height: 29px; }
+            button.snapmark-tool, button.snapmark-quiet {
+                background: transparent; background-image: none;
+                border: 0; border-image: none; box-shadow: none;
+                outline: 0; }
+            button.snapmark-tool:checked { background: alpha(@accent_bg_color, 0.16); }
+            button.snapmark-tool:hover, button.snapmark-quiet:hover {
+                background: alpha(@window_fg_color, 0.065); }
+            button.snapmark-tool:focus-visible, button.snapmark-quiet:focus-visible {
+                outline: 1px solid @accent_color; outline-offset: -2px; }
+            .snapmark-window windowcontrols button { border: 0; box-shadow: none; }
+            .palette button { padding: 1px; min-width: 29px; min-height: 29px;
+                border: 0; box-shadow: none; }
+            button.snapmark-custom-color { padding: 1px; min-width: 29px;
+                min-height: 29px; background: transparent; border: 0; box-shadow: none; }
         ''')
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
                                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -275,6 +294,7 @@ class EditorWindow(Adw.ApplicationWindow):
     @staticmethod
     def _text_icon_button(label, icon):
         button = Gtk.Button()
+        button.add_css_class('snapmark-quiet')
         content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
         content.append(Gtk.Image.new_from_icon_name(icon))
         content.append(Gtk.Label(label=label))
@@ -285,6 +305,7 @@ class EditorWindow(Adw.ApplicationWindow):
         menu = Gio.Menu()
         menu.append('Preferences', 'win.preferences')
         button = Gtk.MenuButton(icon_name='view-more-symbolic', tooltip_text='Preferences')
+        button.add_css_class('flat')
         button.set_menu_model(menu)
         return button
 
@@ -337,12 +358,7 @@ class EditorWindow(Adw.ApplicationWindow):
                 b.set_active(True)
             previous = b
 
-        self.custom_stroke = Gtk.ColorDialogButton.new(Gtk.ColorDialog())
-        self.custom_stroke.set_tooltip_text('Choose a custom stroke color')
-        rgba = Gdk.RGBA()
-        rgba.parse(self.color)
-        self.custom_stroke.set_rgba(rgba)
-        self.custom_stroke.connect('notify::rgba', self._custom_stroke_changed)
+        self.custom_stroke = self._custom_color_button(fill=False)
         palette.append(self.custom_stroke)
         self._add_recent_colors(panel, fill=False)
 
@@ -389,12 +405,7 @@ class EditorWindow(Adw.ApplicationWindow):
             if previous is None:
                 b.set_active(True)
             previous = b
-        self.custom_fill = Gtk.ColorDialogButton.new(Gtk.ColorDialog())
-        self.custom_fill.set_tooltip_text('Choose a custom shape fill color')
-        rgba = Gdk.RGBA()
-        rgba.parse(self.fill_color)
-        self.custom_fill.set_rgba(rgba)
-        self.custom_fill.connect('notify::rgba', self._custom_fill_changed)
+        self.custom_fill = self._custom_color_button(fill=True)
         fill_palette.append(self.custom_fill)
 
         self.opacity_label = Gtk.Label(label='Opacity · 25%', xalign=0)
@@ -553,20 +564,53 @@ class EditorWindow(Adw.ApplicationWindow):
         return '#%02x%02x%02x' % tuple(round(max(0., min(1., v)) * 255)
                                         for v in (rgba.red, rgba.green, rgba.blue))
 
-    def _custom_stroke_changed(self, button, _pspec):
-        if self._custom_color_sync:
-            return
-        self.color = self._rgba_hex(button.get_rgba())
-        self.settings.remember_color(self.color)
-        self._change_selected(color=self.color)
-        self._refresh_recent()
+    @staticmethod
+    def _custom_color_icon(_area, cr, _width, _height):
+        # Four-colour tile instead of the currently selected red swatch.
+        for x, y, rgb in ((1, 1, (.89, .17, .13)), (11, 1, (.98, .70, .15)),
+                          (1, 11, (.15, .65, .38)), (11, 11, (.21, .52, .91))):
+            cr.set_source_rgb(*rgb)
+            cr.rectangle(x, y, 9, 9)
+            cr.fill()
 
-    def _custom_fill_changed(self, button, _pspec):
-        if self._custom_color_sync:
+    def _custom_color_button(self, fill):
+        button = Gtk.Button(tooltip_text='More fill colors…' if fill else 'More stroke colors…')
+        button.add_css_class('snapmark-custom-color')
+        button.add_css_class('flat')
+        tile = Gtk.DrawingArea()
+        tile.set_content_width(22)
+        tile.set_content_height(22)
+        tile.set_draw_func(self._custom_color_icon)
+        button.set_child(tile)
+        button.connect('clicked', lambda *_: self._choose_color(fill))
+        return button
+
+    def _choose_color(self, fill):
+        dialog = Gtk.ColorDialog(title='Choose a fill color' if fill else 'Choose a stroke color',
+                                 with_alpha=False)
+        initial = Gdk.RGBA()
+        initial.parse(self.fill_color if fill else self.color)
+        dialog.choose_rgba(self, initial, None,
+                           lambda dlg, result: self._color_chosen(dlg, result, fill))
+
+    def _color_chosen(self, dialog, result, fill):
+        try:
+            rgba = dialog.choose_rgba_finish(result)
+        except GLib.Error as exc:
+            # Closing/cancelling the native chooser is not an editing error.
+            if 'cancel' not in str(exc).lower() and 'dismiss' not in str(exc).lower():
+                self._notice(f'Color selection failed: {exc}')
             return
-        self.fill_color = self._rgba_hex(button.get_rgba())
-        self.settings.remember_color(self.fill_color)
-        self._change_selected(fill_color=self.fill_color)
+        if rgba is None:
+            return
+        color = self._rgba_hex(rgba)
+        if fill:
+            self.fill_color = color
+            self._change_selected(fill_color=color)
+        else:
+            self.color = color
+            self._change_selected(color=color)
+        self.settings.remember_color(color)
         self._refresh_recent()
 
     def _add_recent_colors(self, panel, fill=False):
@@ -603,13 +647,9 @@ class EditorWindow(Adw.ApplicationWindow):
         self._sync_custom_picker(self.custom_stroke, color)
 
     def _sync_custom_picker(self, picker, color):
-        rgba = Gdk.RGBA()
-        if rgba.parse(color):
-            self._custom_color_sync = True
-            try:
-                picker.set_rgba(rgba)
-            finally:
-                self._custom_color_sync = False
+        # The custom picker now has a fixed multicolour tile; keep it neutral.
+        if picker is not None:
+            picker.set_tooltip_text(f'More colors… (current: {color})')
 
     def _set_actions(self):
         callbacks = {
@@ -742,6 +782,21 @@ class EditorWindow(Adw.ApplicationWindow):
             return
         cr.save()
         cr.scale(self.zoom, self.zoom)
+        # A checkerboard is a canvas aid, never part of the exported PNG.
+        cr.save()
+        cr.rectangle(0, 0, self.pixbuf.get_width(), self.pixbuf.get_height())
+        cr.clip()
+        x0, y0, x1, y1 = cr.clip_extents()
+        tile = 16
+        for gy in range(max(0, int(y0) // tile), min(math.ceil(y1 / tile), math.ceil(self.pixbuf.get_height() / tile))):
+            for gx in range(max(0, int(x0) // tile), min(math.ceil(x1 / tile), math.ceil(self.pixbuf.get_width() / tile))):
+                if (gx + gy) % 2:
+                    cr.set_source_rgb(.84, .84, .84)
+                else:
+                    cr.set_source_rgb(.97, .97, .97)
+                cr.rectangle(gx * tile, gy * tile, tile, tile)
+                cr.fill()
+        cr.restore()
         marks = self.history.marks
         if self.edit_preview is not None and self.selected_index is not None:
             marks = marks.copy()
@@ -822,8 +877,9 @@ class EditorWindow(Adw.ApplicationWindow):
             self.start_point = None
             return
         if self.tool == 'eraser':
-            self.history.begin_erase()
-            self.history.erase_at(*self.start_point, radius=max(9, self.stroke * 2))
+            sx, sy = self.start_point
+            self.preview = Mark('eraser', sx, sy, sx, sy, self.color,
+                                self.stroke, points=[(sx, sy)], opacity=1.0)
             self.canvas.queue_draw()
             return
         sx, sy = self.start_point
@@ -853,7 +909,10 @@ class EditorWindow(Adw.ApplicationWindow):
             self.canvas.queue_draw()
             return
         if self.tool == 'eraser':
-            if self.history.erase_at(x, y, radius=max(9, self.stroke * 2)):
+            if self.preview is not None:
+                self.preview.x2, self.preview.y2 = x, y
+                if self.preview.points[-1] != (x, y):
+                    self.preview.points.append((x, y))
                 self.canvas.queue_draw()
             return
         if not self.preview:
@@ -874,7 +933,9 @@ class EditorWindow(Adw.ApplicationWindow):
             self._refresh_layers()
             self.canvas.queue_draw()
         elif self.tool == 'eraser':
-            self.history.end_erase()
+            if self.preview is not None:
+                self.history.push(self.preview)
+            self.preview = None
             self.selected_index = None
             self._refresh_layers()
             self.canvas.queue_draw()
@@ -1008,7 +1069,8 @@ class EditorWindow(Adw.ApplicationWindow):
         # PreferencesPage is used for the content, with StackSidebar on the
         # LEFT instead of libadwaita's normal top-of-window page switcher.
         window = Adw.Window(title='SnapMark Preferences', default_width=660,
-                            default_height=430, transient_for=self, modal=True)
+                            default_height=430, transient_for=self, modal=False)
+        window.add_css_class('snapmark-window')
         self._preferences_window = window
         window.connect('close-request', lambda *_: self._forget_preferences())
         toolbar = Adw.ToolbarView()
@@ -1051,12 +1113,12 @@ class EditorWindow(Adw.ApplicationWindow):
         folder = Adw.ActionRow(title='Screenshot folder',
                                subtitle=Settings().screenshot_directory() or 'Automatic (GNOME Screenshots)')
         button = Gtk.Button(label='Choose…')
-        button.add_css_class('flat')
+        button.add_css_class('snapmark-quiet')
         button.set_valign(Gtk.Align.CENTER)
         folder.add_suffix(button)
         reset = Gtk.Button(icon_name='edit-undo-symbolic',
                            tooltip_text='Use automatic screenshot folder')
-        reset.add_css_class('flat')
+        reset.add_css_class('snapmark-quiet')
         reset.set_valign(Gtk.Align.CENTER)
         reset.set_sensitive(bool(self.settings.screenshot_directory()))
         folder.add_suffix(reset)
