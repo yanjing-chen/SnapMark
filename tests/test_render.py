@@ -34,6 +34,7 @@ class PaintTests(unittest.TestCase):
             Mark('pen', 0, 0, 22, 22, points=[(0, 0), (10, 20), (22, 22)]),
             Mark('highlighter', 0, 0, 35, 35, points=[(0, 0), (12, 30), (35, 35)]),
             Mark('mosaic', 40, 40, 85, 80),
+            Mark('blur', 55, 40, 95, 83),
             Mark('text', 5, 5, 5, 5, text='SnapMark', font='Sans 11'),
         ]
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 128, 96)

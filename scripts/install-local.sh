@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # MACHINE: Ryzen 7 6800H · Ubuntu GNOME Wayland
-# Installs only to this user's ~/.local directory. Never modifies Flameshot.
+# Installs only to this user's ~/.local directory.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${HOME}/.local"
-mkdir -p "$PREFIX/share/snapmark" "$PREFIX/bin" "$PREFIX/share/applications" "$PREFIX/share/icons/hicolor/256x256/apps"
+mkdir -p "$PREFIX/share/snapmark" "$PREFIX/bin" "$PREFIX/share/applications" "$PREFIX/share/icons/hicolor/256x256/apps" "$PREFIX/share/icons/hicolor/32x32/apps"
 cp -R "$ROOT/snapmark" "$PREFIX/share/snapmark/"
 cp "$ROOT/assets/io.github.yanjingchen.SnapMark.desktop" "$PREFIX/share/applications/"
-cp "$ROOT/assets/io.github.yanjingchen.SnapMark.png" "$PREFIX/share/icons/hicolor/256x256/apps/"
+cp "$ROOT/assets/io.github.yanjingchen.SnapMark-256.png" "$PREFIX/share/icons/hicolor/256x256/apps/io.github.yanjingchen.SnapMark.png"
+cp "$ROOT/assets/io.github.yanjingchen.SnapMark-32.png" "$PREFIX/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png"
 cat > "$PREFIX/bin/snapmark" <<'LAUNCH'
 #!/usr/bin/env bash
 set -euo pipefail

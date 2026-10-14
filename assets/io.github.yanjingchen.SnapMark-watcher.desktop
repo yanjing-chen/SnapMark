@@ -2,7 +2,7 @@
 Type=Application
 Name=SnapMark Screenshot Watcher
 Comment=Open SnapMark automatically after GNOME screenshots
-Exec=snapmark --watch
+Exec=snapmark --login-start
 Icon=io.github.yanjingchen.SnapMark
 Terminal=false
 NoDisplay=true

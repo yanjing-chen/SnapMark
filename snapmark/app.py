@@ -14,6 +14,8 @@ gi.require_foreign('cairo')
 from gi.repository import Adw, Gio, GLib
 from .editor import EditorWindow
 from .watch import ScreenshotWatcher
+from .preferences import Settings
+from .tray import TrayIndicator
 
 APP_ID = 'io.github.yanjingchen.SnapMark'
 
@@ -23,27 +25,61 @@ class SnapMarkApplication(Adw.Application):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.watcher = None
         self.windows = []
+        self.tray = TrayIndicator(self.show_or_present_editor, self.show_preferences, self.quit)
+        self.tray_started = False
         self.add_main_option('watch', 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
                              'Watch GNOME screenshots in the background', None)
+        self.add_main_option('login-start', 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
+                             'Start from the GNOME login session', None)
         self.add_main_option('open', 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
                              'Open an existing screenshot', 'FILE')
         self.add_main_option('smoke-test', 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
                              'Test the installed GUI and exit', None)
 
     def do_activate(self):
+        self._start_tray()
+        self.start_watching()
+        if Settings().start_minimized() and self.tray.available:
+            print('SnapMark: started minimized with a status indicator', flush=True)
+            return
+        if Settings().start_minimized() and not self.tray.available:
+            print('SnapMark: no status icon host; showing editor so it remains accessible', flush=True)
         self.show_editor()
+
+    def _start_tray(self):
+        if not self.tray_started:
+            self.tray_started = True
+            self.tray.start()
+
+    def show_preferences(self):
+        if not self.windows:
+            self.show_editor()
+        self.windows[-1].show_preferences()
+        return False
+
 
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
         if options.contains('watch'):
+            self._start_tray()
             self.start_watching()
+            return 0
+        if options.contains('login-start'):
+            self.activate()
             return 0
         if options.contains('open'):
             value = options.lookup_value('open', GLib.VariantType.new('s'))
             if value:
+                self._start_tray()
+                self.start_watching()
                 self.show_editor(Path(value.get_string()))
                 return 0
-        self.activate()
+        if options.contains('smoke-test'):
+            # GUI smoke tests must build a window even when minimized is enabled.
+            self._start_tray()
+            self.show_editor()
+        else:
+            self.activate()
         if options.contains('smoke-test'):
             GLib.timeout_add(200, self._smoke_editor)
             GLib.timeout_add(1700, self._end_smoke)
@@ -56,6 +92,13 @@ class SnapMarkApplication(Adw.Application):
             from .model import Mark
             window = self.windows[-1]
             assert window.paned is not None and window.layers is not None
+            # Status notifier protocol and packaged icon must serialize with
+            # real GLib variants, even when the runner has no tray host.
+            for prop, signature in (('IconPixmap', 'a(iiay)'), ('ToolTip', '(sa(iiay)ss)'),
+                                    ('Menu', 'o')):
+                variant = self.tray._item_prop(None, None, None, None, prop)
+                assert variant.get_type_string() == signature
+            assert self.tray.pixmaps, 'AppImage status icon missing'
             window.history.push(Mark('rectangle', 5, 5, 50, 40))
             window._refresh_layers()
             assert window.layers.get_row_at_index(0) is not None
@@ -75,6 +118,13 @@ class SnapMarkApplication(Adw.Application):
         self.quit()
         return False
 
+    def show_or_present_editor(self):
+        if self.windows:
+            self.windows[-1].present()
+        else:
+            self.show_editor()
+        return False
+
     def show_editor(self, path=None):
         window = EditorWindow(self, filename=path)
         self.windows.append(window)
@@ -84,6 +134,10 @@ class SnapMarkApplication(Adw.Application):
         if window in self.windows:
             self.windows.remove(window)
         return False
+
+    def do_shutdown(self):
+        self.tray.stop()
+        super().do_shutdown()
 
     def stop_watching(self):
         if self.watcher is None:

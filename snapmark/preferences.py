@@ -8,45 +8,83 @@ from pathlib import Path
 APP_ID = 'io.github.yanjingchen.SnapMark'
 
 
+def valid_color(value):
+    return isinstance(value, str) and len(value) == 7 and value.startswith('#') and all(c in '0123456789abcdefABCDEF' for c in value[1:])
+
+
+
 def configuration_dir() -> Path:
     return Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config') / 'snapmark'
 
 
 class Settings:
+    DEFAULTS = {'screenshot_directory': '', 'start_minimized': False,
+                'recent_colors': []}
+
     def __init__(self, root=None):
         self.root = Path(root) if root else configuration_dir()
         self.file = self.root / 'preferences.json'
 
     def load(self) -> dict:
+        data = {}
         try:
-            data = json.loads(self.file.read_text(encoding='utf-8'))
-            if isinstance(data, dict):
-                directory = data.get('screenshot_directory', '')
-                return {'screenshot_directory': directory if isinstance(directory, str) else ''}
+            source = json.loads(self.file.read_text(encoding='utf-8'))
+            if isinstance(source, dict):
+                data = source
         except (FileNotFoundError, OSError, ValueError):
             pass
-        return {'screenshot_directory': ''}
+        result = self.DEFAULTS.copy()
+        result['screenshot_directory'] = data.get('screenshot_directory', '') if isinstance(data.get('screenshot_directory', ''), str) else ''
+        result['start_minimized'] = data.get('start_minimized', False) is True
+        recent = data.get('recent_colors', [])
+        result['recent_colors'] = [c.lower() for c in recent if valid_color(c)][:6] if isinstance(recent, list) else []
+        return result
 
-    def screenshot_directory(self) -> str:
-        return self.load()['screenshot_directory']
-
-    def set_screenshot_directory(self, value: str):
+    def _save(self, data):
         self.root.mkdir(parents=True, exist_ok=True)
-        if value:
-            target = Path(value).expanduser().resolve(strict=False)
-            if not target.is_dir():
-                raise ValueError('Screenshot folder must exist')
-            value = str(target)
         import tempfile
         fd, name = tempfile.mkstemp(prefix='.snapmark-', dir=self.root)
         try:
             with os.fdopen(fd, 'w', encoding='utf-8') as output:
-                json.dump({'screenshot_directory': value}, output, ensure_ascii=False, indent=2)
+                json.dump(data, output, ensure_ascii=False, indent=2)
                 output.write('\n')
             os.replace(name, self.file)
         finally:
             if os.path.exists(name):
                 os.unlink(name)
+
+    def screenshot_directory(self) -> str:
+        return self.load()['screenshot_directory']
+
+    def set_screenshot_directory(self, value: str):
+        if value:
+            target = Path(value).expanduser().resolve(strict=False)
+            if not target.is_dir():
+                raise ValueError('Screenshot folder must exist')
+            value = str(target)
+        data = self.load()
+        data['screenshot_directory'] = value
+        self._save(data)
+
+    def start_minimized(self) -> bool:
+        return self.load()['start_minimized']
+
+    def set_start_minimized(self, enabled: bool):
+        data = self.load()
+        data['start_minimized'] = bool(enabled)
+        self._save(data)
+
+    def recent_colors(self) -> list[str]:
+        return self.load()['recent_colors']
+
+    def remember_color(self, color: str):
+        if not valid_color(color):
+            raise ValueError('Expected a 6-digit hex color')
+        color = color.lower()
+        data = self.load()
+        data['recent_colors'] = [color] + [c for c in data['recent_colors'] if c != color]
+        data['recent_colors'] = data['recent_colors'][:6]
+        self._save(data)
 
 
 class Autostart:
@@ -94,7 +132,7 @@ class Autostart:
         contents = ('[Desktop Entry]\nType=Application\n'
                     'Name=SnapMark Screenshot Watcher\n'
                     'Comment=Open GNOME screenshots automatically in SnapMark\n'
-                    f'Exec={quoted} --watch\n'
+                    f'Exec={quoted} --login-start\n'
                     'Terminal=false\nX-GNOME-Autostart-enabled=true\n')
         self.file.parent.mkdir(parents=True, exist_ok=True)
         self.file.write_text(contents, encoding='utf-8')

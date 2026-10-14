@@ -129,8 +129,13 @@ def main() -> None:
                      location / f'{desktop_name}.desktop')
     for location in (APP, APP / 'usr/share/icons/hicolor/256x256/apps'):
         location.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(ROOT / 'assets' / f'{desktop_name}.png',
+        shutil.copy2(ROOT / 'assets' / f'{desktop_name}-256.png',
                      location / f'{desktop_name}.png')
+    for size in (32, 64, 128):
+        icons = APP / f'usr/share/icons/hicolor/{size}x{size}/apps'
+        icons.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / 'assets' / f'{desktop_name}-{size}.png',
+                     icons / f'{desktop_name}.png')
     (APP / '.DirIcon').symlink_to(f'{desktop_name}.png')
     shutil.copy2(ROOT / 'scripts/AppRun', APP / 'AppRun')
     (APP / 'AppRun').chmod(0o755)

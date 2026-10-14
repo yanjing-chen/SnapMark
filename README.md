@@ -1,127 +1,113 @@
 # SnapMark
 
-A minimal GNOME-native screenshot annotation editor, made with **Python 3 + GTK4 + libadwaita**. No Qt dependency.
+SnapMark is a lightweight screenshot annotation editor for the GNOME desktop.
+Built in **Python 3**, **GTK4 / PyGObject**, and **libadwaita**.
 
-SnapMark is a *new* project, independent of Flameshot OCR. It preserves the native GNOME `Print Screen` UI. When GNOME creates a screenshot file, a lightweight background watcher detects it and opens a SnapMark editor window for annotation.
+**Version:** v0.4.0 development candidate. Ubuntu GNOME 50 Wayland graphical
+acceptance and the first v0.4.0 GitHub Actions AppImage build are not yet verified.
 
-**Version:** v0.3.0, initial implementation / testing candidate. This is not a verified GNOME 50 production release.
+## Workflow
 
-## First-stage features
+Press GNOME's normal **Print Screen**, select an area, and save the screenshot.
+SnapMark monitors the screenshot directory and automatically opens the saved
+image for markup. No system shortcut replacement is necessary. A file-only
+monitor cannot detect a screenshot copied exclusively to the clipboard.
 
-- GNOME native Print Screen handling is retained; SnapMark never takes over the key.
-- Automatic editor opening on newly created screenshots in the GNOME Screenshots folder.
-- Rectangle, ellipse, arrow, line, freehand pen and text annotation.
-- Color palette, stroke width, fill opacity, undo/redo.
-- Open existing images, fit/zoom/scroll, original-resolution PNG export, PNG clipboard copy.
-- Native GNOME styling through libadwaita, inheriting appearance/accent from the system.
-- AppImage **only** in GitHub Actions. No DEB package.
+Alternatively, open a local image directly (Ctrl+O).
 
-## How the capture bridge works
+## Editor
 
-GNOME's Print Screen interface saves screenshots in a localized folder; for example `~/图片/截图` on Chinese GNOME, or `~/Pictures/Screenshots` on English GNOME. SnapMark watches that folder with `Gio.FileMonitor`. It waits for the new file to stop changing, and then opens the editor. No system hotkeys, GNOME settings or screenshot application internals are modified.
+- **Select** an annotation layer to move, resize, recolor, change text, or delete.
+- **Arrow, rectangle, ellipse, line, triangle, pen** and **text**.
+- **Highlight** translucent brush, **Mosaic**, **Blur** and annotation eraser.
+- Custom stroke/fill colors via GTK color chooser; recent custom choices are stored.
+- Undo/redo, editable layer list, adjustable properties panel, original-pixel PNG export.
+- Copy screenshot as PNG (Ctrl+C), save PNG (Ctrl+S), fit/zoom and scrolling.
 
-**Limitations:** If a screenshot is copied only to the clipboard without creating a file, directory monitoring will not see it. Some GNOME configurations save screenshots somewhere else: the detection path must then be adjusted or a later integration must be added. GNOME Wayland can prevent background applications from automatically receiving focus, even if a new editor window is presented. Both behaviors need actual GNOME 50 acceptance testing.
+Blur is a rectangular non-destructive region filter (two-pass box blur). Its width
+control sets the blur radius. It works with selection/layer history and preserves
+original source pixels. Rendering a very large blur rectangle may be slower.
 
+## General preferences
 
-For a manually configured screenshot directory outside the standard Pictures tree, set `SNAPMARK_SCREENSHOT_DIR=/absolute/path` in the environment **before** starting the watcher. Without an override SnapMark monitors existing recognized screenshot folders and the Pictures root; it only auto-opens newly created images with screenshot-like filenames. Close any previously running `--watch` instance before testing an updated AppImage.
+Open **Preferences** from the window menu (Ctrl+,):
 
-## Local development — Ryzen 7 6800H / Ubuntu GNOME Wayland
+- **Start automatically on login** — adds a user-level `.desktop` launcher.
+- **Start minimized** — starts with no editor window *only when a status notifier
+  host is available*. Otherwise it opens a window so the user can recover it.
+- **Screenshot Folder** — choose a folder, or use the small revert icon in
+  the same row to return to automatic GNOME screenshot-folder detection.
 
-Install system runtime dependencies (no pip/virtualenv necessary):
+Preferences are stored in `$XDG_CONFIG_HOME/snapmark/preferences.json`
+(or `~/.config/snapmark/preferences.json`).
+
+## Status indicator
+
+SnapMark implements the StatusNotifierItem interface, including a small icon
+and basic menu actions: Open, Preferences, Quit. GNOME Shell does not always
+show status indicators by itself: a compatible host such as the Ubuntu
+AppIndicator/KStatusNotifierItem Shell extension must be enabled. Without a
+host, the editor remains usable and the minimized preference never hides the
+last recovery window. The indicator is not required for screenshot monitoring.
+
+Use Ctrl+Q to quit the application, including its background watcher.
+
+## Run locally (Ryzen 7 6800H, Ubuntu GNOME Wayland)
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-gi python3-cairo python3-gi-cairo \
   gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 gir1.2-pango-1.0
-```
-
-Run directly from the extracted project folder:
-
-```bash
 bash scripts/run-local.sh
 ```
 
-Open an image:
+The app can stay running in the background. For an existing screenshot directory
+watcher without an editor window use `bash scripts/run-local.sh --watch`.
 
-```bash
-bash scripts/run-local.sh --open="$HOME/Pictures/example.png"
-```
-
-Launch the screenshot watcher (keeps running and opens an editor after saved screenshots):
-
-```bash
-bash scripts/run-local.sh --watch
-```
-
-For per-user installation and login autostart:
+To install locally for the current user (optional):
 
 ```bash
 bash scripts/install-local.sh
 bash scripts/enable-autostart.sh
 ```
 
-The autostart script installs a single desktop entry into `~/.config/autostart`, and starts monitoring this session. It does not modify GNOME's Print Screen shortcut. Disable future autostart with `bash scripts/disable-autostart.sh`.
+## AppImage-only releases
 
-## Keyboard shortcuts
+GitHub Actions on Ubuntu 24.04 builds **only**
+`SnapMark-0.4.0-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
+GI typelibs and image loaders. It does not build DEB packages.
+
+```bash
+python3 -m compileall -q snapmark
+python3 -m unittest discover -s tests -v
+```
+
+The workflow also performs an Xvfb GUI smoke test. This is not a substitute
+for a real GNOME Wayland test. The AppImage needs a usable desktop session.
+
+## Shortcuts
 
 | Shortcut | Action |
 |---|---|
 | Ctrl+O | Open image |
-| Ctrl+S | Save annotated PNG |
 | Ctrl+C | Copy annotated PNG |
+| Ctrl+S | Save annotated PNG |
 | Ctrl+Z | Undo |
 | Ctrl+Shift+Z / Ctrl+Y | Redo |
-| Ctrl+0 | 100% zoom |
+| Ctrl+0 | Actual size |
+| Ctrl+, | Preferences |
+| Ctrl+Q | Quit app and watcher |
+| Delete / Backspace | Delete selected annotation |
 
-Text tool: click the picture, enter the text and press Enter.
+## Code structure
 
-## Automated verification
+- `snapmark/app.py` — one-instance application and watcher lifecycle.
+- `snapmark/tray.py` — D-Bus status indicator, no GTK3 required.
+- `snapmark/editor.py` — GTK4 UI, tools, layers, file dialogs.
+- `snapmark/model.py` — geometry and undo/redo snapshots.
+- `snapmark/paint.py` and `snapmark/filters.py` — Cairo rendering and blur.
+- `snapmark/watch.py`, `snapmark/screenshot_paths.py` — GNOME screenshot detection.
+- `snapmark/preferences.py` — settings and autostart launcher.
+- `.github/workflows/appimage.yml` — test and AppImage CI.
 
-Run static compilation and model tests locally:
-
-```bash
-/usr/bin/python3 -m compileall -q snapmark
-/usr/bin/python3 -m unittest discover -s tests -v
-```
-
-CI runs these tests, launches the GTK application in Xvfb, assembles a GTK4/libadwaita AppDir, packages it using appimagetool, and checks that the produced AppImage starts in Xvfb. **Xvfb testing is not a substitute for real GNOME Wayland testing.** AppImage GTK4 bundling is experimental until verified in Actions and on the Ryzen 7 6800H machine.
-
-### AppImage build
-
-Ubuntu 24.04 is the baseline runner. The artifact and release asset consist **only of** `SnapMark-0.3.0-x86_64.AppImage`. Build from source with `bash scripts/build-appimage.sh` after installing the CI dependencies. On machines using another Python runtime, use the GitHub Actions build for the most reproducible result.
-
-## Create the new GitHub repository
-
-On the **Ryzen 7 6800H machine**, install and log into the GitHub CLI first (`gh auth login`), then from the *extracted SnapMark directory* run:
-
-```bash
-bash scripts/create-github-repo.sh
-```
-
-The script verifies the `yanjing-chen` account, refuses to overwrite an existing `yanjing-chen/SnapMark` repository, requests confirmation before creating a **public** repository, creates a local initial commit, and pushes `main`. It does not rewrite any existing Git history. The push triggers Actions automatically.
-
-## Architecture
-
-- `snapmark/app.py`: application lifecycle and command line, GTK single-instance process.
-- `snapmark/editor.py`: native libadwaita editor UI, canvas gestures and image export.
-- `snapmark/paint.py`: Cairo drawing and Pango text rendering.
-- `snapmark/model.py`: independent annotations, undo/redo, zoom calculations.
-- `snapmark/watch.py`: GNOME screenshot file monitoring.
-- `scripts/assemble-appdir.py`: bundle Python, GI modules, GTK libraries and typelibs.
-
-## Scope
-
-Initial version concentrates on screenshot annotation and export. More tools, further preferences and separate OCR development can be evaluated later.
-
-License: MIT.
-
-## v0.3.0 — Editable annotation layers
-
-- Lower-right Layers shows current marks; click a row or use the Select tool on canvas.
-- A dashed selection box with four handles supports dragging and corner resizing.
-- Change selected color/width/fill/opacity/font in the right panel.
-- Delete/Backspace removes a selected layer; all mutations are undoable.
-- Text can be edited by double-clicking its selected annotation.
-- Preferences has left-side General navigation with login autostart and screenshot folder.
-- Direct rendering tests now register the Cairo GI foreign type in paint.py.
-- Original screenshot remains unchanged; selection outlines are not exported.
+Copyright © SnapMark contributors. License: MIT.

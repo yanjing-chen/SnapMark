@@ -6,6 +6,7 @@ from gi.repository import Gio, GLib
 
 from .screenshot_paths import (is_screenshot_folder, is_screenshot_name,
                                monitored_directories, IMAGE_SUFFIXES)
+from .preferences import Settings
 
 
 def _pictures_directory() -> Path:
@@ -14,13 +15,14 @@ def _pictures_directory() -> Path:
 
 
 def screenshot_directories() -> list[Path]:
-    return monitored_directories(_pictures_directory())
+    return monitored_directories(_pictures_directory(),
+                                 custom_dir=Settings().screenshot_directory())
 
 
 class ScreenshotWatcher:
     """Watch existing screenshot folders and discover newly created ones."""
 
-    def __init__(self, callback, directories=None):
+    def __init__(self, callback, directories=None, custom_directory=None):
         self.callback = callback
         self.pictures = _pictures_directory().resolve(strict=False)
         self.directories = directories if directories is not None else screenshot_directories()
@@ -29,8 +31,18 @@ class ScreenshotWatcher:
         self.pending: dict[Path, tuple[int, int]] = {}
         self.seen: set[tuple[str, int, int]] = set()
         self.start_time = time.time()
-        custom = os.getenv('SNAPMARK_SCREENSHOT_DIR')
+        custom = (custom_directory if custom_directory is not None
+                  else Settings().screenshot_directory() or os.getenv('SNAPMARK_SCREENSHOT_DIR'))
         self.custom_dir = Path(custom).expanduser().resolve(strict=False) if custom else None
+        self._active = True
+
+    def stop(self):
+        self._active = False
+        for monitor in self.monitors:
+            monitor.cancel()
+        self.monitors.clear()
+        self.watched.clear()
+        self.pending.clear()
 
     def _add_directory(self, path: Path) -> bool:
         path = path.resolve(strict=False)
@@ -64,6 +76,8 @@ class ScreenshotWatcher:
         GLib.timeout_add(250, self._check_stable, path)
 
     def _on_changed(self, _monitor, file, other, event):
+        if not self._active:
+            return
         allowed = (Gio.FileMonitorEvent.CREATED,
                    Gio.FileMonitorEvent.CHANGES_DONE_HINT,
                    Gio.FileMonitorEvent.MOVED_IN,
@@ -90,6 +104,8 @@ class ScreenshotWatcher:
             self._queue(path)
 
     def _check_stable(self, path: Path) -> bool:
+        if not self._active:
+            return False
         previous, attempts = self.pending.get(path, (-1, 0))
         try:
             stat = path.stat()

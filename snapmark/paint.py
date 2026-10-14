@@ -9,7 +9,8 @@ gi.require_version('GdkPixbuf', '2.0')
 gi.require_version('Pango', '1.0')
 gi.require_version('PangoCairo', '1.0')
 gi.require_foreign('cairo')
-from gi.repository import Gdk, GdkPixbuf, Pango, PangoCairo
+from gi.repository import Gdk, GdkPixbuf, GLib, Pango, PangoCairo
+from .filters import box_blur_bytes
 
 
 def hex_rgba(color: str, alpha: float = 1.) -> tuple[float, float, float, float]:
@@ -52,9 +53,40 @@ def _mosaic(cr, m, pixbuf):
     cr.restore()
 
 
+def _blur(cr, mark, pixbuf):
+    if pixbuf is None:
+        return
+    iw, ih = pixbuf.get_width(), pixbuf.get_height()
+    x0 = max(0, min(iw, math.floor(min(mark.x1, mark.x2))))
+    y0 = max(0, min(ih, math.floor(min(mark.y1, mark.y2))))
+    x1 = max(0, min(iw, math.ceil(max(mark.x1, mark.x2))))
+    y1 = max(0, min(ih, math.ceil(max(mark.y1, mark.y2))))
+    w, h = x1 - x0, y1 - y0
+    if w < 2 or h < 2:
+        return
+    cropped = pixbuf.new_subpixbuf(x0, y0, w, h)
+    channels = cropped.get_n_channels()
+    raw = cropped.get_pixels()
+    stride = cropped.get_rowstride()
+    packed = b''.join(raw[y * stride:y * stride + w * channels] for y in range(h))
+    # Width slider doubles as blur radius. The operation is non-destructive.
+    blurred = box_blur_bytes(packed, w, h, channels, max(3, round(mark.width * 2)))
+    blurred_pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+        GLib.Bytes.new(blurred), GdkPixbuf.Colorspace.RGB,
+        cropped.get_has_alpha(), 8, w, h, w * channels)
+    cr.save()
+    Gdk.cairo_set_source_pixbuf(cr, blurred_pixbuf, x0, y0)
+    cr.rectangle(x0, y0, w, h)
+    cr.fill()
+    cr.restore()
+
+
 def paint_mark(cr, m, pixbuf=None):
     if m.tool == 'mosaic':
         _mosaic(cr, m, pixbuf)
+        return
+    if m.tool == 'blur':
+        _blur(cr, m, pixbuf)
         return
     if m.tool == 'eraser':
         return

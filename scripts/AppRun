@@ -2,6 +2,7 @@
 # Runtime entrypoint inside the AppImage.
 set -euo pipefail
 APPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export APPDIR="$APPDIR"
 export PYTHONHOME="$APPDIR/usr"
 export PYTHONPATH="$APPDIR/usr/lib/python3/dist-packages:$APPDIR/usr/share/snapmark"
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0"

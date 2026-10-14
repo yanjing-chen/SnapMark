@@ -79,7 +79,7 @@ def mark_touches(mark, x, y, radius=12.):
     left, top, right, bottom = mark_bounds(mark)
     if not (left - radius <= x <= right + radius and top - radius <= y <= bottom + radius):
         return False
-    if mark.tool in ('text', 'mosaic') or mark.fill:
+    if mark.tool in ('text', 'mosaic', 'blur') or mark.fill:
         return True
     if mark.tool == 'rectangle':
         return min(abs(x - left), abs(x - right), abs(y - top), abs(y - bottom)) <= radius + mark.width

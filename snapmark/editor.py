@@ -15,7 +15,7 @@ COLORS = ('#e82c20', '#f66b2d', '#ffbc27', '#26a269', '#3584e4', '#9141ac', '#24
 TOOLS = (
     ('select', 'Select'), ('arrow', 'Arrow'), ('rectangle', 'Rectangle'), ('ellipse', 'Ellipse'),
     ('line', 'Line'), ('triangle', 'Triangle'), ('pen', 'Pen'),
-    ('highlighter', 'Highlight'), ('mosaic', 'Mosaic'), ('eraser', 'Eraser'),
+    ('highlighter', 'Highlight'), ('mosaic', 'Mosaic'), ('blur', 'Blur'), ('eraser', 'Eraser'),
     ('text', 'Text'),
 )
 
@@ -26,7 +26,7 @@ def draw_tool_icon(_widget, cr, _width, _height, tool):
     cr.set_line_width(1.8)
     cr.set_line_cap(cairo.LINE_CAP_ROUND)
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
-    # Respect current theme rather than forcing symbolic icon colors.
+    # Neutral symbolic icons, including highlighter and blur.
     cr.set_source_rgb(.25, .25, .25)
     if tool == 'select':
         cr.move_to(5, 3); cr.line_to(6, 23); cr.line_to(12, 17)
@@ -50,15 +50,23 @@ def draw_tool_icon(_widget, cr, _width, _height, tool):
         cr.line_to(20, 4); cr.close_path(); cr.stroke()
         cr.move_to(9, 20); cr.line_to(20, 8); cr.stroke()
     elif tool == 'highlighter':
-        cr.set_source_rgba(.9, .65, .1, .5)
-        cr.set_line_width(9); cr.move_to(5, 22); cr.line_to(22, 5); cr.stroke()
-        cr.set_source_rgb(.25, .25, .25)
-        cr.set_line_width(1.6); cr.move_to(5, 22); cr.line_to(22, 5); cr.stroke()
+        # Chisel-tip marker silhouette, not a colored painted line.
+        cr.move_to(8, 25); cr.line_to(3, 20); cr.line_to(16, 5)
+        cr.line_to(23, 10); cr.line_to(10, 25); cr.close_path(); cr.stroke()
+        cr.move_to(16, 5); cr.line_to(20, 2); cr.line_to(26, 7)
+        cr.line_to(23, 10); cr.stroke()
+        cr.move_to(6, 21); cr.line_to(10, 24); cr.stroke()
     elif tool == 'mosaic':
         for y in range(3):
             for x in range(3):
                 cr.rectangle(5 + x*7, 5 + y*7, 5, 5)
         cr.fill()
+    elif tool == 'blur':
+        # Water drop icon for the blur operation.
+        cr.move_to(14, 3); cr.curve_to(12, 8, 6, 15, 6, 19)
+        cr.curve_to(6, 29, 22, 29, 22, 19)
+        cr.curve_to(22, 15, 16, 8, 14, 3)
+        cr.close_path(); cr.stroke()
     elif tool == 'eraser':
         cr.move_to(5, 18); cr.line_to(17, 5); cr.line_to(25, 13)
         cr.line_to(13, 25); cr.close_path(); cr.stroke()
@@ -87,6 +95,8 @@ class EditorWindow(Adw.ApplicationWindow):
         self._edit_bounds = None
         self._syncing_controls = False
         self.tool_buttons = {}
+        self.settings = Settings()
+        self._custom_color_sync = False
         self.color_buttons = {}
         self.fill_buttons = {}
         self.color = COLORS[0]
@@ -305,7 +315,10 @@ class EditorWindow(Adw.ApplicationWindow):
         palette = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         palette.add_css_class('palette')
         palette.set_halign(Gtk.Align.START)
-        panel.append(palette)
+        stroke_scroll = Gtk.ScrolledWindow()
+        stroke_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        stroke_scroll.set_child(palette)
+        panel.append(stroke_scroll)
         previous = None
         for shade in COLORS:
             b = Gtk.ToggleButton(tooltip_text=shade)
@@ -323,6 +336,15 @@ class EditorWindow(Adw.ApplicationWindow):
             if previous is None:
                 b.set_active(True)
             previous = b
+
+        self.custom_stroke = Gtk.ColorDialogButton.new(Gtk.ColorDialog())
+        self.custom_stroke.set_tooltip_text('Choose a custom stroke color')
+        rgba = Gdk.RGBA()
+        rgba.parse(self.color)
+        self.custom_stroke.set_rgba(rgba)
+        self.custom_stroke.connect('notify::rgba', self._custom_stroke_changed)
+        palette.append(self.custom_stroke)
+        self._add_recent_colors(panel, fill=False)
 
         self.width_label = Gtk.Label(label='Width · 4 px', xalign=0)
         panel.append(self.width_label)
@@ -346,7 +368,10 @@ class EditorWindow(Adw.ApplicationWindow):
         fill_palette = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         fill_palette.add_css_class('palette')
         fill_palette.set_halign(Gtk.Align.START)
-        panel.append(fill_palette)
+        fill_scroll = Gtk.ScrolledWindow()
+        fill_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
+        fill_scroll.set_child(fill_palette)
+        panel.append(fill_scroll)
         previous = None
         for shade in COLORS:
             b = Gtk.ToggleButton(tooltip_text=shade)
@@ -364,6 +389,14 @@ class EditorWindow(Adw.ApplicationWindow):
             if previous is None:
                 b.set_active(True)
             previous = b
+        self.custom_fill = Gtk.ColorDialogButton.new(Gtk.ColorDialog())
+        self.custom_fill.set_tooltip_text('Choose a custom shape fill color')
+        rgba = Gdk.RGBA()
+        rgba.parse(self.fill_color)
+        self.custom_fill.set_rgba(rgba)
+        self.custom_fill.connect('notify::rgba', self._custom_fill_changed)
+        fill_palette.append(self.custom_fill)
+
         self.opacity_label = Gtk.Label(label='Opacity · 25%', xalign=0)
         panel.append(self.opacity_label)
         self.opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 5)
@@ -466,6 +499,7 @@ class EditorWindow(Adw.ApplicationWindow):
         self._syncing_controls = True
         try:
             self.color = mark.color
+            self._sync_custom_picker(self.custom_stroke, mark.color)
             if mark.color in self.color_buttons:
                 self.color_buttons[mark.color].set_active(True)
             self.stroke = mark.width
@@ -473,6 +507,7 @@ class EditorWindow(Adw.ApplicationWindow):
             self.fill = mark.fill
             self.fill_switch.set_active(mark.fill)
             self.fill_color = mark.fill_color or mark.color
+            self._sync_custom_picker(self.custom_fill, self.fill_color)
             if self.fill_color in self.fill_buttons:
                 self.fill_buttons[self.fill_color].set_active(True)
             self.opacity = mark.opacity
@@ -513,6 +548,69 @@ class EditorWindow(Adw.ApplicationWindow):
         cr.arc(11, 11, 9, 0, math.tau)
         cr.fill()
 
+    @staticmethod
+    def _rgba_hex(rgba):
+        return '#%02x%02x%02x' % tuple(round(max(0., min(1., v)) * 255)
+                                        for v in (rgba.red, rgba.green, rgba.blue))
+
+    def _custom_stroke_changed(self, button, _pspec):
+        if self._custom_color_sync:
+            return
+        self.color = self._rgba_hex(button.get_rgba())
+        self.settings.remember_color(self.color)
+        self._change_selected(color=self.color)
+        self._refresh_recent()
+
+    def _custom_fill_changed(self, button, _pspec):
+        if self._custom_color_sync:
+            return
+        self.fill_color = self._rgba_hex(button.get_rgba())
+        self.settings.remember_color(self.fill_color)
+        self._change_selected(fill_color=self.fill_color)
+        self._refresh_recent()
+
+    def _add_recent_colors(self, panel, fill=False):
+        if not fill:
+            self.recent_panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
+            self.recent_panel.set_halign(Gtk.Align.START)
+            panel.append(self.recent_panel)
+            self._refresh_recent()
+
+    def _refresh_recent(self):
+        if not hasattr(self, 'recent_panel'):
+            return
+        while (child := self.recent_panel.get_first_child()) is not None:
+            self.recent_panel.remove(child)
+        recent = self.settings.recent_colors()
+        if recent:
+            label = Gtk.Label(label='Recent')
+            label.add_css_class('dim-label')
+            self.recent_panel.append(label)
+            for shade in recent[:5]:
+                button = Gtk.Button(tooltip_text=f'Reuse {shade}')
+                button.add_css_class('flat')
+                icon = Gtk.DrawingArea()
+                icon.set_content_width(20)
+                icon.set_content_height(20)
+                icon.set_draw_func(self._swatch_draw, shade)
+                button.set_child(icon)
+                button.connect('clicked', lambda _btn, value=shade: self._apply_recent(value))
+                self.recent_panel.append(button)
+
+    def _apply_recent(self, color):
+        self.color = color
+        self._change_selected(color=color)
+        self._sync_custom_picker(self.custom_stroke, color)
+
+    def _sync_custom_picker(self, picker, color):
+        rgba = Gdk.RGBA()
+        if rgba.parse(color):
+            self._custom_color_sync = True
+            try:
+                picker.set_rgba(rgba)
+            finally:
+                self._custom_color_sync = False
+
     def _set_actions(self):
         callbacks = {
             'open': self.open_dialog,
@@ -523,6 +621,7 @@ class EditorWindow(Adw.ApplicationWindow):
             'copy': self.copy_image,
             'save': self.save_dialog,
             'preferences': self.show_preferences,
+            'quit': self.get_application().quit,
         }
         for name, callback in callbacks.items():
             action = Gio.SimpleAction.new(name, None)
@@ -535,6 +634,7 @@ class EditorWindow(Adw.ApplicationWindow):
             'copy': ['<Control>c'], 'save': ['<Control>s'],
             'actual': ['<Control>0'],
             'preferences': ['<Control>comma'],
+            'quit': ['<Control>q'],
         }.items():
             app.set_accels_for_action(f'win.{name}', keys)
 
@@ -549,11 +649,13 @@ class EditorWindow(Adw.ApplicationWindow):
         if button.get_active():
             self.color = color
             self._change_selected(color=color)
+        self._sync_custom_picker(self.custom_stroke, color)
 
     def _fill_color_toggled(self, button, color):
         if button.get_active():
             self.fill_color = color
             self._change_selected(fill_color=color)
+        self._sync_custom_picker(self.custom_fill, color)
 
     def _width_changed(self, scale):
         self.stroke = float(scale.get_value())
@@ -929,16 +1031,26 @@ class EditorWindow(Adw.ApplicationWindow):
                                 subtitle='Watch GNOME screenshots in the background')
         startup.set_active(autostart.enabled())
         group.add(startup)
+        minimized = Adw.SwitchRow(title='Start minimized',
+                                  subtitle='Keep the editor hidden when a status icon is available')
+        minimized.set_active(self.settings.start_minimized())
+        minimized.connect('notify::active',
+                          lambda widget, _pspec: self.settings.set_start_minimized(widget.get_active()))
+        group.add(minimized)
 
         folder = Adw.ActionRow(title='Screenshot folder',
                                subtitle=Settings().screenshot_directory() or 'Automatic (GNOME Screenshots)')
         button = Gtk.Button(label='Choose…')
+        button.add_css_class('flat')
         button.set_valign(Gtk.Align.CENTER)
         folder.add_suffix(button)
+        reset = Gtk.Button(icon_name='edit-undo-symbolic',
+                           tooltip_text='Use automatic screenshot folder')
+        reset.add_css_class('flat')
+        reset.set_valign(Gtk.Align.CENTER)
+        reset.set_sensitive(bool(self.settings.screenshot_directory()))
+        folder.add_suffix(reset)
         group.add(folder)
-        reset = Gtk.Button(label='Use automatic folder')
-        reset.set_halign(Gtk.Align.START)
-        group.add(reset)
 
         def toggle_switch(switch, _pspec):
             try:
@@ -966,6 +1078,7 @@ class EditorWindow(Adw.ApplicationWindow):
                     return
                 Settings().set_screenshot_directory(selected.get_path())
                 folder.set_subtitle(selected.get_path())
+                reset.set_sensitive(True)
                 self.get_application().refresh_watching()
             except GLib.Error as exc:
                 if 'dismiss' not in exc.message.lower() and 'cancel' not in exc.message.lower():
@@ -977,6 +1090,7 @@ class EditorWindow(Adw.ApplicationWindow):
             try:
                 Settings().set_screenshot_directory('')
                 folder.set_subtitle('Automatic (GNOME Screenshots)')
+                reset.set_sensitive(False)
                 self.get_application().refresh_watching()
             except (OSError, ValueError) as exc:
                 self._notice(str(exc))

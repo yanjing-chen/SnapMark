@@ -13,6 +13,17 @@ class LayerTests(unittest.TestCase):
                           points=[(5, 5), (9, 16), (50, 50)]))
         return history
 
+    def test_blur_layer_is_editable(self):
+        from snapmark.model import Mark, History, translated, mark_touches
+        h = History()
+        self.assertTrue(h.push(Mark('blur', 5, 5, 42, 48)))
+        self.assertTrue(mark_touches(h.marks[0], 20, 20))
+        self.assertTrue(h.replace(0, translated(h.marks[0], 10, 20)))
+        self.assertTrue(h.undo())
+        self.assertEqual(h.marks[0].x1, 5)
+        self.assertTrue(h.redo())
+        self.assertEqual(h.marks[0].x1, 15)
+
     def test_layer_order_and_topmost_hit(self):
         history = History()
         history.push(Mark('rectangle', 0, 0, 50, 50, fill=True))

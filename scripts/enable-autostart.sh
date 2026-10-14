@@ -9,5 +9,5 @@ fi
 mkdir -p "$HOME/.config/autostart"
 cp "$ROOT/assets/io.github.yanjingchen.SnapMark-watcher.desktop" \
  "$HOME/.config/autostart/io.github.yanjingchen.SnapMark-watcher.desktop"
-"$HOME/.local/bin/snapmark" --watch &
+"$HOME/.local/bin/snapmark" --login-start &
 echo 'Screenshot monitoring is enabled for this GNOME session and future logins.'
