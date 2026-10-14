@@ -7,7 +7,7 @@ from pathlib import Path
 import cairo
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
-from .model import History, Mark, clamp, fit_zoom, mark_bounds, resized, translated
+from .model import History, Mark, clamp, fit_zoom, mark_bounds, resized, translated, update_highlighter_preview
 from .paint import hex_rgba, paint_document
 from .preferences import Autostart, Settings
 
@@ -105,6 +105,7 @@ class EditorWindow(Adw.ApplicationWindow):
         self.fill_buttons = {}
         self.color = COLORS[0]
         self.stroke = 4.
+        self.highlight_mode = 'freehand'
         self.opacity = .25
         self.fill = False
         self.fill_color = COLORS[0]
@@ -135,7 +136,10 @@ class EditorWindow(Adw.ApplicationWindow):
         copy = self._text_icon_button('Copy', 'edit-copy-symbolic')
         copy.connect('clicked', lambda *_: self.copy_image())
         save = self._text_icon_button('Save', 'document-save-symbolic')
+        # Quiet/transparent button CSS overrode the GNOME blue suggested-action.
+        save.remove_css_class('snapmark-quiet')
         save.add_css_class('suggested-action')
+        self.save_button = save
         save.connect('clicked', lambda *_: self.save_dialog())
         header.pack_end(self._menu_button())
         header.pack_end(save)
@@ -332,6 +336,24 @@ class EditorWindow(Adw.ApplicationWindow):
         title = Gtk.Label(label='Stroke', xalign=0)
         title.add_css_class('heading')
         panel.append(title)
+        # Highlight remains ONE toolbar tool; the two stroke styles live in
+        # the properties panel immediately BEFORE its color options.
+        self.highlight_mode_row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        self.highlight_mode_row.append(Gtk.Label(label='Highlight mode', xalign=0))
+        highlight_modes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        self.highlight_free_button = Gtk.ToggleButton(label='Freehand')
+        self.highlight_line_button = Gtk.ToggleButton(label='Straight line')
+        self.highlight_line_button.set_group(self.highlight_free_button)
+        self.highlight_free_button.set_hexpand(True)
+        self.highlight_line_button.set_hexpand(True)
+        self.highlight_free_button.set_active(True)
+        self.highlight_free_button.connect('toggled', self._highlight_mode_toggled, 'freehand')
+        self.highlight_line_button.connect('toggled', self._highlight_mode_toggled, 'line')
+        highlight_modes.append(self.highlight_free_button)
+        highlight_modes.append(self.highlight_line_button)
+        self.highlight_mode_row.append(highlight_modes)
+        self.highlight_mode_row.set_visible(self.tool == 'highlighter')
+        panel.append(self.highlight_mode_row)
         panel.append(Gtk.Label(label='Color', xalign=0))
         palette = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         palette.add_css_class('palette')
@@ -682,6 +704,8 @@ class EditorWindow(Adw.ApplicationWindow):
         if not button.get_active():
             return
         self.tool = code
+        if hasattr(self, 'highlight_mode_row'):
+            self.highlight_mode_row.set_visible(code == 'highlighter')
         # The first toggle fires while _build_ui() is still constructing
         # the properties pane. Do not access a widget before it exists.
         if not hasattr(self, 'font_options'):
@@ -690,6 +714,10 @@ class EditorWindow(Adw.ApplicationWindow):
         self.font_options.set_visible(
             code == 'text' or (code == 'select' and selected is not None
                                and selected.tool == 'text'))
+
+    def _highlight_mode_toggled(self, button, mode):
+        if button.get_active():
+            self.highlight_mode = mode
 
     def _color_toggled(self, button, color):
         if not button.get_active():
@@ -885,7 +913,9 @@ class EditorWindow(Adw.ApplicationWindow):
         sx, sy = self.start_point
         self.preview = Mark(self.tool, sx, sy, sx, sy, self.color, self.stroke,
                             self.fill, self.opacity, font=self.font,
-                            fill_color=self.fill_color)
+                            fill_color=self.fill_color,
+                            highlighter_mode=(self.highlight_mode if self.tool == 'highlighter'
+                                              else 'freehand'))
         if self.tool in ('pen', 'highlighter'):
             self.preview.points.append((sx, sy))
 
@@ -918,7 +948,9 @@ class EditorWindow(Adw.ApplicationWindow):
         if not self.preview:
             return
         self.preview.x2, self.preview.y2 = x, y
-        if self.tool in ('pen', 'highlighter'):
+        if self.tool == 'highlighter':
+            update_highlighter_preview(self.preview, x, y)
+        elif self.tool == 'pen':
             if not self.preview.points or self.preview.points[-1] != (x, y):
                 self.preview.points.append((x, y))
         self.canvas.queue_draw()

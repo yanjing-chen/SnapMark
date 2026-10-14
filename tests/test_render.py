@@ -44,6 +44,20 @@ class PaintTests(unittest.TestCase):
         self.assertTrue(output.getvalue().startswith(b'\x89PNG\r\n\x1a\n'))
         self.assertGreater(len(output.getvalue()), 100)
 
+    def test_highlight_straight_and_freehand_render(self):
+        pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 96, 96)
+        pixbuf.fill(0xffffffff)
+        for mode, points in (('line', [(4, 8), (88, 80)]),
+                             ('freehand', [(4, 8), (40, 70), (88, 80)])):
+            mark = Mark('highlighter', 4, 8, 88, 80, color='#ffbc27',
+                        width=5, opacity=.4, points=points,
+                        highlighter_mode=mode)
+            surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 96, 96)
+            paint_document(cairo.Context(surface), pixbuf, [mark])
+            output = io.BytesIO()
+            surface.write_to_png(output)
+            self.assertTrue(output.getvalue().startswith(b'\x89PNG\r\n\x1a\n'))
+
     def test_render_modified_layer_with_original_pixels(self):
         pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 64, 64)
         pixbuf.fill(0xffffffff)

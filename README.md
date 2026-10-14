@@ -3,8 +3,7 @@
 SnapMark is a lightweight screenshot annotation editor for the GNOME desktop.
 Built in **Python 3**, **GTK4 / PyGObject**, and **libadwaita**.
 
-**Version:** v0.4.0 development candidate. Ubuntu GNOME 50 Wayland graphical
-acceptance and the first v0.4.0 GitHub Actions AppImage build are not yet verified.
+**Version:** v0.5.0 development candidate. Ubuntu GNOME Wayland GUI acceptance and GitHub Actions AppImage build for this version are not yet verified.
 
 ## Workflow
 
@@ -19,7 +18,7 @@ Alternatively, open a local image directly (Ctrl+O).
 
 - **Select** an annotation layer to move, resize, recolor, change text, or delete.
 - **Arrow, rectangle, ellipse, line, triangle, pen** and **text**.
-- **Highlight** translucent brush, **Mosaic**, **Blur** and annotation eraser.
+- **Highlight** has Freehand and Straight line modes in the right properties panel above Color; **Mosaic**, **Blur** and the eraser remain available.
 - Custom stroke/fill colors via GTK color chooser; recent custom choices are stored.
 - Undo/redo, editable layer list, adjustable properties panel, original-pixel PNG export.
 - Copy screenshot as PNG (Ctrl+C), save PNG (Ctrl+S), fit/zoom and scrolling.
@@ -74,7 +73,7 @@ bash scripts/enable-autostart.sh
 ## AppImage-only releases
 
 GitHub Actions on Ubuntu 24.04 builds **only**
-`SnapMark-0.4.0-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
+`SnapMark-0.5.0-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
 GI typelibs and image loaders. It does not build DEB packages.
 
 ```bash
@@ -119,3 +118,10 @@ Copyright © SnapMark contributors. License: MIT.
 - Custom colors use a compact four-color picker button.
 - Preferences are non-modal; GNOME system file chooser dimming while open is normal.
 - A tray host may be required to display StatusNotifierItem icons on GNOME.
+
+## v0.5.0 highlight mode and Save button
+
+- **One Highlight toolbar tool**: Freehand draws along mouse movement, while
+  Straight line keeps the start and end points. Change modes above the Color
+  options. Both retain color, width, opacity, layer editing, and undo/redo.
+- **Save** uses the libadwaita blue suggested-action style.

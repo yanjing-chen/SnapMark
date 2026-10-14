@@ -114,6 +114,16 @@ class SnapMarkApplication(Adw.Application):
             for field in ('font_options', 'custom_stroke', 'custom_fill'):
                 assert getattr(window, field, None) is not None, (
                     f'Editor failed to initialize {field}')
+            assert window.save_button.has_css_class('suggested-action')
+            assert not window.save_button.has_css_class('snapmark-quiet')
+            assert len([t for t in window.tool_buttons if t == 'highlighter']) == 1
+            window.tool_buttons['highlighter'].set_active(True)
+            assert window.highlight_mode_row.get_visible()
+            assert window.highlight_free_button.get_active()
+            window.highlight_line_button.set_active(True)
+            assert window.highlight_mode == 'line'
+            window.tool_buttons['select'].set_active(True)
+            assert not window.highlight_mode_row.get_visible()
             window.tool_buttons['text'].set_active(True)
             assert window.font_options.get_visible()
             window.tool_buttons['select'].set_active(True)

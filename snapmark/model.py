@@ -24,15 +24,34 @@ class Mark:
     points: list[tuple[float, float]] = field(default_factory=list)
     font: str = 'Sans 20'
     fill_color: str = ''
+    highlighter_mode: str = 'freehand'  # freehand | line, relevant only to Highlight
 
     def is_meaningful(self):
         if self.tool == 'text':
             return bool(self.text.strip())
+        if self.tool == 'highlighter' and self.highlighter_mode == 'line':
+            return hypot(self.x2 - self.x1, self.y2 - self.y1) >= 2
         if self.tool in ('pen', 'highlighter'):
             return len(self.points) > 1
         if self.tool == 'eraser':
             return len(self.points) >= 1
         return hypot(self.x2 - self.x1, self.y2 - self.y1) >= 2
+
+
+def update_highlighter_preview(mark, x, y):
+    """Update one in-progress Highlight stroke without recording jagged points
+    for Straight line mode. Call only on a preview object, never saved history.
+    """
+    if mark.tool != 'highlighter':
+        raise ValueError('Only Highlight previews accept highlight modes')
+    if mark.highlighter_mode not in ('freehand', 'line'):
+        raise ValueError(f'Unsupported Highlight mode: {mark.highlighter_mode}')
+    mark.x2, mark.y2 = x, y
+    if mark.highlighter_mode == 'line':
+        mark.points = [(mark.x1, mark.y1), (x, y)]
+    elif not mark.points or mark.points[-1] != (x, y):
+        mark.points.append((x, y))
+    return mark
 
 
 def _distance_to_segment(x, y, ax, ay, bx, by):
