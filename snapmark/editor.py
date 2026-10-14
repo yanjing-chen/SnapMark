@@ -10,6 +10,8 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 from .model import History, Mark, clamp, fit_zoom, mark_bounds, resized, translated, update_highlighter_preview
 from .paint import hex_rgba, paint_document
 from .preferences import Autostart, Settings
+from .plugins import PLUGIN_IDS, PluginManager
+from .plugin_host import PluginHost, load_plugin
 
 COLORS = ('#e82c20', '#f66b2d', '#ffbc27', '#26a269', '#3584e4', '#9141ac', '#242424')
 TOOLS = (
@@ -112,7 +114,16 @@ class EditorWindow(Adw.ApplicationWindow):
         self.font = 'Sans 20'
         self.zoom = 1.
         self._preferences_window = None
+        self.plugin_manager = PluginManager()
+        self.plugin_host = PluginHost(self)
+        self.plugin_errors = []
         self._build_ui()
+        for ident in PLUGIN_IDS:
+            try:
+                load_plugin(self.plugin_manager, ident, self.plugin_host)
+            except Exception as exc:
+                self.plugin_errors.append(f'{ident}: {exc}')
+                print(f'SnapMark: plugin {ident} failed to load: {exc}', flush=True)
         self._set_actions()
         if filename is not None:
             self.load_image(filename)
@@ -154,6 +165,7 @@ class EditorWindow(Adw.ApplicationWindow):
         tool_scroll = Gtk.ScrolledWindow()
         tool_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
         root.append(tool_scroll)
+        self._plugin_tools = tools
         tools = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         tools.set_halign(Gtk.Align.CENTER)
         tools.set_margin_top(7)
@@ -201,7 +213,13 @@ class EditorWindow(Adw.ApplicationWindow):
         self.stack = Gtk.Stack()
         self.stack.set_hexpand(True)
         self.stack.set_vexpand(True)
-        self.paned.set_start_child(self.stack)
+        self._result_split = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        self._result_split.set_wide_handle(True)
+        self._result_split.set_resize_start_child(True)
+        self._result_split.set_resize_end_child(True)
+        self._result_split.set_start_child(self.stack)
+        self.paned.set_start_child(self._result_split)
+        self._plugin_results_stack = None
 
         empty = Adw.StatusPage(title='Ready for a screenshot',
                                description='Take a screenshot with Print Screen, or open an image.',
@@ -294,6 +312,25 @@ class EditorWindow(Adw.ApplicationWindow):
         ''')
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
                                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+    def add_plugin_action(self, ident, label, callback):
+        """Official plugin API v1 — add an action without changing built-in tools."""
+        button = Gtk.Button(label=label, tooltip_text=f'{ident}: {label}')
+        button.add_css_class('snapmark-quiet')
+        button.connect('clicked', lambda *_: callback())
+        self._plugin_tools.append(button)
+        return button
+
+    def add_plugin_result(self, ident, title, builder):
+        """Official plugin API v1 — optional results below the screenshot."""
+        if self._plugin_results_stack is None:
+            self._plugin_results_stack = Gtk.Stack()
+            self._plugin_results_stack.set_vexpand(True)
+            self._result_split.set_end_child(self._plugin_results_stack)
+            self._result_split.set_position(420)
+        widget = builder(self)
+        self._plugin_results_stack.add_titled(widget, ident, title)
+        return widget
 
     @staticmethod
     def _text_icon_button(label, icon):
@@ -1130,6 +1167,11 @@ class EditorWindow(Adw.ApplicationWindow):
         group = Adw.PreferencesGroup(title='General')
         page.add(group)
         stack.add_titled(page, 'general', 'General')
+        from .plugin_ui import PluginPreferences
+        self._plugin_preferences = PluginPreferences(window, stack)
+        for ident, (title, builder) in self.plugin_host.settings_factories.items():
+            plugin_page = builder(self)
+            stack.add_titled(plugin_page, 'plugin-' + ident, title)
         autostart = Autostart()
         startup = Adw.SwitchRow(title='Start automatically on login',
                                 subtitle='Watch GNOME screenshots in the background')

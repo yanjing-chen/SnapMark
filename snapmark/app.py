@@ -144,6 +144,9 @@ class SnapMarkApplication(Adw.Application):
             assert window.selected_index == 0
             window.show_preferences()
             assert window._preferences_window is not None
+            assert window._plugin_preferences is not None
+            assert window._plugin_preferences.widgets['ocr'] is not None
+            assert window._plugin_preferences.widgets['translation'] is not None
             assert not window._preferences_window.get_modal()
             print('SnapMark: GTK4 layers + Preferences smoke PASS', flush=True)
         except Exception:

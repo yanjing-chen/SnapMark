@@ -3,7 +3,7 @@ name: Build SnapMark AppImage
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ['snapmark-v*']
   workflow_dispatch:
 
 permissions:
@@ -60,7 +60,7 @@ jobs:
         run: |
           xvfb-run -a -s '-screen 0 1440x900x24' \
             dbus-run-session -- timeout 60 \
-            ./dist/SnapMark-0.5.0-x86_64.AppImage --smoke-test
+            ./dist/SnapMark-0.6.0-a1-x86_64.AppImage --smoke-test
 
       - name: Upload AppImage artifact
         uses: actions/upload-artifact@v4
@@ -70,7 +70,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish only AppImage on version tags
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/snapmark-v')
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*.AppImage

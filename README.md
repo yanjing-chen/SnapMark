@@ -3,7 +3,9 @@
 SnapMark is a lightweight screenshot annotation editor for the GNOME desktop.
 Built in **Python 3**, **GTK4 / PyGObject**, and **libadwaita**.
 
-**Version:** v0.5.0 development candidate. Ubuntu GNOME Wayland GUI acceptance and GitHub Actions AppImage build for this version are not yet verified.
+**Version:** v0.6.0-A1 development candidate (plugin framework, not the completed
+v0.6.0 release). GUI acceptance on Ubuntu GNOME Wayland and AppImage CI for this
+candidate remain unverified. Earlier v0.5.0 editing features are preserved.
 
 ## Workflow
 
@@ -40,6 +42,32 @@ Open **Preferences** from the window menu (Ctrl+,):
 Preferences are stored in `$XDG_CONFIG_HOME/snapmark/preferences.json`
 (or `~/.config/snapmark/preferences.json`).
 
+## Official plugin manager — v0.6.0-A1 development
+
+Preferences → **Plugins** manages two optional official plugin IDs: **OCR**
+and **Translation**. No model or Local AI Runtime is installed by this step.
+Click **Refresh** to check published releases in the official SnapMark repository,
+then choose a release, **Install**, and **Use Version** to enable it.
+You may keep multiple compatible versions installed, select older ones or
+uninstall versions. Disabling OCR also makes Translation unavailable without
+deleting its saved selection. Translation needs an enabled OCR plugin.
+Reopen SnapMark after changes to reload plugin buttons/pages/result views.
+
+Official plugin tags will use `ocr-vX.Y.Z` and `translation-vX.Y.Z`, with
+`SnapMark-ocr-X.Y.Z.zip` / `SnapMark-translation-X.Y.Z.zip` and adjacent `.sha256`
+assets. **These packages have not yet been published**, so Refresh can
+legitimately return zero versions. The manager validates file integrity,
+manifest API/dependencies and ZIP paths before installing into
+`$XDG_DATA_HOME/snapmark/plugins` (default `~/.local/share/snapmark/plugins`).
+It loads plugin code only once explicitly enabled at app startup. Installing
+an executable Python plugin is inherently privileged at the user's own account
+level; install only releases from the trusted project repository.
+
+The code includes an extension API for toolbar actions, custom preferences
+pages and result panels; actual OCR/Translation implementations come in later
+versions. Runtime integration and its separate Preferences page are scheduled
+for v0.6.0-B and are **not implemented in A1**.
+
 ## Status indicator
 
 SnapMark implements the StatusNotifierItem interface, including a small icon
@@ -73,7 +101,7 @@ bash scripts/enable-autostart.sh
 ## AppImage-only releases
 
 GitHub Actions on Ubuntu 24.04 builds **only**
-`SnapMark-0.5.0-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
+`SnapMark-0.6.0-a1-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
 GI typelibs and image loaders. It does not build DEB packages.
 
 ```bash
@@ -107,6 +135,7 @@ for a real GNOME Wayland test. The AppImage needs a usable desktop session.
 - `snapmark/paint.py` and `snapmark/filters.py` — Cairo rendering and blur.
 - `snapmark/watch.py`, `snapmark/screenshot_paths.py` — GNOME screenshot detection.
 - `snapmark/preferences.py` — settings and autostart launcher.
+- `snapmark/plugins.py`, `snapmark/plugin_host.py`, `snapmark/plugin_ui.py` — plugin manager and extension API.
 - `.github/workflows/appimage.yml` — test and AppImage CI.
 
 Copyright © SnapMark contributors. License: MIT.
@@ -125,3 +154,77 @@ Copyright © SnapMark contributors. License: MIT.
   Straight line keeps the start and end points. Change modes above the Color
   options. Both retain color, width, opacity, layer editing, and undo/redo.
 - **Save** uses the libadwaita blue suggested-action style.
+
+## Roadmap
+
+*A checkbox is marked complete only after the corresponding implementation and
+applicable tests pass. GUI/Wayland and GitHub CI acceptance remain pending until
+verified on the target machine. The Roadmap is updated with each release.*
+
+### v0.6.0 — Plugin foundation and Local AI Runtime
+
+- [x] **A1:** Official plugin ZIP manifest schema and API v1.
+- [x] **A1:** Official GitHub release discovery; manual install and version selection.
+- [x] **A1:** SHA256 checks, safe ZIP extraction, version coexistence and uninstall.
+- [x] **A1:** Enable/disable, OCR prerequisite for Translation, dependency checks.
+- [x] **A1:** Plugin hooks for toolbar actions, preferences pages, result panels.
+- [x] **A1:** README Roadmap and offline plugin regression tests.
+- [ ] **A:** Complete real GTK / GNOME Wayland GUI and AppImage smoke acceptance.
+- [ ] **A:** Publish the first official OCR/Translation plugin ZIPs and checksum assets.
+- [ ] **A:** Verify release selection, upgrade, downgrade and rollback with published assets.
+- [ ] **B:** Preferences → AI Runtime, default-off integration toggle.
+- [ ] **B:** Detect/connect existing Runtime at `http://127.0.0.1:8111`.
+- [ ] **B:** Verify real Runtime APIs for model listing/registration/backend status.
+- [ ] **B:** Optional Runtime installer **without** bundled AI models; avoid changing running services.
+- [ ] **B:** Runtime installation/connection error and recovery tests.
+
+### v0.7.0 — Lightweight OCR plugin
+
+- [ ] PP-OCRv5 **and** PP-OCRv6, with model-family and model/size/language selection.
+- [ ] Separate dependency environment and process; CPU operation without Runtime.
+- [ ] Whole-image and original-pixel selected-region OCR even after zoom.
+- [ ] Model list **Refresh Models** from independently updated online catalog.
+- [ ] Scheduled, verified catalog synchronization; offline cache and compatibility checks.
+- [ ] User-confirmed model download; v5 and v6 coexist and function offline.
+- [ ] Editable OCR text (correct, add, paste, delete) and original/annotation separation.
+- [ ] Bottom resizable OCR panel; copy/save TXT, protect edits on re-OCR.
+- [ ] OCR elapsed time independently in seconds, two decimals.
+
+### v0.8.0 — Advanced OCR plugin
+
+- [ ] Lightweight / Advanced selection and shared editable result panel.
+- [ ] Connect existing Local AI Runtime, choose compatible user-loaded OCR model.
+- [ ] No automatic PaddleOCR-VL 1.6 download.
+- [ ] Backend capabilities CPU/Vulkan/CUDA where actually supported.
+- [ ] Per-model prompt, temperature and streaming controls, capability-guarded.
+- [ ] Request cancellation, timeouts, loading and inference errors.
+
+### v0.9.0 — Translation plugin (requires OCR)
+
+- [ ] Independent official ZIP and compatibility/dependency checks.
+- [ ] Translate **current edited OCR text**, including manually added/pasted text.
+- [ ] Translate button exists only inside the OCR result panel.
+- [ ] User-selected translation model in existing Runtime, no automatic download.
+- [ ] Source/target language, prompt, temperature and streaming settings.
+- [ ] Independent Translation elapsed time and error/cancellation handling.
+
+### v0.10.0 — OCR + Translation integration
+
+- [ ] OCR-only single result area; with Translation, resizable two-column source/target.
+- [ ] Separate copy/save actions for source and translation.
+- [ ] Source edits mark translation stale; explicit Translate refresh, not automatic.
+- [ ] Streaming display, editable text survives compatible plugin upgrades.
+- [ ] **No combined OCR + Translation time**; each is displayed separately.
+
+### v1.0.0 — Stable release and QA
+
+- [ ] Screenshot monitoring, layers, markup, undo/redo, copy/save regression.
+- [ ] GNOME Wayland manual acceptance; verify AMD 680M and NVIDIA where available.
+- [ ] Multilingual OCR/translation (Chinese, English, Dutch), large-image/long-text tests.
+- [ ] Plugin security, upgrades/downgrades, Runtime disconnect/reconnect, model cache.
+- [ ] GitHub Actions AppImage build + bundled startup smoke; release documentation.
+
+**Publishing:** single `yanjing-chen/SnapMark` repository. Main program tags
+`snapmark-vX.Y.Z` produce **AppImage only**, while `ocr-vX.Y.Z` and
+`translation-vX.Y.Z` produce independent **ZIP** plugins with `.sha256` files.
+No DEB/RPM, no embedded advanced AI models.
