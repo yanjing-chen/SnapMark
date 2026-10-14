@@ -100,3 +100,21 @@ catalog models are never overwritten by this flow.
 Runtime **one-click installation remains deferred** until a concrete stable
 installer/download and digest verification policy is known. The standalone
 Runtime installation remains under user control.
+
+## v0.6.0-B2-C1: Runtime lifecycle state (read-only)
+
+Preferences shows `startup_preload.enabled`, `startup_preload.state`, and
+`idle_unload_seconds` as reported by `/health`. When these keys are absent,
+the interface reports *Not reported* rather than assuming defaults.
+A connected service is detected and reused; an unreachable endpoint does not
+prove the service is uninstalled. "View releases" opens the official
+Local AI Runtime releases page; **it is not an installer**.
+
+SnapMark does not start models on opening Preferences, change Runtime global
+settings, automatically choose/install a model, force an idle unload, or shut
+down other applications' shared service. The local SnapMark backend preference
+remains independent of Runtime's reported active backend. B2-C2 must verify
+the exact official installer artifact, checksum and service integration before
+adding one-click install, and the actual Runtime write API/semantics before
+allowing idle-time changes. This separation is intentional for safe shared
+service use.

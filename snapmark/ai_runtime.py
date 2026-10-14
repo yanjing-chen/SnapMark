@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 DEFAULT_ENDPOINT = 'http://127.0.0.1:8111'
 RUNTIME_PROJECT = 'https://github.com/yanjing-chen/local-ai-runtime'
+RUNTIME_RELEASES = RUNTIME_PROJECT + '/releases'
 BACKEND_PREFERENCES = ('auto', 'cpu', 'vulkan', 'cuda')
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
@@ -146,6 +147,10 @@ class RuntimeSnapshot:
     backend_running: bool = False
     current_model: str = ''
     detailed_models: tuple[RuntimeModel, ...] = ()
+    preload_enabled: bool | None = None
+    preload_model: str = ''
+    preload_state: str = ''
+    idle_unload_seconds: int | None = None
 
 
 def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> RuntimeSnapshot:
@@ -210,6 +215,53 @@ def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> 
     preference = preference if preference in BACKEND_PREFERENCES else ''
     version = health.get('runtime_version')
     version = version if isinstance(version, str) else ''
+    # Only /health is authoritative for these life-cycle settings.  Booleans
+    # must not be treated as integer seconds, and missing data is UNKNOWN,
+    # rather than silently claiming that startup preload is disabled.
+    preload = health.get('startup_preload')
+    preload_enabled = None
+    preload_model = ''
+    preload_state = ''
+    if isinstance(preload, dict):
+        flag = preload.get('enabled')
+        if type(flag) is bool:
+            preload_enabled = flag
+        name = preload.get('model')
+        if isinstance(name, str):
+            preload_model = name.strip()
+        state = preload.get('state')
+        if isinstance(state, str):
+            preload_state = state.strip()
+    idle = health.get('idle_unload_seconds')
+    # Preserve '0' exactly as a Runtime value: its semantics are determined
+    # by the Runtime, and should not be assumed to mean "immediately".
+    if type(idle) is not int or idle < 0:
+        idle = None
     return RuntimeSnapshot(endpoint, status, backend, tuple(models),
                            backend_error, models_error, version, preference,
-                           active, running, loaded, tuple(detailed_models))
+                           active, running, loaded, tuple(detailed_models),
+                           preload_enabled, preload_model, preload_state, idle)
+
+
+def describe_preload(snapshot: RuntimeSnapshot) -> str:
+    """Human-visible state without triggering a preload or changing the service."""
+    if snapshot.preload_enabled is False:
+        return 'Disabled · load when requested'
+    if snapshot.preload_enabled is True:
+        model = snapshot.preload_model or 'model not specified'
+        return 'Enabled · ' + model
+    return 'Not reported by Runtime'
+
+
+def describe_idle_unload(snapshot: RuntimeSnapshot) -> str:
+    """Summarize exactly the idle value from /health; no guessed semantics."""
+    seconds = snapshot.idle_unload_seconds
+    if seconds is None:
+        return 'Not reported by Runtime'
+    if seconds == 0:
+        return '0 seconds (Runtime-defined behavior)'
+    if seconds % 3600 == 0:
+        return f'{seconds // 3600} hour(s) ({seconds} seconds)'
+    if seconds % 60 == 0:
+        return f'{seconds // 60} minute(s) ({seconds} seconds)'
+    return f'{seconds} seconds'

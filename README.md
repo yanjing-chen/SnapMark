@@ -274,3 +274,21 @@ No DEB/RPM, no embedded advanced AI models.
 - [ ] **B2-C:** Optional safe one-click Runtime installation after verifying official release artifact checksums, supported platform, and upgrade strategy.
 
 This action is opt-in: **Inspect with Runtime… → Review → Register model**. Registration updates the external Local AI Runtime registry only after explicit confirmation; the files remain where the user selected them. It never auto-loads a model or modifies global CPU/Vulkan/CUDA preferences. See `docs/AI_RUNTIME.md`.
+
+<!-- SNAPMARK_B2C1_ROADMAP -->
+### v0.6.0-B2-C1 — Runtime lifecycle/status (local acceptance pending)
+
+- [x] Read `/health` `startup_preload`, `idle_unload_seconds` and loaded model separately.
+- [x] Display accurate **startup preload / idle unload / running model** status in Preferences → AI Runtime.
+- [x] Identify a connected existing Runtime and recommend reusing it; do not install twice.
+- [x] Show the official releases page and keep installation explicitly opt-in.
+- [x] Add lifecycle parsing and UI regression checks without modifying Runtime configuration.
+- [ ] **Real GNOME Wayland acceptance** on Ryzen 7 6800H and GitHub Actions AppImage test.
+- [ ] **B2-C2:** Verify official release packages, checksums, installation and rollback procedure before enabling one-click installation.
+- [ ] **B2-C2:** Confirm Runtime 0.8.0 supported idle-unload / startup-preload *write* API and global-setting consent policy, then expose editing controls.
+- [ ] **v0.8 / v0.9:** Advanced OCR / Translation request their remembered models on demand; verify auto-switch and idle release in real inference.
+
+**Default policy:** No model is preloaded by SnapMark; Runtime owns the inference
+backend and idle unloading. Reading status does not change the shared Runtime.
+`0` idle seconds is displayed verbatim, without assuming that it means
+"immediate" or "disabled". Models and Runtime are never downloaded automatically.

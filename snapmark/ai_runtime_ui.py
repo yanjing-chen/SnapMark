@@ -4,8 +4,9 @@ from __future__ import annotations
 import threading
 from gi.repository import Adw, Gio, GLib, Gtk
 
-from .ai_runtime import (BACKEND_PREFERENCES, RUNTIME_PROJECT, RuntimeSettings,
-                         RuntimeIntegrationError, probe_runtime)
+from .ai_runtime import (BACKEND_PREFERENCES, RUNTIME_PROJECT, RUNTIME_RELEASES,
+                         RuntimeSettings, RuntimeIntegrationError, probe_runtime,
+                         describe_preload, describe_idle_unload)
 from .model_bundle import ModelBundleError, inspect_gguf_files, inspect_gguf_folder
 from .runtime_registration import inspect_registration, register_reviewed_model
 
@@ -80,6 +81,25 @@ class AIRuntimePreferences:
         group.add(loaded)
         self.widgets['loaded'] = loaded
 
+        # Read-only service lifecycle state. Never call a Runtime mutation
+        # endpoint or preload a model while constructing Settings.
+        memory = Adw.PreferencesGroup(title='Model memory management', description=(
+            'Model loading and idle unloading are managed by Local AI Runtime. '
+            'SnapMark reads current settings but does not change a shared service. '
+            'Models are loaded when a later OCR or Translation request needs them.'))
+        page.add(memory)
+        preload_row = Adw.ActionRow(title='Startup model preload', subtitle='Not checked')
+        memory.add(preload_row)
+        self.widgets['preload'] = preload_row
+        preload_state = Adw.ActionRow(title='Runtime preload status', subtitle='Not checked')
+        memory.add(preload_state)
+        self.widgets['preload_state'] = preload_state
+        idle_row = Adw.ActionRow(title='Unload after inactivity', subtitle='Not checked')
+        memory.add(idle_row)
+        self.widgets['idle_unload'] = idle_row
+        memory.add(Adw.ActionRow(title='Configuration scope', subtitle=(
+            'Shared Runtime setting · view only (no changes sent)')))
+
         models = Adw.PreferencesGroup(title='Registered Models', description=(
             'Only models reported by the connected Runtime are listed. '
             'No model is downloaded or loaded by this page.'))
@@ -99,6 +119,17 @@ class AIRuntimePreferences:
         open_guide.set_valign(Gtk.Align.CENTER)
         guide.add_suffix(open_guide)
         install.add(guide)
+        detection = Adw.ActionRow(title='Existing Runtime detection', subtitle=(
+            'Integration disabled' if not self.config['enabled'] else 'Not checked'))
+        install.add(detection)
+        self.widgets['installation_status'] = detection
+        releases_row = Adw.ActionRow(title='Official Runtime releases', subtitle=(
+            'Review verified releases before installing; no automatic install yet'))
+        open_releases = Gtk.Button(label='View releases…')
+        open_releases.set_valign(Gtk.Align.CENTER)
+        open_releases.connect('clicked', self._open_releases)
+        releases_row.add_suffix(open_releases)
+        install.add(releases_row)
         select = Adw.PreferencesGroup(title='Preview local GGUF model bundle', description=(
             'Select multiple GGUF files or a folder. SnapMark detects main weights, '
             'mmproj and split GGUF pieces together. Registration of one complete '
@@ -155,6 +186,10 @@ class AIRuntimePreferences:
         self.widgets['service_preference'].set_subtitle('Not checked')
         self.widgets['actual'].set_subtitle('Not checked')
         self.widgets['loaded'].set_subtitle('Not checked')
+        for key in ('preload', 'preload_state', 'idle_unload'):
+            self.widgets[key].set_subtitle('Not checked')
+        self.widgets['installation_status'].set_subtitle(
+            'Not checked' if enabled else 'Integration disabled')
         self._set_models(())
         self.registration_generation += 1
         if enabled:
@@ -210,6 +245,10 @@ class AIRuntimePreferences:
             self.widgets['service_preference'].set_subtitle('Not reported')
             self.widgets['actual'].set_subtitle('Not running')
             self.widgets['loaded'].set_subtitle('Not loaded')
+            for key in ('preload', 'preload_state', 'idle_unload'):
+                self.widgets[key].set_subtitle('Unavailable')
+            self.widgets['installation_status'].set_subtitle(
+                'Service not reachable · installation not determined')
             return False
         self.widgets['status'].set_subtitle('Connected · ' + result.health)
         self.widgets['effective'].set_subtitle(result.backend + (
@@ -220,6 +259,13 @@ class AIRuntimePreferences:
             ('Running · backend unknown' if result.backend_running else 'Not running'))
         self.widgets['loaded'].set_subtitle(
             result.current_model if result.current_model else 'Not loaded')
+        self.widgets['preload'].set_subtitle(describe_preload(result))
+        self.widgets['preload_state'].set_subtitle(result.preload_state or 'Not reported')
+        self.widgets['idle_unload'].set_subtitle(describe_idle_unload(result))
+        self.widgets['installation_status'].set_subtitle(
+            'Connected service detected' +
+            (f' · Runtime {result.version}' if result.version else '') +
+            ' · no installation needed')
         self._set_models(result.models, snapshot=result)
         if result.models_error:
             self.widgets['models_placeholder'].set_title('Model query unavailable')
@@ -256,6 +302,12 @@ class AIRuntimePreferences:
             Gio.AppInfo.launch_default_for_uri(RUNTIME_PROJECT, None)
         except GLib.Error as exc:
             self._message('Could not open Runtime instructions', exc)
+
+    def _open_releases(self, _button):
+        try:
+            Gio.AppInfo.launch_default_for_uri(RUNTIME_RELEASES, None)
+        except GLib.Error as exc:
+            self._message('Could not open Runtime releases', exc)
 
     def _choose_files(self, _button):
         dialog = Gtk.FileDialog.new()
