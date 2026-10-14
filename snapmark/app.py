@@ -27,6 +27,9 @@ class SnapMarkApplication(Adw.Application):
         self.windows = []
         self.tray = TrayIndicator(self.show_or_present_editor, self.show_preferences, self.quit)
         self.tray_started = False
+        # Let GTK/libadwaita own the shutdown virtual method; register cleanup
+        # as a signal handler instead of chaining an incompatible GI wrapper.
+        self.connect('shutdown', self._on_shutdown)
         self.add_main_option('watch', 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
                              'Watch GNOME screenshots in the background', None)
         self.add_main_option('login-start', 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE,
@@ -177,9 +180,9 @@ class SnapMarkApplication(Adw.Application):
             self.windows.remove(window)
         return False
 
-    def do_shutdown(self):
+    def _on_shutdown(self, _application):
+        # Cleanup only. Gtk/Adw handles parent shutdown automatically.
         self.tray.stop()
-        super().do_shutdown()
 
     def stop_watching(self):
         if self.watcher is None:
