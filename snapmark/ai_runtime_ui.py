@@ -1,4 +1,4 @@
-"""First-level AI Runtime Preferences page; intentionally read-only to Runtime."""
+"""AI Runtime Preferences: read-only service inspection and local bundle preview."""
 from __future__ import annotations
 
 import threading
@@ -6,6 +6,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 
 from .ai_runtime import (BACKEND_PREFERENCES, RUNTIME_PROJECT, RuntimeSettings,
                          RuntimeIntegrationError, probe_runtime)
+from .model_bundle import ModelBundleError, inspect_gguf_files, inspect_gguf_folder
 
 
 class AIRuntimePreferences:
@@ -15,6 +16,8 @@ class AIRuntimePreferences:
         self.config = self.settings.load()
         self.generation = 0
         self.model_rows = []
+        self.preview_rows = []
+        self.preview_generation = 0
         self.widgets = {}
         page = Adw.PreferencesPage()
         stack.add_titled(page, 'ai-runtime', 'AI Runtime')
@@ -61,9 +64,18 @@ class AIRuntimePreferences:
         pref.add_suffix(options)
         group.add(pref)
         self.widgets['backend_preference'] = options
-        effective = Adw.ActionRow(title='Runtime-reported backend', subtitle='Not checked')
+        effective = Adw.ActionRow(title='Backend reported by Runtime', subtitle='Not checked')
         group.add(effective)
         self.widgets['effective'] = effective
+        service_pref = Adw.ActionRow(title='Runtime backend preference', subtitle='Not checked')
+        group.add(service_pref)
+        self.widgets['service_preference'] = service_pref
+        actual = Adw.ActionRow(title='Active inference backend', subtitle='Not checked')
+        group.add(actual)
+        self.widgets['actual'] = actual
+        loaded = Adw.ActionRow(title='Model loaded in memory', subtitle='Not checked')
+        group.add(loaded)
+        self.widgets['loaded'] = loaded
 
         models = Adw.PreferencesGroup(title='Registered Models', description=(
             'Only models reported by the connected Runtime are listed. '
@@ -74,9 +86,9 @@ class AIRuntimePreferences:
         self.widgets['models_group'] = models
         self.widgets['models_placeholder'] = placeholder
 
-        install = Adw.PreferencesGroup(title='Install or add models', description=(
-            'Runtime installation and local-model registration require verified release '
-            'and API compatibility; one-click operations are planned for v0.6.0-B2.'))
+        install = Adw.PreferencesGroup(title='Runtime installation', description=(
+            'Reuse your current installation. A verified one-click installer requires a '
+            'confirmed release package and checksum; no installation is performed here.'))
         page.add(install)
         guide = Adw.ActionRow(title='Local AI Runtime project',
                               subtitle='Open the official source and installation instructions')
@@ -84,9 +96,29 @@ class AIRuntimePreferences:
         open_guide.set_valign(Gtk.Align.CENTER)
         guide.add_suffix(open_guide)
         install.add(guide)
-        models_info = Adw.ActionRow(title='Add a local model',
-                                    subtitle='Pending verification of the Runtime registration API')
-        install.add(models_info)
+        select = Adw.PreferencesGroup(title='Preview local GGUF model bundle', description=(
+            'Select multiple GGUF files or a folder. SnapMark detects main weights, '
+            'mmproj and split GGUF pieces together. This is a read-only preview: '
+            'registration awaits verification of Runtime 0.8.0 write API.'))
+        page.add(select)
+        buttons_row = Adw.ActionRow(title='Choose model files', subtitle=(
+            'Supports one main GGUF plus mmproj, and numbered GGUF shards.'))
+        select_files = Gtk.Button(label='Select files…')
+        select_files.set_valign(Gtk.Align.CENTER)
+        select_files.connect('clicked', self._choose_files)
+        buttons_row.add_suffix(select_files)
+        select.add(buttons_row)
+        folder_row = Adw.ActionRow(title='Choose model folder', subtitle=(
+            'Inspects only the selected folder; never scans subfolders.'))
+        select_folder = Gtk.Button(label='Select folder…')
+        select_folder.set_valign(Gtk.Align.CENTER)
+        select_folder.connect('clicked', self._choose_folder)
+        folder_row.add_suffix(select_folder)
+        select.add(folder_row)
+        placeholder = Adw.ActionRow(title='No local models inspected yet')
+        select.add(placeholder)
+        self.widgets['preview_group'] = select
+        self.widgets['preview_placeholder'] = placeholder
 
         self._enabled_handler = enabled.connect('notify::active', self._enabled_changed)
         self._backend_handler = options.connect('notify::selected', self._backend_changed)
@@ -117,6 +149,9 @@ class AIRuntimePreferences:
         self._set_available(enabled)
         self.widgets['status'].set_subtitle('Not checked' if enabled else 'Integration disabled')
         self.widgets['effective'].set_subtitle('Not checked')
+        self.widgets['service_preference'].set_subtitle('Not checked')
+        self.widgets['actual'].set_subtitle('Not checked')
+        self.widgets['loaded'].set_subtitle('Not checked')
         self._set_models(())
         if enabled:
             self._start_probe(self.config['endpoint'])
@@ -167,17 +202,26 @@ class AIRuntimePreferences:
         if error:
             self.widgets['status'].set_subtitle('Unavailable: ' + error[:180])
             self.widgets['effective'].set_subtitle('Not reported')
+            self.widgets['service_preference'].set_subtitle('Not reported')
+            self.widgets['actual'].set_subtitle('Not running')
+            self.widgets['loaded'].set_subtitle('Not loaded')
             return False
         self.widgets['status'].set_subtitle('Connected · ' + result.health)
         self.widgets['effective'].set_subtitle(result.backend + (
             ' (query unavailable)' if result.backend_error else ''))
-        self._set_models(result.models)
+        self.widgets['service_preference'].set_subtitle(result.configured_backend or 'Not reported')
+        self.widgets['actual'].set_subtitle(
+            result.active_backend if result.active_backend else
+            ('Running · backend unknown' if result.backend_running else 'Not running'))
+        self.widgets['loaded'].set_subtitle(
+            result.current_model if result.current_model else 'Not loaded')
+        self._set_models(result.models, snapshot=result)
         if result.models_error:
             self.widgets['models_placeholder'].set_title('Model query unavailable')
             self.widgets['models_placeholder'].set_subtitle(result.models_error[:180])
         return False
 
-    def _set_models(self, names):
+    def _set_models(self, names, snapshot=None):
         group = self.widgets['models_group']
         for row in self.model_rows:
             group.remove(row)
@@ -186,8 +230,19 @@ class AIRuntimePreferences:
         placeholder.set_title('No models reported')
         placeholder.set_subtitle('')
         placeholder.set_visible(not names)
+        details = {item.identifier: item for item in snapshot.detailed_models} if snapshot else {}
         for name in names:
-            row = Adw.ActionRow(title=name)
+            entry = details.get(name)
+            status = ('Installed' if entry.installed is True else
+                      'Not installed' if entry.installed is False else 'Install status unknown') if entry else 'Install status unknown'
+            if snapshot and snapshot.backend_running and snapshot.current_model == name:
+                status += ' · Loaded'
+            else:
+                status += ' · Not loaded'
+            capabilities = ', '.join(entry.capabilities) if entry else ''
+            if capabilities:
+                status += ' · ' + capabilities
+            row = Adw.ActionRow(title=name, subtitle=status)
             group.add(row)
             self.model_rows.append(row)
 
@@ -196,3 +251,84 @@ class AIRuntimePreferences:
             Gio.AppInfo.launch_default_for_uri(RUNTIME_PROJECT, None)
         except GLib.Error as exc:
             self._message('Could not open Runtime instructions', exc)
+
+    def _choose_files(self, _button):
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title('Select GGUF model files (main, mmproj, or splits)')
+        filt = Gtk.FileFilter()
+        filt.set_name('GGUF models')
+        filt.add_pattern('*.gguf')
+        filt.add_pattern('*.GGUF')
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(filt)
+        dialog.set_filters(filters)
+        dialog.open_multiple(self.window, None, self._files_chosen)
+
+    def _files_chosen(self, dialog, result):
+        try:
+            files = dialog.open_multiple_finish(result)
+        except GLib.Error:  # Includes the user cancelling the chooser.
+            return
+        paths = [files.get_item(i).get_path() for i in range(files.get_n_items())]
+        if any(path is None for path in paths):
+            self._message('Local files only', 'Please choose files on a local filesystem.')
+            return
+        self._preview_async(paths=paths)
+
+    def _choose_folder(self, _button):
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title('Select local GGUF model folder')
+        dialog.select_folder(self.window, None, self._folder_chosen)
+
+    def _folder_chosen(self, dialog, result):
+        try:
+            folder = dialog.select_folder_finish(result).get_path()
+        except GLib.Error:
+            return
+        if not folder:
+            self._message('Local folder only', 'Please choose a local directory.')
+            return
+        self._preview_async(folder=folder)
+
+    def _preview_async(self, *, paths=None, folder=None):
+        self.preview_generation += 1
+        generation = self.preview_generation
+        self.widgets['preview_placeholder'].set_visible(True)
+        self.widgets['preview_placeholder'].set_title('Inspecting model files…')
+        # Avoid blocking GNOME's UI on removable drives or network-mounted paths.
+        def work():
+            try:
+                bundles = (inspect_gguf_files(paths) if paths is not None else
+                           inspect_gguf_folder(folder))
+                error = None
+            except (ModelBundleError, OSError, ValueError) as exc:
+                bundles, error = (), str(exc)
+            GLib.idle_add(self._preview_ready, generation, bundles, error)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _preview_ready(self, generation, bundles, error):
+        if generation != self.preview_generation:
+            return False
+        group = self.widgets['preview_group']
+        for row in self.preview_rows:
+            group.remove(row)
+        self.preview_rows = []
+        placeholder = self.widgets['preview_placeholder']
+        placeholder.set_visible(bool(error) or not bundles)
+        placeholder.set_title('Cannot inspect model files' if error else 'No GGUF bundles found')
+        placeholder.set_subtitle((error or '')[:240])
+        for bundle in bundles:
+            pieces = []
+            if bundle.main:
+                pieces.append('main: ' + bundle.main.name)
+            if bundle.shards:
+                pieces.append(f'{len(bundle.shards)} GGUF split parts')
+            if bundle.projectors:
+                pieces.append('mmproj: ' + ', '.join(p.name for p in bundle.projectors))
+            pieces.append(f'{bundle.total_bytes / (1024 ** 3):.2f} GiB')
+            for warning in bundle.warnings:
+                pieces.append('Warning: ' + warning)
+            row = Adw.ActionRow(title=bundle.name, subtitle=' · '.join(pieces))
+            group.add(row)
+            self.preview_rows.append(row)
+        return False

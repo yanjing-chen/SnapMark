@@ -42,3 +42,27 @@ v0.6.0-B2: verify a concrete signed/checksummed Runtime release installer and
 its model registration API, then add an optional guided installer and safe local
 model import. Advanced OCR and Translation will later request specific models
 and backend behavior without silently changing a shared service globally.
+
+## v0.6.0-B2-A: read-only model state and local GGUF bundle inspection
+
+`/health` provides `runtime_version`, `backend_preference`, `backend_running`,
+`active_backend`, and `current_model`. These are independent from the **backend
+reported by** `/v1/runtime/backends`, which is not evidence of an *active*
+inference process. Models returned by `/v1/models?refresh=1` have separate
+`installed` and `capabilities` fields. A model marked `installed: true` is not
+necessarily loaded or currently capable of serving inference requests.
+
+**Choose model files** accepts multiple `.gguf` files. **Choose model folder**
+inspects a single directory (no recursion). Models are grouped by matching
+names: a main `.gguf` plus any matching `-mmproj.gguf` are one logical model,
+and a `-00001-of-00003.gguf` split sequence is checked for missing parts.
+Inspection reads only each file's `GGUF` header and metadata from its filename,
+not the complete GGUF payload. It does NOT prove compatibility, integrity, or
+inference success. Ambiguous names, missing projectors, split parts or differing
+quantizations require manual review rather than automatic pairing.
+
+This preview does not copy, download, overwrite, register, or execute model
+files. The existing Runtime model registry and global backend preference are
+left untouched. Runtime 0.8.0 registration API, release download URL and
+checksum must be verified before B2-B can provide an actual **Register** or
+**Install Runtime** action. No dummy button claims success.

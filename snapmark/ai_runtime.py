@@ -125,6 +125,14 @@ def _stringify_backend(value):
 
 
 @dataclass(frozen=True)
+class RuntimeModel:
+    identifier: str
+    installed: bool | None
+    capabilities: tuple[str, ...] = ()
+    operation: str = ''
+
+
+@dataclass(frozen=True)
 class RuntimeSnapshot:
     endpoint: str
     health: str
@@ -132,6 +140,12 @@ class RuntimeSnapshot:
     models: tuple[str, ...]
     backend_error: str = ''
     models_error: str = ''
+    version: str = ''
+    configured_backend: str = ''
+    active_backend: str = ''
+    backend_running: bool = False
+    current_model: str = ''
+    detailed_models: tuple[RuntimeModel, ...] = ()
 
 
 def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> RuntimeSnapshot:
@@ -158,6 +172,7 @@ def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> 
     except RuntimeIntegrationError as exc:
         backend_error = str(exc)
     models = []
+    detailed_models = []
     models_error = ''
     try:
         listing = _read_json(endpoint, '/v1/models?refresh=1', timeout)
@@ -170,8 +185,31 @@ def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> 
             if isinstance(item, dict):
                 identifier = item.get('id') or item.get('name')
                 if isinstance(identifier, str) and identifier.strip():
-                    models.append(identifier.strip())
+                    identifier = identifier.strip()
+                    if identifier not in models:
+                        models.append(identifier)
+                        installed = item.get('installed')
+                        if type(installed) is not bool:
+                            installed = None
+                        caps = item.get('capabilities')
+                        supported = tuple(k for k, enabled in caps.items()
+                                          if enabled is True) if isinstance(caps, dict) else ()
+                        operation = item.get('operation')
+                        operation = str(operation.get('state', '')) if isinstance(operation, dict) else ''
+                        detailed_models.append(RuntimeModel(identifier, installed, supported, operation))
     except RuntimeIntegrationError as exc:
         models_error = str(exc)
-    return RuntimeSnapshot(endpoint, status, backend, tuple(dict.fromkeys(models)),
-                           backend_error, models_error)
+    # /health is authoritative for the *active* backend. A backend choice
+    # returned from /v1/runtime/backends is not proof inference is running.
+    running = health.get('backend_running') is True
+    active = health.get('active_backend') if running else None
+    active = active.strip() if isinstance(active, str) and active.strip() else ''
+    loaded = health.get('current_model') if running else None
+    loaded = loaded.strip() if isinstance(loaded, str) and loaded.strip() else ''
+    preference = health.get('backend_preference')
+    preference = preference if preference in BACKEND_PREFERENCES else ''
+    version = health.get('runtime_version')
+    version = version if isinstance(version, str) else ''
+    return RuntimeSnapshot(endpoint, status, backend, tuple(models),
+                           backend_error, models_error, version, preference,
+                           active, running, loaded, tuple(detailed_models))

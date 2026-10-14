@@ -193,6 +193,22 @@ verified on the target machine. The Roadmap is updated with each release.*
 
 See `docs/AI_RUNTIME.md` for supported API calls and current limitations.
 
+
+<!-- SNAPMARK_RUNTIME_B2A_ROADMAP -->
+**v0.6.0-B2-A — developed; real GNOME Wayland / AppImage acceptance pending:**
+
+- [x] Separate model installed state from loaded model and actively running inference backend.
+- [x] Display Runtime 0.8.0 health and actual active backend (when running).
+- [x] Local GGUF multi-file and folder selection; group main + mmproj + split shards.
+- [x] Offline completeness checks, read-only preview and regression tests.
+- [x] Read-only Runtime OpenAPI registration diagnostics.
+- [ ] **B2-A acceptance:** GNOME Wayland GUI and GitHub Actions AppImage.
+- [ ] **B2-B:** Verify Runtime 0.8.0 write API and install artifacts/checksums.
+- [ ] **B2-B:** Implement real model registration and optional verified Runtime installer.
+
+The current model-file chooser is a **preview, not a model registration**.
+No model is uploaded, downloaded, or changed. See `docs/AI_RUNTIME.md`.
+
 ### v0.7.0 — Lightweight OCR plugin
 
 - [ ] PP-OCRv5 **and** PP-OCRv6, with model-family and model/size/language selection.

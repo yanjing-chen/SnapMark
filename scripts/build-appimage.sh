@@ -19,7 +19,7 @@ if [[ ! -s "$TOOL" ]]; then
     -o "$TOOL"
 fi
 chmod +x "$TOOL"
-ARCH=x86_64 VERSION=0.6.0-b1 APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" \
-  "$ROOT/build/SnapMark.AppDir" "$ROOT/dist/SnapMark-0.6.0-b1-x86_64.AppImage"
-chmod +x "$ROOT/dist/SnapMark-0.6.0-b1-x86_64.AppImage"
-echo "Created: $ROOT/dist/SnapMark-0.6.0-b1-x86_64.AppImage"
+ARCH=x86_64 VERSION=0.6.0-b2a APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" \
+  "$ROOT/build/SnapMark.AppDir" "$ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
+chmod +x "$ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
+echo "Created: $ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
