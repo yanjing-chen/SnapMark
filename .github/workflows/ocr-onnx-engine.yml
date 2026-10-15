@@ -27,6 +27,10 @@ jobs:
             libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
       - name: Install ONNX dependencies on GitHub, never on Code01
         working-directory: scripts/ocr-onnx
+        env:
+          # ONNX Runtime 1.22 Linux installer incorrectly looks for a Windows
+          # CUDA provider path; skip *extra* CUDA downloads, use bundled CPU.
+          ONNXRUNTIME_NODE_INSTALL: skip
         run: npm install --omit=dev --no-audit --no-fund
       - name: Verify ONNX runtime components
         working-directory: scripts/ocr-onnx
