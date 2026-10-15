@@ -98,7 +98,7 @@ class ProbeTests(unittest.TestCase):
         Handler.routes = {
             '/health': (200, {'status': 'ok'}),
             '/v1/runtime/backends': (200, {'effective_backend': 'vulkan'}),
-            '/v1/models?refresh=1': (200, {'data': [
+            '/v1/models': (200, {'data': [
                 {'id': 'paddleocr-vl-1.6'}, {'id': 'hy-mt2-7b'}, {'id': 'paddleocr-vl-1.6'}]})}
 
     def test_can_read_health_models_and_backend_without_writing_to_runtime(self):
@@ -108,11 +108,11 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(snapshot.models, ('paddleocr-vl-1.6', 'hy-mt2-7b'))
         self.assertEqual(Handler.seen, [
             ('GET', '/health'), ('GET', '/v1/runtime/backends'),
-            ('GET', '/v1/models?refresh=1')])
+            ('GET', '/v1/models')])
 
     def test_optional_endpoint_failure_does_not_hide_successful_connection(self):
         Handler.routes['/v1/runtime/backends'] = (404, {})
-        Handler.routes['/v1/models?refresh=1'] = (404, {})
+        Handler.routes['/v1/models'] = (404, {})
         s = probe_runtime(self.endpoint)
         self.assertEqual(s.health, 'ok')
         self.assertEqual(s.models, ())

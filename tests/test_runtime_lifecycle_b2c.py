@@ -17,7 +17,7 @@ class Handler(BaseHTTPRequestHandler):
             payload = self.health
         elif self.path == '/v1/runtime/backends':
             payload = {'selected': 'vulkan'}
-        elif self.path == '/v1/models?refresh=1':
+        elif self.path == '/v1/models':
             payload = {'data': []}
         else:
             self.send_error(404)

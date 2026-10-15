@@ -292,3 +292,20 @@ This action is opt-in: **Inspect with Runtime… → Review → Register model**
 backend and idle unloading. Reading status does not change the shared Runtime.
 `0` idle seconds is displayed verbatim, without assuming that it means
 "immediate" or "disabled". Models and Runtime are never downloaded automatically.
+
+
+<!-- SNAPMARK_RUNTIME_B2C2_IDLE_ROADMAP -->
+### v0.6.0-B2-C2 — custom idle-unload time (source candidate)
+
+- [x] Implement a strictly opt-in, single-field Runtime 1.0.0+ preferences client.
+- [x] Add the 0–86400-second timeout editor under Preferences → AI Runtime.
+- [x] Require explicit confirmation; 0 disables automatic model unloading.
+- [x] Preserve Runtime 0.8.0 read-only behavior and validate version/API support.
+- [x] Verify the request's response, persisted preference, and live manager status.
+- [x] Test consent, old-version refusal, stale settings, invalid values, and error paths with a local fake HTTP server.
+- [ ] **Code01 acceptance:** full existing tests and GNOME Wayland UI acceptance.
+- [ ] **Real 1.0.0 acceptance:** after SnapMark's separately approved Runtime 0.8.0 → 1.0.0 upgrade,
+      confirm timeout persists, dynamically changes, and does not affect screenshot editing.
+
+B2-C2 does not install/upgrade Runtime, select a backend, preload/unload a model,
+or push to GitHub. Installation and rollback remain a separately gated next phase.

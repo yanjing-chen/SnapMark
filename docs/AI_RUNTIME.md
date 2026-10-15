@@ -118,3 +118,37 @@ the exact official installer artifact, checksum and service integration before
 adding one-click install, and the actual Runtime write API/semantics before
 allowing idle-time changes. This separation is intentional for safe shared
 service use.
+
+## v0.6.0-B2-C2 — Runtime 1.0.0 custom idle timeout (source-only candidate)
+
+- The existing B2-C1 UI stays read-only by default. A stable Runtime 1.0.0+
+  health version **and** the valid `idle_unload_seconds` from
+  `GET /v1/runtime/preferences` are required before the editor is enabled.
+  Runtime 0.8.0 remains view-only even though it supports preferences GET.
+- In **Preferences → AI Runtime → Model memory management**, adjust the numeric
+  seconds field, 0–86400. 0 means disable *automatic* unloading, not immediate
+  unloading. Default is read from Runtime; SnapMark never invents a default
+  remote setting and never starts/stops models or services for this feature.
+- **Save timeout…** displays a confirmation dialog because the timeout is shared
+  with other Runtime clients. **Cancel** is the default. The single, explicit
+  request JSON is `{"idle_unload_seconds": N}`. No backend/preload keys are sent.
+- Before writing, SnapMark re-reads the Runtime health/version and existing
+  effective timeout to catch changes. Afterwards it verifies the response and
+  performs a second GET. This client-side check is not an atomic server CAS;
+  another client can race between the check and POST. On errors SnapMark
+  refreshes status rather than pretending the change was successful.
+- UI network requests run on worker threads; opening Preferences, toggling
+  SnapMark integration, and checking connection never POST settings.
+- This stage neither installs nor upgrades Runtime. The genuine 0.8.0 → 1.0.0
+  upgrade and live Wayland acceptance belong to the subsequent upgrade phase.
+
+
+## B2-C2 model listing responsiveness fix (Code01)
+
+- Opening AI Runtime Preferences and **Save & Check** query `/v1/models`
+  without forcing a filesystem/model metadata refresh. This is a read-only
+  check that does not reload any model or change Runtime settings.
+- **Registered Models → Refresh Models** is a separate user action using
+  `/v1/models?refresh=1` with a 10-second refresh timeout.
+- Successful local model registration requests a fresh list explicitly.
+- Both paths are GET-only; no change to B2-C2 idle-unload consent controls.

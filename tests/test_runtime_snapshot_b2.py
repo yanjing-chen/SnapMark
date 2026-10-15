@@ -12,7 +12,7 @@ class Handler(BaseHTTPRequestHandler):
     models = {}
     def do_GET(self):
         data = (self.health if self.path == '/health' else
-                self.models if self.path == '/v1/models?refresh=1' else
+                self.models if self.path == '/v1/models' else
                 {'effective_backend': 'vulkan'} if self.path == '/v1/runtime/backends' else None)
         self.send_response(200 if data is not None else 404)
         self.send_header('Content-Type', 'application/json')

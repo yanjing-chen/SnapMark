@@ -153,8 +153,15 @@ class RuntimeSnapshot:
     idle_unload_seconds: int | None = None
 
 
-def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> RuntimeSnapshot:
-    """Probe only GET endpoints. Backends/models are best effort after /health."""
+def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0,
+                  refresh_models: bool = False,
+                  refresh_timeout: float = 10.0) -> RuntimeSnapshot:
+    """Read-only probe: cached model list by default; refresh only on request.
+
+    Runtime 0.8 can take several seconds to scan models with ``refresh=1``.
+    A user-requested refresh gets its own timeout, without delaying normal
+    health and backend requests or triggering a scan every time Settings opens.
+    """
     endpoint = validate_endpoint(endpoint)
     health = _read_json(endpoint, '/health', timeout)
     if not isinstance(health, dict):
@@ -180,7 +187,9 @@ def probe_runtime(endpoint: str = DEFAULT_ENDPOINT, *, timeout: float = 3.0) -> 
     detailed_models = []
     models_error = ''
     try:
-        listing = _read_json(endpoint, '/v1/models?refresh=1', timeout)
+        route = '/v1/models?refresh=1' if refresh_models else '/v1/models'
+        listing = _read_json(endpoint, route,
+                             max(timeout, refresh_timeout) if refresh_models else timeout)
         if not isinstance(listing, dict):
             raise RuntimeIntegrationError('Unexpected models response.')
         entries = listing.get('data', listing.get('models', []))
