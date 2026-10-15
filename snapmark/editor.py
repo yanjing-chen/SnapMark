@@ -12,6 +12,7 @@ from .paint import hex_rgba, paint_document
 from .preferences import Autostart, Settings
 from .plugins import PLUGIN_IDS, PluginManager
 from .plugin_host import PluginHost, load_plugin
+from .ocr_selection_c2 import normalize_region
 
 COLORS = ('#e82c20', '#f66b2d', '#ffbc27', '#26a269', '#3584e4', '#9141ac', '#242424')
 TOOLS = (
@@ -114,9 +115,16 @@ class EditorWindow(Adw.ApplicationWindow):
         self.font = 'Sans 20'
         self.zoom = 1.
         self._preferences_window = None
+        self._initial_layout_applied = False
+        self._plugin_visibility = {'ocr': False, 'translation': False}
+        self._plugin_action_buttons = {}
+        self._updating_plugin_buttons = False
         self.plugin_manager = PluginManager()
         self.plugin_host = PluginHost(self)
         self.plugin_errors = []
+        self._ocr_region_callback = None
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
         self._build_ui()
         for ident in PLUGIN_IDS:
             try:
@@ -220,6 +228,8 @@ class EditorWindow(Adw.ApplicationWindow):
         self._result_split.set_start_child(self.stack)
         self.paned.set_start_child(self._result_split)
         self._plugin_results_stack = None
+        self._plugin_result_widgets = {}
+        self._plugin_results_paned = None
 
         empty = Adw.StatusPage(title='Ready for a screenshot',
                                description='Take a screenshot with Print Screen, or open an image.',
@@ -262,7 +272,11 @@ class EditorWindow(Adw.ApplicationWindow):
         self._build_properties()
         # Keep approx. 275 px for properties at the initial window width;
         # GTK4's draggable divider lets the user resize it at any time.
-        self.paned.set_position(945)
+        # The old absolute 945 px position could initially hide the properties
+        # area or canvas on scaled/compact Wayland workspaces. Assign divider
+        # sizes once *after* the real widget allocation, then leave drags alone.
+        self.paned.set_position(-1)
+        self.paned.connect('map', self._initial_window_layout)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         footer.add_css_class('statusbar')
@@ -313,24 +327,203 @@ class EditorWindow(Adw.ApplicationWindow):
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
                                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+    def _initial_window_layout(self, _pane):
+        if self._initial_layout_applied:
+            return
+        attempts = [0]
+        def adjust():
+            width = self.paned.get_width()
+            height = self._result_split.get_height()
+            if (width < 600 or height < 310) and attempts[0] < 16:
+                attempts[0] += 1
+                return GLib.SOURCE_CONTINUE
+            if width >= 600:
+                self.paned.set_position(max(300, width - 290))
+            if height >= 310:
+                if self._plugin_results_stack is not None and self._plugin_visibility['ocr']:
+                    self._result_split.set_position(max(170, int(height * 0.59)))
+                self.properties_split.set_position(max(170, int(height * 0.60)))
+            self._initial_layout_applied = True
+            return GLib.SOURCE_REMOVE
+        GLib.timeout_add(40, adjust)
+
     def add_plugin_action(self, ident, label, callback):
-        """Official plugin API v1 — add an action without changing built-in tools."""
-        button = Gtk.Button(label=label, tooltip_text=f'{ident}: {label}')
-        button.add_css_class('snapmark-quiet')
-        button.connect('clicked', lambda *_: callback())
+        """Register a toolbar *visibility* toggle; inference is started inside the panel.
+
+        Loading a plugin must never automatically show its result panel or run it.
+        OCR and Translation are independent of the drawing-tool radio group.
+        """
+        if ident not in ('ocr', 'translation'):
+            raise ValueError('Unsupported plugin action')
+        if ident in self._plugin_action_buttons:
+            raise ValueError(f'{ident} toolbar button is already registered')
+        icon = 'edit-find-symbolic' if ident == 'ocr' else 'accessories-dictionary-symbolic'
+        button = Gtk.ToggleButton(tooltip_text=f'Show/hide {label} panel')
+        button.add_css_class('snapmark-tool')
+        button.set_size_request(80, 64)
+        inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        inner.set_valign(Gtk.Align.CENTER)
+        inner.set_halign(Gtk.Align.CENTER)
+        glyph = Gtk.Image.new_from_icon_name(icon)
+        glyph.set_pixel_size(25)
+        inner.append(glyph)
+        caption = Gtk.Label(label=label)
+        caption.add_css_class('caption')
+        inner.append(caption)
+        button.set_child(inner)
+        self._plugin_action_buttons[ident] = button
+        button.connect('toggled', self._plugin_button_toggled, ident)
         self._plugin_tools.append(button)
         return button
 
+    def _plugin_button_toggled(self, button, ident):
+        """Translation implies OCR; toolbar toggle never performs inference."""
+        if self._updating_plugin_buttons:
+            return
+        self._updating_plugin_buttons = True
+        try:
+            ocr = self._plugin_action_buttons.get('ocr')
+            translation = self._plugin_action_buttons.get('translation')
+            if ident == 'translation' and button.get_active() and ocr is not None:
+                ocr.set_active(True)
+            if ident == 'ocr' and not button.get_active() and translation is not None:
+                translation.set_active(False)
+            translation_on = bool(translation and translation.get_active())
+            ocr_on = bool(ocr and ocr.get_active())
+            if translation_on and not ocr_on:
+                # Never allow a visible translation pane without its OCR source.
+                if ocr is not None:
+                    ocr.set_active(True)
+                    ocr_on = True
+                else:
+                    translation.set_active(False)
+                    translation_on = False
+            if ocr is not None:
+                # Turn off Translation first before OCR can be closed.
+                ocr.set_sensitive(not translation_on)
+            self._plugin_visibility = {'ocr': ocr_on,
+                                       'translation': translation_on}
+        finally:
+            self._updating_plugin_buttons = False
+        self._render_plugin_results()
+
     def add_plugin_result(self, ident, title, builder):
-        """Official plugin API v1 — optional results below the screenshot."""
+        """Register an initially hidden panel without altering the canvas height."""
+        if ident not in ('ocr', 'translation'):
+            raise ValueError('Unsupported result panel')
+        if ident in self._plugin_result_widgets:
+            raise ValueError(f'{ident} result panel already registered')
         if self._plugin_results_stack is None:
-            self._plugin_results_stack = Gtk.Stack()
-            self._plugin_results_stack.set_vexpand(True)
-            self._result_split.set_end_child(self._plugin_results_stack)
-            self._result_split.set_position(420)
+            holder = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+            holder.set_hexpand(True)
+            holder.set_vexpand(True)
+            self._plugin_results_stack = holder
         widget = builder(self)
-        self._plugin_results_stack.add_titled(widget, ident, title)
+        widget.set_hexpand(True)
+        widget.set_vexpand(True)
+        self._plugin_result_widgets[ident] = widget
+        if len(self._plugin_result_widgets) == 2:
+            split = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
+            split.set_wide_handle(True)
+            split.set_hexpand(True)
+            split.set_vexpand(True)
+            split.set_resize_start_child(True)
+            split.set_resize_end_child(True)
+            split.set_shrink_start_child(True)
+            split.set_shrink_end_child(True)
+            split.set_position(-1)
+            split.connect('map', self._center_plugin_split_on_first_map)
+            self._plugin_results_paned = split
+        # Deliberately do NOT attach the holder to _result_split here.
+        # The toolbar toggles decide whether to reveal the bottom area.
         return widget
+
+    def _center_plugin_split_on_first_map(self, split):
+        def align_when_allocated():
+            if self._plugin_visibility['translation'] and split.get_width() > 2:
+                split.set_position(split.get_width() // 2)
+            return GLib.SOURCE_REMOVE
+        GLib.idle_add(align_when_allocated)
+
+    def _render_plugin_results(self):
+        """Reparent retained widgets to show none, OCR-only, or a 50/50 split.
+
+        Hiding a panel does not destroy its text buffer or cancel a user's edits.
+        """
+        holder = self._plugin_results_stack
+        if holder is None:
+            return
+        # Detach before moving Gtk child widgets: GTK forbids multiple parents.
+        if self._result_split.get_end_child() is holder:
+            self._result_split.set_end_child(None)
+        current = holder.get_first_child()
+        if current is not None:
+            if current is self._plugin_results_paned:
+                self._plugin_results_paned.set_start_child(None)
+                self._plugin_results_paned.set_end_child(None)
+            holder.remove(current)
+        if not self._plugin_visibility['ocr']:
+            return
+        ocr = self._plugin_result_widgets.get('ocr')
+        if ocr is None:
+            return
+        if self._plugin_visibility['translation']:
+            trans = self._plugin_result_widgets.get('translation')
+            split = self._plugin_results_paned
+            if trans is None or split is None:
+                return
+            split.set_start_child(ocr)
+            split.set_end_child(trans)
+            split.set_position(-1)
+            holder.append(split)
+        else:
+            holder.append(ocr)
+        self._result_split.set_end_child(holder)
+        # Set canvas/result split only after the window has its GTK allocation.
+        def allocate_bottom():
+            height = self._result_split.get_height()
+            if height >= 310 and self._plugin_visibility['ocr']:
+                self._result_split.set_position(max(170, int(height * 0.59)))
+            if self._plugin_visibility['translation'] and self._plugin_results_paned is not None:
+                width = self._plugin_results_paned.get_width()
+                if width > 2:
+                    self._plugin_results_paned.set_position(width // 2)
+            return GLib.SOURCE_REMOVE
+        GLib.idle_add(allocate_bottom)
+
+    def original_png_for_ocr(self, region=None):
+        """Return only original screenshot pixels, without annotation layers.
+
+        May be called by an enabled plugin on the GTK main thread.
+        Region coordinates are in source-image pixels, not screen/zoom pixels.
+        """
+        if self.pixbuf is None:
+            raise ValueError("Open an image before OCR")
+        from .ocr_selection_c2 import original_pixbuf_png
+        return original_pixbuf_png(self.pixbuf, region)
+
+    def request_ocr_region(self, callback):
+        """Ask user to drag a rectangle on the image; callback receives PNG bytes.
+
+        OCR never modifies annotations; the overlay is transient and not exported.
+        """
+        if not callable(callback):
+            raise ValueError("OCR region callback must be callable")
+        if self.pixbuf is None:
+            self._notice("Open a screenshot before selecting an OCR area")
+            return False
+        self._ocr_region_callback = callback
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
+        self._notice("Drag over the screenshot to select OCR pixels; Esc cancels")
+        self.canvas.queue_draw()
+        return True
+
+    def cancel_ocr_region(self):
+        self._ocr_region_callback = None
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
+        self.canvas.queue_draw()
 
     @staticmethod
     def _text_icon_button(label, icon):
@@ -793,12 +986,18 @@ class EditorWindow(Adw.ApplicationWindow):
         self._change_selected(fill=self.fill)
 
     def _key_pressed(self, _controller, keyval, _keycode, _state):
+        if keyval == Gdk.KEY_Escape and self._ocr_region_callback is not None:
+            self.cancel_ocr_region()
+            self._notice("OCR selection cancelled")
+            return True
         if keyval in (Gdk.KEY_Delete, Gdk.KEY_BackSpace) and self.selected_index is not None:
             self.delete_selected()
             return True
         return False
 
     def _canvas_pressed(self, _gesture, n_press, x, y):
+        if self._ocr_region_callback is not None:
+            return
         if self.tool == 'select' and n_press >= 2:
             index = self.selected_index
             if index is not None and self.history.marks[index].tool == 'text':
@@ -811,6 +1010,7 @@ class EditorWindow(Adw.ApplicationWindow):
         except Exception as exc:
             self._notice(f'Cannot open this image: {exc}')
             return
+        self.cancel_ocr_region()
         self.pixbuf = pixbuf
         self.filename = path
         self.history = History()
@@ -869,6 +1069,17 @@ class EditorWindow(Adw.ApplicationWindow):
         paint_document(cr, self.pixbuf, marks, self.preview)
         if self.selected_index is not None and self.selected_index < len(marks):
             self._draw_selection(cr, marks[self.selected_index])
+        if self._ocr_region_preview is not None:
+            x0, y0, x1, y1 = self._ocr_region_preview
+            cr.save()
+            cr.set_source_rgba(.15, .47, .95, .16)
+            cr.rectangle(x0, y0, x1-x0, y1-y0)
+            cr.fill_preserve()
+            cr.set_source_rgba(.15, .47, .95, .98)
+            cr.set_line_width(2 / max(self.zoom, .1))
+            cr.set_dash([5 / max(self.zoom, .1), 4 / max(self.zoom, .1)])
+            cr.stroke()
+            cr.restore()
         cr.restore()
 
     def _draw_selection(self, cr, mark):
@@ -923,6 +1134,10 @@ class EditorWindow(Adw.ApplicationWindow):
         if not self.pixbuf:
             return
         self.start_point = self._pixel(x, y)
+        if self._ocr_region_callback is not None:
+            self._ocr_region_start = self.start_point
+            self._ocr_region_preview = None
+            return
         if self.tool == 'select':
             px, py = self.start_point
             handle = self._selection_handle(px, py)
@@ -963,6 +1178,15 @@ class EditorWindow(Adw.ApplicationWindow):
         if not ok:
             return
         x, y = self._pixel(sx + dx, sy + dy)
+        if self._ocr_region_callback is not None:
+            ox, oy = self._ocr_region_start
+            try:
+                self._ocr_region_preview = normalize_region(
+                    (ox, oy, x, y), self.pixbuf.get_width(), self.pixbuf.get_height())
+            except ValueError:
+                self._ocr_region_preview = None
+            self.canvas.queue_draw()
+            return
         if self.tool == 'select':
             if self._edit_start_mark is None:
                 return
@@ -993,6 +1217,19 @@ class EditorWindow(Adw.ApplicationWindow):
         self.canvas.queue_draw()
 
     def _drag_end(self, gesture, dx, dy):
+        if self._ocr_region_callback is not None:
+            callback = self._ocr_region_callback
+            region = self._ocr_region_preview
+            self.cancel_ocr_region()
+            self.start_point = None
+            if region is not None:
+                try:
+                    callback(self.original_png_for_ocr(region))
+                except Exception as exc:
+                    self._notice(f"OCR region failed: {exc}")
+            else:
+                self._notice("OCR selection is too small; try again")
+            return
         if self.tool == 'select':
             if self.edit_preview is not None and self.selected_index is not None:
                 self.history.replace(self.selected_index, self.edit_preview)

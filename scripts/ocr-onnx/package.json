@@ -1,0 +1,11 @@
+{
+  "name": "snapmark-ocr-onnx-components",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Build components on GitHub Actions only; not ready for OCR inference",
+  "dependencies": {
+    "canvas": "3.1.0",
+    "esearch-ocr": "8.5.2",
+    "onnxruntime-node": "1.22.0"
+  }
+}

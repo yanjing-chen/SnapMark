@@ -1,0 +1,10 @@
+{
+  "id": "translation",
+  "version": "0.1.3",
+  "api_version": 1,
+  "min_host_version": "0.6.0",
+  "dependencies": {
+    "ocr": "0.1.2"
+  },
+  "entrypoint": "main:register"
+}

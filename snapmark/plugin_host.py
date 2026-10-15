@@ -18,6 +18,7 @@ class PluginHost:
     def __init__(self, editor):
         self.editor = editor
         self.settings_factories = {}  # plugin id -> (title, builder)
+        self.text_providers = {}  # registered plugin id -> current text getter
 
     def register_toolbar_action(self, plugin_id, label, callback):
         if plugin_id not in PLUGIN_IDS or not isinstance(label, str) or not callable(callback):
@@ -33,6 +34,17 @@ class PluginHost:
         if plugin_id not in PLUGIN_IDS or not isinstance(title, str) or not callable(builder):
             raise PluginError('Invalid plugin result registration')
         self.editor.add_plugin_result(plugin_id, title, builder)
+
+    def register_text_provider(self, plugin_id, getter):
+        """Expose current, user-edited OCR text to the optional translation plugin."""
+        if plugin_id not in PLUGIN_IDS or not callable(getter):
+            raise PluginError('Invalid text provider')
+        self.text_providers[plugin_id] = getter
+
+    def get_text_provider(self, plugin_id):
+        if plugin_id not in PLUGIN_IDS:
+            raise PluginError('Unknown text provider')
+        return self.text_providers.get(plugin_id)
 
 
 def load_plugin(manager, ident, host):

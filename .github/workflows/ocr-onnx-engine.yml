@@ -1,0 +1,51 @@
+name: Build SnapMark ONNX OCR components
+
+on:
+  push:
+    branches: [snapmark-c2-onnx]
+    paths:
+      - '.github/workflows/ocr-onnx-engine.yml'
+      - 'scripts/ocr-onnx/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ocr-onnx-linux-x86_64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare native canvas dependencies on GitHub runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev
+      - name: Install ONNX dependencies on GitHub, never on Code01
+        working-directory: scripts/ocr-onnx
+        run: npm install --omit=dev --no-audit --no-fund
+      - name: Verify ONNX runtime components
+        working-directory: scripts/ocr-onnx
+        run: node worker.cjs --self-test
+      - name: Prepare portable build candidate
+        shell: bash
+        run: |
+          mkdir -p dist/ocr-onnx-linux-x86_64
+          cp "$(command -v node)" dist/ocr-onnx-linux-x86_64/node
+          cp -a scripts/ocr-onnx/node_modules dist/ocr-onnx-linux-x86_64/
+          cp scripts/ocr-onnx/worker.cjs dist/ocr-onnx-linux-x86_64/
+          cp scripts/ocr-onnx/package.json dist/ocr-onnx-linux-x86_64/
+          cd dist
+          tar -czf SnapMark-OCR-ONNX-linux-x86_64.tar.gz ocr-onnx-linux-x86_64
+          sha256sum SnapMark-OCR-ONNX-linux-x86_64.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SnapMark-OCR-ONNX-linux-x86_64
+          path: |
+            dist/SnapMark-OCR-ONNX-linux-x86_64.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error

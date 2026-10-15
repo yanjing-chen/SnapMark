@@ -1,0 +1,7 @@
+{
+  "PP-OCRv5 mobile": ["PP-OCRv5_mobile_det", "PP-OCRv5_mobile_rec"],
+  "PP-OCRv5 server": ["PP-OCRv5_server_det", "PP-OCRv5_server_rec"],
+  "PP-OCRv6 tiny": ["PP-OCRv6_tiny_det", "PP-OCRv6_tiny_rec"],
+  "PP-OCRv6 small": ["PP-OCRv6_small_det", "PP-OCRv6_small_rec"],
+  "PP-OCRv6 medium": ["PP-OCRv6_medium_det", "PP-OCRv6_medium_rec"]
+}

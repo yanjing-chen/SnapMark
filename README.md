@@ -309,3 +309,25 @@ backend and idle unloading. Reading status does not change the shared Runtime.
 
 B2-C2 does not install/upgrade Runtime, select a backend, preload/unload a model,
 or push to GitHub. Installation and rollback remain a separately gated next phase.
+
+
+<!-- SNAPMARK_C2A_ROADMAP -->
+### C2-A — Lightweight OCR official-plugin integration (v0.7.0 candidate)
+
+- [x] Original-pixel whole-image and draggable selected-region extraction (not annotated screenshot).
+- [x] Bottom editable OCR result panel; copy text, save UTF-8 TXT, explicit clear, append-only re-OCR.
+- [x] Separate-process, CPU-only PP-OCRv5/v6 worker with local model-folder validation.
+- [x] Five family/size combinations: v5 mobile/server and v6 tiny/small/medium.
+- [x] Asynchronous inference, cancel, timeout, stale screenshot protection and OCR-only elapsed seconds.
+- [x] Independent code-only OCR ZIP packaging under the existing plugin API v1.
+- [ ] **C2-A acceptance:** Code01 6800H full regression and real GNOME Wayland GUI test.
+- [ ] **C2-B:** Verified refreshable online model catalog; user-confirmed download, checksum checks and offline cache.
+- [ ] **C2-B:** Isolated Python/PaddleOCR environment installer, live v5/v6 CPU inference on real images.
+- [ ] **Later v0.8:** Advanced OCR through existing Local AI Runtime; no automatic VLM downloads.
+- [ ] **Later v0.9:** Translation is available only after OCR and uses editable OCR source text.
+
+C2-A deliberately does **not** download PaddleOCR models, change Local AI Runtime,
+install a Python environment, enable a plugin automatically, or publish to GitHub.
+The separate OCR worker runs only after the user has configured an existing local
+PaddleOCR environment and matching detection/recognition model directories.
+See `docs/OCR_C2_A.md` for the exact offline model structure and developer installation.
