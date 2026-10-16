@@ -35,6 +35,38 @@ jobs:
       - name: Verify ONNX runtime components
         working-directory: scripts/ocr-onnx
         run: node worker.cjs --self-test
+      - name: Smoke-test real PP-OCRv6 tiny inference on GitHub runner
+        shell: bash
+        working-directory: scripts/ocr-onnx
+        run: |
+          set -euo pipefail
+          MODEL_ARCHIVE="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny.zip"
+          MODEL_EXTRACT="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny-extract"
+          MODEL_STAGE="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny-model"
+          mkdir -p "$MODEL_EXTRACT" "$MODEL_STAGE"
+          curl --fail --location --retry 3 --max-time 180 \
+            'https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ppocr_v6_tiny.zip' \
+            --output "$MODEL_ARCHIVE"
+          unzip -t "$MODEL_ARCHIVE" >/dev/null
+          unzip -q "$MODEL_ARCHIVE" -d "$MODEL_EXTRACT"
+          python3 - "$MODEL_EXTRACT" "$MODEL_STAGE" <<'PYMODEL'
+          import shutil, sys
+          from pathlib import Path
+          src, out = map(Path, sys.argv[1:])
+          files = [p for p in src.rglob('*') if p.is_file()]
+          for identifier, dest in [('det', 'det.onnx'), ('rec', 'rec.onnx')]:
+              candidates = [p for p in files if p.suffix.lower() == '.onnx' and identifier in p.name.lower()]
+              if len(candidates) != 1:
+                  raise SystemExit(f'Expected exactly one {identifier} ONNX file: {candidates}')
+              shutil.copy2(candidates[0], out / dest)
+          dictionaries = [p for p in files if p.suffix.lower() == '.txt' and ('dict' in p.name.lower() or 'keys' in p.name.lower())]
+          if len(dictionaries) != 1:
+              raise SystemExit(f'Expected exactly one OCR dictionary: {dictionaries}')
+          shutil.copy2(dictionaries[0], out / 'dict.txt')
+          for p in out.iterdir():
+              print('SMOKE_MODEL=', p.name, p.stat().st_size)
+          PYMODEL
+          node worker.cjs --smoke-test --model-dir "$MODEL_STAGE"
       - name: Prepare portable build candidate
         shell: bash
         run: |
