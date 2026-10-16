@@ -72,8 +72,13 @@ jobs:
           import sys
           dictionary = Path(sys.argv[1]).read_text(encoding='utf-8-sig')
           chars = dictionary.splitlines()
-          if len(chars) != 6904 or any(not ch.strip() for ch in chars):
+          if len(chars) != 6904:
               raise SystemExit(f'Invalid PP-OCRv6 tiny dictionary: {len(chars)} entries (expected 6904)')
+          # A space or an empty string can be a legitimate OCR dictionary slot.
+          # strip() is NOT a valid per-entry test for model vocabulary entries.
+          if not any(ch.strip() for ch in chars):
+              raise SystemExit('Invalid PP-OCRv6 tiny dictionary: all entries are whitespace')
+          print('SNAPMARK_V6_TINY_DICT_WHITESPACE_ENTRIES=', sum(not ch.strip() for ch in chars))
           print('SNAPMARK_V6_TINY_DICT_ENTRIES=', len(chars))
           PYDICT
           node worker.cjs --smoke-test --model-dir "$MODEL_STAGE"
