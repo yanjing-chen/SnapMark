@@ -59,13 +59,23 @@ jobs:
               if len(candidates) != 1:
                   raise SystemExit(f'Expected exactly one {identifier} ONNX file: {candidates}')
               shutil.copy2(candidates[0], out / dest)
-          dictionaries = [p for p in files if p.suffix.lower() == '.txt' and ('dict' in p.name.lower() or 'keys' in p.name.lower())]
-          if len(dictionaries) != 1:
-              raise SystemExit(f'Expected exactly one OCR dictionary: {dictionaries}')
-          shutil.copy2(dictionaries[0], out / 'dict.txt')
           for p in out.iterdir():
               print('SMOKE_MODEL=', p.name, p.stat().st_size)
           PYMODEL
+          # The eSearch v6 tiny release may contain det/rec without any .txt dictionary.
+          # PaddleOCR's official PP-OCRv6_tiny_rec.yml requires this specific dictionary.
+          curl --fail --location --retry 3 --max-time 60 \
+            'https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/dict/ppocrv6_tiny_dict.txt' \
+            --output "$MODEL_STAGE/dict.txt"
+          python3 - "$MODEL_STAGE/dict.txt" <<'PYDICT'
+          from pathlib import Path
+          import sys
+          dictionary = Path(sys.argv[1]).read_text(encoding='utf-8-sig')
+          chars = dictionary.splitlines()
+          if len(chars) != 6904 or any(not ch.strip() for ch in chars):
+              raise SystemExit(f'Invalid PP-OCRv6 tiny dictionary: {len(chars)} entries (expected 6904)')
+          print('SNAPMARK_V6_TINY_DICT_ENTRIES=', len(chars))
+          PYDICT
           node worker.cjs --smoke-test --model-dir "$MODEL_STAGE"
       - name: Prepare portable build candidate
         shell: bash
