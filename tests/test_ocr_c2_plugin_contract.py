@@ -17,7 +17,7 @@ class OCRPluginContractTests(unittest.TestCase):
     def test_package_schema(self):
         manifest = json.loads((PLUGIN / 'plugin.json').read_text())
         self.assertEqual(manifest['id'], 'ocr')
-        self.assertEqual(manifest['version'], '0.1.9')
+        self.assertEqual(manifest['version'], '0.2.0')
         self.assertEqual(manifest['api_version'], 1)
         self.assertEqual(manifest['entrypoint'], 'main:register')
 
@@ -58,10 +58,10 @@ class OCRPluginContractTests(unittest.TestCase):
                         z.write(item, item.name)
             payload = pack.read_bytes()
             manager = PluginManager(folder / 'installed', folder / 'settings')
-            manifest = manager.install_zip(payload, 'ocr', '0.1.9', hashlib.sha256(payload).hexdigest())
+            manifest = manager.install_zip(payload, 'ocr', '0.2.0', hashlib.sha256(payload).hexdigest())
             self.assertEqual(manifest['id'], 'ocr')
             self.assertFalse(manager.is_available('ocr'))
-            manager.select('ocr', '0.1.9')
+            manager.select('ocr', '0.2.0')
             self.assertTrue(manager.is_available('ocr'))
 
 

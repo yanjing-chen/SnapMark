@@ -38,7 +38,7 @@ class CompactPreferencesTests(unittest.TestCase):
         self.assertNotIn('softprops/action-gh-release', workflow)
     def test_package_revision(self):
         manifest = json.loads((ROOT / 'official_plugins/ocr/plugin.json').read_text())
-        self.assertEqual(manifest['version'], '0.1.9')
+        self.assertEqual(manifest['version'], '0.2.0')
         self.assertEqual(manifest['dependencies'], {})
         ast.parse(OCR)
 

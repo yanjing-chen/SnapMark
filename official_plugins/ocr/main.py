@@ -1,4 +1,4 @@
-"""SnapMark official OCR plugin 0.1.9, official PP-OCRv6 tiny ONNX models.
+"""SnapMark official OCR plugin 0.2.0, official PP-OCRv6 tiny ONNX models.
 
 Setup is available only through explicit Preferences confirmation; it never
 writes to Local AI Runtime or system Python. Translation is an optional separate SnapMark plugin.
@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -466,9 +467,9 @@ class OCRController:
         advanced.add(acceleration)
         runtime_test = Gtk.Button(label='Test OCR')
         runtime_test.set_sensitive(False)
-        runtime_test.set_tooltip_text('High-performance OCR inference is not yet implemented')
+        runtime_test.set_tooltip_text('Use Run OCR in the screenshot editor to test the selected Runtime OCR model')
         runtime_test.add_css_class('suggested-action')
-        runtime_test_row = Adw.ActionRow(title='Test OCR', subtitle='Available after Runtime image inference integration')
+        runtime_test_row = Adw.ActionRow(title='Test OCR', subtitle='Use Run OCR in the screenshot editor')
         runtime_test_row.add_suffix(runtime_test)
         advanced.add(runtime_test_row)
 
@@ -563,8 +564,7 @@ class OCRController:
         if cfg['model'] not in self.model_ids:
             return 'No installed OCR-registered model in the selected mode. Configure Preferences → OCR.'
         if cfg['mode'] == 'high_performance':
-            return ('High-performance OCR execution is not yet integrated. '
-                    'The OCR model catalog can be browsed now; no model will be run.')
+            return None  # The worker rechecks installed OCR role immediately before inference.
         if cfg['model'] in _onnx.available_models():
             return None if _onnx.installed_label(cfg['model']) else 'Prebuilt ONNX OCR model is not installed'
         interpreter = Path(cfg['python']).expanduser()
@@ -634,15 +634,16 @@ class OCRController:
         self.running = True
         self.started_at = time.perf_counter()
         self.run_button.set_label('Cancel OCR')
-        self._status(f"Recognizing with {cfg['model']} (local CPU)…", toast=True)
+        engine = 'Local AI Runtime' if cfg['mode'] == 'high_performance' else 'local CPU'
+        self._status(f"Recognizing with {cfg['model']} ({engine})…", toast=True)
         self.timer.set_text('Time: 0.00 s')
         GLib.timeout_add(100, self._tick, generation)
 
         def job():
             start = time.perf_counter()
             try:
-                is_onnx = cfg['model'] in _onnx.available_models()
-                if not is_onnx:
+                is_onnx = cfg['mode'] == 'lightweight' and cfg['model'] in _onnx.available_models()
+                if not is_onnx and cfg['mode'] != 'high_performance':
                     interpreter = Path(cfg['python']).expanduser()
                     if not interpreter.is_absolute() or not interpreter.is_file():
                         raise ValueError('OCR Python environment missing; configure it in Preferences → OCR')
@@ -655,6 +656,10 @@ class OCRController:
                     }), encoding='utf-8')
                     if is_onnx:
                         command = _onnx.command(root / 'input.png', cfg['model'])
+                    elif cfg['mode'] == 'high_performance':
+                        command = [sys.executable, str(ROOT / 'advanced_runtime_c2.py'),
+                                   '--request', str(root / 'request.json'),
+                                   '--result', str(root / 'result.json')]
                     else:
                         command = [str(interpreter), str(ROOT / 'worker.py'),
                                    '--request', str(root / 'request.json'),
@@ -667,11 +672,11 @@ class OCRController:
                                                 stderr=subprocess.PIPE)
                         self.proc = proc
                     try:
-                        _out, error = proc.communicate(timeout=180)
+                        _out, error = proc.communicate(timeout=360 if cfg['mode'] == 'high_performance' else 180)
                     except subprocess.TimeoutExpired:
                         proc.kill()
                         proc.communicate()
-                        raise TimeoutError('OCR exceeded 180 seconds')
+                        raise TimeoutError('High-performance OCR exceeded 360 seconds' if cfg['mode'] == 'high_performance' else 'OCR exceeded 180 seconds')
                     if proc.returncode:
                         raise RuntimeError((error.decode('utf-8', 'replace')[-2400:] or
                                             f'OCR subprocess returned {proc.returncode}').strip())

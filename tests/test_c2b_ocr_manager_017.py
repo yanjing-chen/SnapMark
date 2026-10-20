@@ -95,7 +95,7 @@ class OCRSetupTests(unittest.TestCase):
 
     def test_archive_version_and_separate_model_manager(self):
         meta=json.loads((ROOT/'official_plugins/ocr/plugin.json').read_text())
-        self.assertEqual(meta['version'],'0.1.9')
+        self.assertEqual(meta['version'],'0.2.0')
         build=(ROOT/'scripts/build-ocr-plugin-c2.py').read_text()
         self.assertIn("'manager_c2b.py'",build)
         self.assertEqual(meta['dependencies'],{})
