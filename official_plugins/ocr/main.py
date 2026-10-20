@@ -1,4 +1,4 @@
-"""SnapMark official OCR plugin 0.1.7, GTK4 host plus isolated local worker.
+"""SnapMark official OCR plugin 0.1.9, official PP-OCRv6 tiny ONNX models.
 
 Setup is available only through explicit Preferences confirmation; it never
 writes to Local AI Runtime or system Python. Translation is an optional separate SnapMark plugin.
@@ -28,6 +28,9 @@ fetch_runtime_models = _catalog.fetch_runtime_models
 _setup_spec = importlib.util.spec_from_file_location(__name__ + '_manager_c2b', ROOT / 'manager_c2b.py')
 _setup = importlib.util.module_from_spec(_setup_spec)
 _setup_spec.loader.exec_module(_setup)
+_onnx_spec = importlib.util.spec_from_file_location(__name__ + '_onnx_c2', ROOT / 'onnx_c2.py')
+_onnx = importlib.util.module_from_spec(_onnx_spec)
+_onnx_spec.loader.exec_module(_onnx)
 
 
 def _config_path():
@@ -197,7 +200,8 @@ class OCRController:
         self._catalog_generation += 1
         generation = self._catalog_generation
         if self.settings['mode'] == 'lightweight':
-            items = lightweight_available(self.settings, MODELS)
+            items = list(_onnx.available_models())
+            items.extend(lightweight_available(self.settings, MODELS))
             self._apply_models(items, generation)
             return
         def job():
@@ -234,8 +238,8 @@ class OCRController:
         intro.add(switch)
 
         lightweight = Adw.PreferencesGroup(title='Lightweight engine', description=(
-            'ONNX OCR components are built on GitHub Actions, not on this computer. '
-            'Model downloads will be enabled after the hosted engine passes inference tests.'))
+            'PP-OCRv6 tiny models downloaded exclusively from PaddlePaddle official sources. '
+            'No Python, PaddlePaddle or local compilation is required.'))
         page.add(lightweight)
         language = Adw.ActionRow(title='Language', subtitle='Automatically recognized by the selected model')
         language.add_suffix(Gtk.Label(label='Auto'))
@@ -244,13 +248,134 @@ class OCRController:
         lightweight.add(inference)
         registered = Adw.ActionRow(title='Models')
         lightweight.add(registered)
-        download = Gtk.Button(label='Download…')
+        online_row = Adw.ActionRow(title='Official model catalog', subtitle=(
+            'SnapMark-maintained list · all weights downloaded from PaddlePaddle only'))
+        refresh = Gtk.Button(label='Refresh models')
+        refresh.set_valign(Gtk.Align.CENTER)
+        online_row.add_suffix(refresh)
+        lightweight.add(online_row)
+        select_model = Adw.ComboRow(title='Available OCR models')
+        lightweight.add(select_model)
+        models_row = Adw.ActionRow(title='Selected model')
+        download = Gtk.Button(label='Download official models…')
         download.set_valign(Gtk.Align.CENTER)
-        download.set_sensitive(False)
-        download.set_tooltip_text('Available after GitHub ONNX engine and model compatibility tests')
-        models_row = Adw.ActionRow(title='Download models', subtitle='Requires a verified hosted ONNX engine')
         models_row.add_suffix(download)
         lightweight.add(models_row)
+        catalog_entries = []
+        busy = False
+
+        def redraw_catalog():
+            nonlocal catalog_entries
+            catalog_entries = _onnx.catalog_models()
+            old_label = selected_label() if select_model.get_model() and select_model.get_model().get_n_items() else _onnx.LABEL
+            select_model.set_model(Gtk.StringList.new([m['label'] for m in catalog_entries]))
+            labels = [m['label'] for m in catalog_entries]
+            select_model.set_selected(labels.index(old_label) if old_label in labels else 0)
+            refresh_status()
+
+        def selected_label():
+            index = select_model.get_selected()
+            if index >= len(catalog_entries):
+                return None
+            return catalog_entries[index]['label']
+
+        def refresh_status(*_args):
+            model = catalog_entries[select_model.get_selected()] if select_model.get_selected() < len(catalog_entries) else None
+            if model is None:
+                models_row.set_subtitle('No official models in catalog')
+                download.set_sensitive(False)
+                return
+            if not _onnx.model_compatible(model):
+                models_row.set_subtitle('Requires a newer engine or model verification · not available for download')
+                download.set_sensitive(False)
+            elif _onnx.installed_label(model['label']):
+                models_row.set_subtitle('Installed · official PaddlePaddle · SHA256 verified')
+                download.set_sensitive(False)
+            elif _onnx.engine_ready():
+                models_row.set_subtitle('Ready to download from PaddlePaddle official repositories')
+                download.set_sensitive(not busy)
+            else:
+                models_row.set_subtitle('Prebuilt CPU engine not installed · keep using OCR 0.1.8')
+                download.set_sensitive(False)
+        select_model.connect('notify::selected', refresh_status)
+
+        def refresh_clicked(_button):
+            nonlocal busy
+            if busy:return
+            busy = True
+            refresh.set_sensitive(False)
+            download.set_sensitive(False)
+            online_row.set_subtitle('Refreshing SnapMark catalog…')
+            def job():
+                try:
+                    catalog = _onnx.refresh_catalog()
+                    message, error = f"Catalog refreshed · {len(catalog['models'])} official models", None
+                except Exception as exc:
+                    message,error=None,str(exc)
+                def done():
+                    nonlocal busy
+                    busy = False
+                    refresh.set_sensitive(True)
+                    if error:
+                        online_row.set_subtitle('Offline catalog retained · refresh failed')
+                        self.editor._notice('Official OCR catalog: '+error[:230])
+                    else:
+                        online_row.set_subtitle(message)
+                    redraw_catalog()
+                    return False
+                GLib.idle_add(done)
+            threading.Thread(target=job,daemon=True).start()
+        refresh.connect('clicked', refresh_clicked)
+
+        def install_onnx_clicked(_button):
+            label = selected_label()
+            if not label or busy:return
+            model = next((m for m in catalog_entries if m['label'] == label), None)
+            if model is None or not _onnx.model_compatible(model):return
+            confirm = Adw.AlertDialog(
+                heading='Download official PaddlePaddle OCR model?',
+                body=('Model: '+label+'\n\nDownload only from PaddlePaddle official Hugging Face '
+                      'and PaddleOCR GitHub, with file verification. No existing model, '
+                      'OCR engine, or Local AI Runtime will be overwritten.'))
+            confirm.add_response('cancel','Cancel')
+            confirm.add_response('confirm','Download')
+            confirm.set_default_response('cancel')
+            confirm.set_close_response('cancel')
+            def responded(_dialog, response):
+                nonlocal busy
+                if response!='confirm' or busy:return
+                busy=True
+                refresh.set_sensitive(False)
+                download.set_sensitive(False)
+                models_row.set_subtitle('Downloading and verifying official models…')
+                def job():
+                    try:
+                        message,error=_onnx.install_label(label,confirmed=True),None
+                    except Exception as exc:
+                        message,error=None,str(exc)
+                    def done():
+                        nonlocal busy
+                        busy=False
+                        refresh.set_sensitive(True)
+                        refresh_status()
+                        if error:
+                            self.editor._notice('Official OCR download: '+error[:250])
+                        else:
+                            proposed=dict(self.settings,model=label)
+                            try:
+                                _atomic_save(proposed)
+                                self.settings=proposed
+                            except OSError as exc:
+                                self.editor._notice('Cannot save OCR selection: '+str(exc))
+                            self._refresh_models()
+                            self.editor._notice(message)
+                        return False
+                    GLib.idle_add(done)
+                threading.Thread(target=job,daemon=True).start()
+            confirm.connect('response',responded)
+            confirm.present(download.get_root())
+        download.connect('clicked',install_onnx_clicked)
+        redraw_catalog()
         test_light = Gtk.Button(label='Test OCR')
         test_light.add_css_class('suggested-action')
         test_light.set_valign(Gtk.Align.CENTER)
@@ -258,7 +383,7 @@ class OCRController:
         light_test_row.add_suffix(test_light)
         lightweight.add(light_test_row)
         test_light.connect('clicked', lambda _button: self.editor._notice(
-            'Open OCR in the editor and choose Run OCR after installing a verified model'))
+            'Open the OCR panel, select PP-OCRv6 tiny (ONNX CPU), then click Run OCR'))
 
         # Keep the standard OCR page compact. Registration of existing legacy
         # lightweight model folders remains available behind a collapsed row,
@@ -348,7 +473,8 @@ class OCRController:
         advanced.add(runtime_test_row)
 
         def refresh_registered():
-            names = lightweight_available(self.settings, MODELS)
+            names = list(_onnx.available_models())
+            names.extend(lightweight_available(self.settings, MODELS))
             registered.set_subtitle(', '.join(names) if names else 'Not installed')
 
         def switch_mode():
@@ -439,6 +565,8 @@ class OCRController:
         if cfg['mode'] == 'high_performance':
             return ('High-performance OCR execution is not yet integrated. '
                     'The OCR model catalog can be browsed now; no model will be run.')
+        if cfg['model'] in _onnx.available_models():
+            return None if _onnx.installed_label(cfg['model']) else 'Prebuilt ONNX OCR model is not installed'
         interpreter = Path(cfg['python']).expanduser()
         if not interpreter.is_absolute() or not interpreter.is_file() or not os.access(interpreter, os.X_OK):
             return f"OCR Python environment missing or not executable: {interpreter}"
@@ -513,9 +641,11 @@ class OCRController:
         def job():
             start = time.perf_counter()
             try:
-                interpreter = Path(cfg['python']).expanduser()
-                if not interpreter.is_absolute() or not interpreter.is_file():
-                    raise ValueError('OCR Python environment missing; configure it in Preferences → OCR')
+                is_onnx = cfg['model'] in _onnx.available_models()
+                if not is_onnx:
+                    interpreter = Path(cfg['python']).expanduser()
+                    if not interpreter.is_absolute() or not interpreter.is_file():
+                        raise ValueError('OCR Python environment missing; configure it in Preferences → OCR')
                 with tempfile.TemporaryDirectory(prefix='snapmark-ocr-') as temp:
                     root = Path(temp)
                     (root / 'input.png').write_bytes(image)
@@ -523,14 +653,18 @@ class OCRController:
                         'models_root': cfg['models_root'], 'model': cfg['model'],
                         'image_path': str(root / 'input.png'),
                     }), encoding='utf-8')
-                    command = [str(interpreter), str(ROOT / 'worker.py'),
-                               '--request', str(root / 'request.json'),
-                               '--result', str(root / 'result.json')]
+                    if is_onnx:
+                        command = _onnx.command(root / 'input.png', cfg['model'])
+                    else:
+                        command = [str(interpreter), str(ROOT / 'worker.py'),
+                                   '--request', str(root / 'request.json'),
+                                   '--result', str(root / 'result.json')]
                     with self.proc_lock:
                         if generation != self.generation:
                             return
                         proc = subprocess.Popen(command, stdin=subprocess.DEVNULL,
-                                                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                                                stdout=(subprocess.PIPE if is_onnx else subprocess.DEVNULL),
+                                                stderr=subprocess.PIPE)
                         self.proc = proc
                     try:
                         _out, error = proc.communicate(timeout=180)
@@ -541,7 +675,14 @@ class OCRController:
                     if proc.returncode:
                         raise RuntimeError((error.decode('utf-8', 'replace')[-2400:] or
                                             f'OCR subprocess returned {proc.returncode}').strip())
-                    result = json.loads((root / 'result.json').read_text('utf-8'))
+                    if is_onnx:
+                        if not _out or len(_out) > 8 * 1024 * 1024:
+                            raise ValueError('ONNX OCR returned an empty or oversized response')
+                        result = json.loads(_out.decode('utf-8'))
+                        if result.get('ok') is not True:
+                            raise ValueError('ONNX OCR returned an unsuccessful result')
+                    else:
+                        result = json.loads((root / 'result.json').read_text('utf-8'))
                     value = result.get('text')
                     if not isinstance(value, str):
                         raise ValueError('OCR worker returned no text field')

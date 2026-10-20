@@ -1,6 +1,6 @@
 {
   "id": "ocr",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "api_version": 1,
   "min_host_version": "0.6.0",
   "dependencies": {},

@@ -18,7 +18,7 @@ class HostedRealOCRWorkerTests(unittest.TestCase):
     def test_smoke_runs_real_tiny_model_only_on_github(self):
         s = FLOW.read_text()
         for part in ('ONNXRUNTIME_NODE_INSTALL: skip',
-                     'ppocr_v6_tiny.zip', 'node worker.cjs --smoke-test',
+                     'PaddlePaddle/PP-OCRv6_tiny_det_onnx', 'node worker.cjs --smoke-test',
                      'actions/upload-artifact@v4', 'node worker.cjs --self-test'):
             self.assertIn(part, s)
         self.assertIn('runs-on: ubuntu-24.04', s)

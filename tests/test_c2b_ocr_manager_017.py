@@ -90,12 +90,12 @@ class OCRSetupTests(unittest.TestCase):
         method = source.split('    def build_preferences(',1)[1].split('    def _model_selected(',1)[0]
         self.assertNotIn('install_engine(',method)
         self.assertNotIn('install_small(',method)
-        self.assertIn('download.set_sensitive(False)',method)
+        self.assertIn('download.connect(',method)
         self.assertNotIn('from paddleocr import PaddleOCR',source)
 
     def test_archive_version_and_separate_model_manager(self):
         meta=json.loads((ROOT/'official_plugins/ocr/plugin.json').read_text())
-        self.assertEqual(meta['version'],'0.1.7')
+        self.assertEqual(meta['version'],'0.1.9')
         build=(ROOT/'scripts/build-ocr-plugin-c2.py').read_text()
         self.assertIn("'manager_c2b.py'",build)
         self.assertEqual(meta['dependencies'],{})

@@ -20,9 +20,10 @@ class CompactPreferencesTests(unittest.TestCase):
         self.assertNotIn('install_small(', method)
         self.assertNotIn('OCR Python environment (absolute path)', method)
         self.assertNotIn('Local OCR model root (absolute path)', method)
-    def test_light_download_disabled_until_hosted_inference_works(self):
+    def test_verified_onnx_install_after_real_inference_passed(self):
         method = OCR.split('    def build_preferences(',1)[1].split('    def _model_selected(',1)[0]
-        self.assertIn('download.set_sensitive(False)', method)
+        self.assertIn('_onnx.install_label(label,confirmed=True)', method)
+        self.assertIn('download.connect(', method)
         self.assertIn('ONNX', method)
         self.assertIn("Gtk.Button(label='Test OCR')", method)
     def test_remote_catalog_filters_ocr_role(self):
@@ -37,7 +38,7 @@ class CompactPreferencesTests(unittest.TestCase):
         self.assertNotIn('softprops/action-gh-release', workflow)
     def test_package_revision(self):
         manifest = json.loads((ROOT / 'official_plugins/ocr/plugin.json').read_text())
-        self.assertEqual(manifest['version'], '0.1.7')
+        self.assertEqual(manifest['version'], '0.1.9')
         self.assertEqual(manifest['dependencies'], {})
         ast.parse(OCR)
 

@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "publisher": "SnapMark",
+  "catalog_channel": "snapmark-c2-onnx",
+  "compatibility_policy": "Only models with profile ppocr-esearch-v6-tiny-v1 verified by SnapMark are directly runnable",
+  "models": [
+    {
+      "id": "ppocr-v6-tiny",
+      "label": "PP-OCRv6 tiny (ONNX CPU)",
+      "publisher": "PaddlePaddle",
+      "license": "Apache-2.0",
+      "profile": "ppocr-esearch-v6-tiny-v1",
+      "min_engine_api": 1,
+      "verification": "smoke-tested",
+      "dictionary_entries": 6904,
+      "files": {
+        "det": {
+          "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/2ba1506c0380b8f0b03dd142459aac66d4421f6c/inference.onnx",
+          "sha256": "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
+          "max_bytes": 12582912
+        },
+        "rec": {
+          "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30/inference.onnx",
+          "sha256": "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
+          "max_bytes": 25165824
+        },
+        "dict": {
+          "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/dict/ppocrv6_tiny_dict.txt",
+          "sha256": null,
+          "max_bytes": 262144
+        }
+      }
+    }
+  ]
+}

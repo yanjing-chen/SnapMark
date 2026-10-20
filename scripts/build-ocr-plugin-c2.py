@@ -7,15 +7,15 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('plugin.json', 'models.json', 'catalog.py', 'main.py', 'worker.py', 'manager_c2b.py')
+FILES = ('plugin.json', 'models.json', 'catalog.py', 'main.py', 'worker.py', 'manager_c2b.py', 'onnx_c2.py', 'official_models_c2.py', 'catalog_builtin.json')
 
 
 def build(output):
     src = ROOT / 'official_plugins/ocr'
     manifest = json.loads((src / 'plugin.json').read_text('utf-8'))
-    assert manifest['id'] == 'ocr' and manifest['version'] == '0.1.7'
+    assert manifest['id'] == 'ocr' and manifest['version'] == '0.1.9'
     output.mkdir(parents=True, exist_ok=True)
-    path = output / 'SnapMark-ocr-0.1.7.zip'
+    path = output / 'SnapMark-ocr-0.1.9.zip'
     with ZipFile(path, 'w', compression=ZIP_DEFLATED, compresslevel=9) as z:
         for name in FILES:
             data = (src / name).read_bytes()

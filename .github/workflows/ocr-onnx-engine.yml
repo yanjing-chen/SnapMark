@@ -35,35 +35,22 @@ jobs:
       - name: Verify ONNX runtime components
         working-directory: scripts/ocr-onnx
         run: node worker.cjs --self-test
-      - name: Smoke-test real PP-OCRv6 tiny inference on GitHub runner
-        shell: bash
+      - name: Smoke-test official PaddlePaddle PP-OCRv6 tiny inference on GitHub runner
         working-directory: scripts/ocr-onnx
+        shell: bash
         run: |
           set -euo pipefail
-          MODEL_ARCHIVE="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny.zip"
-          MODEL_EXTRACT="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny-extract"
-          MODEL_STAGE="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny-model"
-          mkdir -p "$MODEL_EXTRACT" "$MODEL_STAGE"
+          MODEL_STAGE="${RUNNER_TEMP}/snapmark-ppocr-v6-tiny-official"
+          mkdir -p "$MODEL_STAGE"
           curl --fail --location --retry 3 --max-time 180 \
-            'https://github.com/xushengfeng/eSearch-OCR/releases/download/4.0.0/ppocr_v6_tiny.zip' \
-            --output "$MODEL_ARCHIVE"
-          unzip -t "$MODEL_ARCHIVE" >/dev/null
-          unzip -q "$MODEL_ARCHIVE" -d "$MODEL_EXTRACT"
-          python3 - "$MODEL_EXTRACT" "$MODEL_STAGE" <<'PYMODEL'
-          import shutil, sys
-          from pathlib import Path
-          src, out = map(Path, sys.argv[1:])
-          files = [p for p in src.rglob('*') if p.is_file()]
-          for identifier, dest in [('det', 'det.onnx'), ('rec', 'rec.onnx')]:
-              candidates = [p for p in files if p.suffix.lower() == '.onnx' and identifier in p.name.lower()]
-              if len(candidates) != 1:
-                  raise SystemExit(f'Expected exactly one {identifier} ONNX file: {candidates}')
-              shutil.copy2(candidates[0], out / dest)
-          for p in out.iterdir():
-              print('SMOKE_MODEL=', p.name, p.stat().st_size)
-          PYMODEL
-          # The eSearch v6 tiny release may contain det/rec without any .txt dictionary.
-          # PaddleOCR's official PP-OCRv6_tiny_rec.yml requires this specific dictionary.
+            'https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/2ba1506c0380b8f0b03dd142459aac66d4421f6c/inference.onnx' \
+            --output "$MODEL_STAGE/det.onnx"
+          curl --fail --location --retry 3 --max-time 180 \
+            'https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30/inference.onnx' \
+            --output "$MODEL_STAGE/rec.onnx"
+          printf '%s  %s\n' \
+            '193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8' "$MODEL_STAGE/det.onnx" \
+            '9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6' "$MODEL_STAGE/rec.onnx" | sha256sum -c -
           curl --fail --location --retry 3 --max-time 60 \
             'https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/main/ppocr/utils/dict/ppocrv6_tiny_dict.txt' \
             --output "$MODEL_STAGE/dict.txt"
@@ -74,8 +61,6 @@ jobs:
           chars = dictionary.splitlines()
           if len(chars) != 6904:
               raise SystemExit(f'Invalid PP-OCRv6 tiny dictionary: {len(chars)} entries (expected 6904)')
-          # A space or an empty string can be a legitimate OCR dictionary slot.
-          # strip() is NOT a valid per-entry test for model vocabulary entries.
           if not any(ch.strip() for ch in chars):
               raise SystemExit('Invalid PP-OCRv6 tiny dictionary: all entries are whitespace')
           print('SNAPMARK_V6_TINY_DICT_WHITESPACE_ENTRIES=', sum(not ch.strip() for ch in chars))

@@ -35,5 +35,5 @@ class CompactOCRHeaderTests(unittest.TestCase):
     def test_translation_minimum_remains_backwards_compatible(self):
         ocr = json.loads((ROOT / 'official_plugins/ocr/plugin.json').read_text('utf-8'))
         translation = json.loads((ROOT / 'official_plugins/translation/plugin.json').read_text('utf-8'))
-        self.assertEqual(ocr['version'], '0.1.7')
+        self.assertEqual(ocr['version'], '0.1.9')
         self.assertEqual(translation['dependencies'], {'ocr':'0.1.2'})
