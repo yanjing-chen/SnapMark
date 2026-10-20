@@ -1,4 +1,4 @@
-"""SnapMark optional Translation plugin 0.1.3; source-language auto detection.
+"""SnapMark optional Translation plugin 0.1.4; source-language auto detection.
 
 GTK4 on main thread. Only explicit Translate sends locally editable OCR text
 into Local AI Runtime (127.0.0.1:8111). No automatic inference or downloads.

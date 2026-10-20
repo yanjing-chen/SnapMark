@@ -5,12 +5,23 @@ on localhost; a translation POST may cause the user's registered model to load.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+from pathlib import Path
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
 
 ENDPOINT = 'http://127.0.0.1:8111'
+
+# Loaded by file path because official plugins are installed in versioned
+# directories and have no conventional Python package import context.
+_guard_spec = importlib.util.spec_from_file_location(
+    'snapmark_translation_format_guard', Path(__file__).with_name('format_guard_c2d.py'))
+if _guard_spec is None or _guard_spec.loader is None:
+    raise RuntimeError('Missing technical-format protection module')
+_guard = importlib.util.module_from_spec(_guard_spec)
+_guard_spec.loader.exec_module(_guard)
 
 
 class TranslationError(ValueError):
@@ -94,15 +105,26 @@ def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None)
         model = model_id
     else:
         model = choose_model(listing)
+    try:
+        protected_source, protected_tokens = _guard.protect(source_text)
+    except (TypeError, ValueError) as exc:
+        raise TranslationError(f'Cannot protect technical text: {exc}') from exc
     # No source-language setting: the model is instructed to detect it itself.
     prompt = ('Translate the following text into ' + target_language.strip() +
               '. Automatically identify the source language. Preserve meaning, names, '
               'paragraph breaks and formatting as faithfully as possible. '
               'Return ONLY the translation, without introductions or explanations.')
+    if protected_tokens:
+        prompt += (' IMPORTANT: Technical placeholders of the form '
+                   '[[SMTECH_00000]] represent protected command lines, file paths, '
+                   'code blocks, URLs and model identifiers. Keep each placeholder '
+                   'EXACTLY unchanged and present exactly once. Translate surrounding '
+                   'natural-language text only. Never translate, split, remove, '
+                   'duplicate or reinterpret a placeholder.')
     response = _request(endpoint, '/v1/chat/completions', payload={
         'model': model,
         'messages': [{'role': 'system', 'content': prompt},
-                     {'role': 'user', 'content': source_text}],
+                     {'role': 'user', 'content': protected_source}],
         'stream': False, 'temperature': 0.0,
     }, timeout=240)
     try:
@@ -111,4 +133,8 @@ def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None)
         raise TranslationError('Runtime returned no translation text') from exc
     if not isinstance(content, str) or not content.strip():
         raise TranslationError('Runtime returned an empty translation')
-    return content.strip(), model
+    try:
+        safe_translation = _guard.restore(content.strip(), protected_tokens)
+    except ValueError as exc:
+        raise TranslationError(str(exc)) from exc
+    return safe_translation, model
