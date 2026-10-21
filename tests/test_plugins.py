@@ -58,6 +58,13 @@ class PluginTests(unittest.TestCase):
         self.manager.select('ocr', '0.1.0')
         self.manager.select('translation', '0.1.0')
         self.assertTrue(self.manager.is_available('translation'))
+        # The dynamic plugin API refuses disabling a prerequisite while
+        # another enabled plugin depends upon it; explicitly disable the
+        # dependant first, preserving the selected plugin versions.
+        with self.assertRaisesRegex(PluginError, 'requires ocr'):
+            self.manager.set_enabled('ocr', False)
+        self.assertTrue(self.manager.is_available('translation'))
+        self.manager.set_enabled('translation', False)
         self.manager.set_enabled('ocr', False)
         self.assertFalse(self.manager.is_available('translation'))
         self.assertEqual(self.manager.selected('translation'), '0.1.0')

@@ -1,6 +1,6 @@
 {
   "id": "translation",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "api_version": 1,
   "min_host_version": "0.6.0",
   "dependencies": {

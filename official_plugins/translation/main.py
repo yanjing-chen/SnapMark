@@ -1,4 +1,4 @@
-"""SnapMark optional Translation plugin 0.1.4; source-language auto detection.
+"""SnapMark optional Translation plugin 0.1.5; source-language auto detection.
 
 GTK4 on main thread. Only explicit Translate sends locally editable OCR text
 into Local AI Runtime (127.0.0.1:8111). No automatic inference or downloads.
@@ -20,6 +20,11 @@ if spec is None or spec.loader is None:
     raise RuntimeError('Translation runtime client missing')
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+config_spec = importlib.util.spec_from_file_location(__name__ + '_settings_c2e', ROOT / 'settings_c2e.py')
+if config_spec is None or config_spec.loader is None:
+    raise RuntimeError('Missing Translation C2-E settings')
+config_c2e = importlib.util.module_from_spec(config_spec)
+config_spec.loader.exec_module(config_c2e)
 translate = module.translate
 list_translation_models = module.list_translation_models
 
@@ -65,7 +70,15 @@ def _save_settings(target, model):
         with tempfile.NamedTemporaryFile('w', encoding='utf-8', dir=path.parent,
                                          prefix='.translation-', delete=False) as stream:
             tmp = Path(stream.name)
-            json.dump({'target_language': target, 'model': model}, stream)
+            previous = {}
+            try:
+                previous = json.loads(path.read_text('utf-8'))
+            except (OSError, ValueError):
+                pass
+            if not isinstance(previous, dict):
+                previous = {}
+            previous.update({'target_language': target, 'model': model})
+            json.dump(previous, stream, ensure_ascii=False, indent=2)
             stream.write('\n')
         tmp.chmod(0o600)
         os.replace(tmp, path)
@@ -88,6 +101,7 @@ class TranslationController:
         self._catalog_generation = 0
         self.textview = None
         self.status = None
+        self.preview = None
         self.translate_button = None
         self.generation = 0
         self.running = False
@@ -143,6 +157,14 @@ class TranslationController:
         self.status.set_ellipsize(Pango.EllipsizeMode.END)
         root.append(self.status)
 
+        self.preview = Gtk.Label(label='', xalign=0)
+        self.preview.set_selectable(False)
+        self.preview.set_wrap(True)
+        self.preview.set_max_width_chars(80)
+        self.preview.set_lines(3)
+        self.preview.set_visible(False)
+        self.preview.add_css_class('dim-label')
+        root.append(self.preview)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(110)
@@ -250,6 +272,96 @@ class TranslationController:
         except OSError as exc:
             self._status(f'Cannot save target language: {exc}', notify=True)
 
+    def build_preferences(self, _editor):
+        """Optional per-model presets, sampling, and safe streaming controls."""
+        page = Adw.PreferencesPage()
+        group = Adw.PreferencesGroup(title='Translation prompt',
+            description='The translation instructions can be edited. Technical placeholder validation is always enforced.')
+        page.add(group)
+        model_name = self.selected_model or '__default__'
+        profile = config_c2e.read_profile(model_name)
+        row = Adw.ActionRow(title='Preset')
+        presets = list(config_c2e.PRESETS) + ['Custom']
+        selection = Gtk.DropDown.new_from_strings(presets)
+        selection.set_valign(Gtk.Align.CENTER)
+        selection.set_selected(presets.index(profile['preset']))
+        row.add_suffix(selection)
+        group.add(row)
+        prompt_view = Gtk.TextView()
+        prompt_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        prompt_view.set_top_margin(10)
+        prompt_view.set_bottom_margin(10)
+        prompt_view.set_left_margin(10)
+        prompt_view.set_right_margin(10)
+        prompt_view.get_buffer().set_text(profile['prompt'])
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_min_content_height(150)
+        scroller.set_child(prompt_view)
+        group.add(scroller)
+        def use_preset(drop, _pspec):
+            name = presets[drop.get_selected()]
+            if name in config_c2e.PRESETS:
+                prompt_view.get_buffer().set_text(config_c2e.PRESETS[name])
+        selection.connect('notify::selected', use_preset)
+        params = Adw.PreferencesGroup(title='Inference parameters',
+            description='Preferences are saved per translation model. Unsupported reasoning switches are not sent to Runtime.')
+        page.add(params)
+        temperature_row = Adw.ActionRow(title='Temperature', subtitle='0.0 keeps the existing deterministic default')
+        temperature = Gtk.SpinButton.new_with_range(0.0, 1.0, 0.1)
+        temperature.set_digits(1)
+        temperature.set_value(profile['temperature'])
+        temperature.set_valign(Gtk.Align.CENTER)
+        temperature_row.add_suffix(temperature)
+        params.add(temperature_row)
+        stream = Adw.SwitchRow(title='Streaming preview',
+            subtitle='Preview is not selectable or saveable; the final text is displayed only after technical validation')
+        stream.set_active(profile['streaming'])
+        params.add(stream)
+        tokens_row = Adw.ActionRow(title='Maximum output tokens')
+        options = ['Model default', '1024', '2048', '4096', '8192']
+        token_selector = Gtk.DropDown.new_from_strings(options)
+        token_selector.set_valign(Gtk.Align.CENTER)
+        current = str(profile['max_tokens']) if profile['max_tokens'] else 'Model default'
+        token_selector.set_selected(options.index(current))
+        tokens_row.add_suffix(token_selector)
+        params.add(tokens_row)
+        reason = Adw.ActionRow(title='Thinking mode',
+            subtitle='Automatic (model default). Explicit controls require verified Runtime/model support.')
+        params.add(reason)
+        save_row = Adw.ActionRow(title='Save model settings',
+            subtitle='Does not install models or change Local AI Runtime.')
+        save_button = Gtk.Button(label='Save settings')
+        save_button.add_css_class('suggested-action')
+        save_button.set_valign(Gtk.Align.CENTER)
+        save_row.add_suffix(save_button)
+        params.add(save_row)
+        def do_save(_button):
+            buf = prompt_view.get_buffer()
+            text = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
+            try:
+                config_c2e.save_profile(model_name, {
+                    'preset': presets[selection.get_selected()],
+                    'prompt': text,
+                    'temperature': temperature.get_value(),
+                    'streaming': stream.get_active(),
+                    'max_tokens': None if token_selector.get_selected() == 0 else int(options[token_selector.get_selected()]),
+                    'thinking': 'auto',
+                })
+                self.editor._notice('Translation settings saved')
+            except (OSError, ValueError) as exc:
+                self.editor._notice('Cannot save translation settings: ' + str(exc))
+        save_button.connect('clicked', do_save)
+        return page
+
+    def _partial(self, generation, text):
+        if generation == self.generation and self.running and self.preview is not None:
+            # This unselectable preview cannot leak protected placeholders into copy/save.
+            import re
+            safe = re.sub(r'\[\[SMTECH_\d{0,5}\]?\]?', '[protected]', text)
+            self.preview.set_label('Unverified streaming preview: ' + safe[-600:])
+            self.preview.set_visible(True)
+        return False
+
     def _run(self, _button):
         if self.running:
             return
@@ -265,6 +377,9 @@ class TranslationController:
         generation = self.generation
         target = self.target
         model_id = self.selected_model
+        profile = config_c2e.read_profile(model_id)
+        if self.preview is not None:
+            self.preview.set_visible(False)
         self.started_at = time.perf_counter()
         self.timer.set_text('Time: 0.00 s')
         GLib.timeout_add(100, self._tick, generation)
@@ -274,7 +389,10 @@ class TranslationController:
 
         def job():
             try:
-                translation, model = translate(source, target, model_id=model_id)
+                def partial(value):
+                    GLib.idle_add(self._partial, generation, value)
+                translation, model = translate(source, target, model_id=model_id,
+                                               settings=profile, on_partial=partial)
                 error = None
             except Exception as exc:
                 translation, model, error = None, None, str(exc)
@@ -287,6 +405,8 @@ class TranslationController:
         if generation != self.generation:
             return False
         self.running = False
+        if self.preview is not None:
+            self.preview.set_visible(False)
         self.started_at = None
         self.timer.set_text(f'Time: {elapsed:.2f} s')
         self.translate_button.set_sensitive(True)
@@ -351,4 +471,5 @@ def register(host):
         raise RuntimeError('Translation needs the active OCR text provider')
     controller = TranslationController(host.editor, getter)
     host.register_result_panel('translation', 'Translation', controller.build_panel)
+    host.register_preferences_page('translation', 'Translation', controller.build_preferences)
     host.register_toolbar_action('translation', 'Translation', lambda: None)

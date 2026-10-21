@@ -120,15 +120,19 @@ class EditorWindow(Adw.ApplicationWindow):
         self._plugin_action_buttons = {}
         self._updating_plugin_buttons = False
         self.plugin_manager = PluginManager()
+        self._c2e_loaded_plugins = {}  # plugin ID -> version loaded in this window
+        self._c2e_preferences_stack = None
+        self._c2e_preferences_navigation = None
         self.plugin_host = PluginHost(self)
         self.plugin_errors = []
         self._ocr_region_callback = None
         self._ocr_region_start = None
         self._ocr_region_preview = None
         self._build_ui()
-        for ident in PLUGIN_IDS:
+        for ident in self.plugin_manager.enabled_ids():
             try:
-                load_plugin(self.plugin_manager, ident, self.plugin_host)
+                if load_plugin(self.plugin_manager, ident, self.plugin_host):
+                    self._c2e_loaded_plugins[ident] = self.plugin_manager.selected(ident)
             except Exception as exc:
                 self.plugin_errors.append(f'{ident}: {exc}')
                 print(f'SnapMark: plugin {ident} failed to load: {exc}', flush=True)
@@ -347,6 +351,10 @@ class EditorWindow(Adw.ApplicationWindow):
             return GLib.SOURCE_REMOVE
         GLib.timeout_add(40, adjust)
 
+    def _plugin_extension_clicked(self, _button, callback):
+        """Invoke a third-party toolbar action only upon a user click."""
+        callback()
+
     def add_plugin_action(self, ident, label, callback):
         """Register a toolbar *visibility* toggle; inference is started inside the panel.
 
@@ -354,7 +362,15 @@ class EditorWindow(Adw.ApplicationWindow):
         OCR and Translation are independent of the drawing-tool radio group.
         """
         if ident not in ('ocr', 'translation'):
-            raise ValueError('Unsupported plugin action')
+            if ident in self._plugin_action_buttons:
+                raise ValueError('Duplicate plugin action')
+            button = Gtk.Button(label=label, tooltip_text=label)
+            button.add_css_class('snapmark-tool')
+            button.set_size_request(80, 64)
+            button.connect('clicked', self._plugin_extension_clicked, callback)
+            self._plugin_action_buttons[ident] = button
+            self._plugin_tools.append(button)
+            return button
         if ident in self._plugin_action_buttons:
             raise ValueError(f'{ident} toolbar button is already registered')
         icon = 'edit-find-symbolic' if ident == 'ocr' else 'accessories-dictionary-symbolic'
@@ -1368,49 +1384,208 @@ class EditorWindow(Adw.ApplicationWindow):
             if 'dismiss' not in exc.message.lower() and 'cancel' not in exc.message.lower():
                 self._notice(f'Open failed: {exc.message}')
 
+    def _c2e_plugins_changed(self):
+        """Reflect enabled state on this GTK main-loop window immediately.
+
+        Keep existing widgets in memory while disabled, so re-enabling the
+        SAME version does not duplicate registrations or discard OCR text.
+        A different plugin version is deliberately not hot-replaced because
+        active GTK callbacks/workers may still reference its Python objects.
+        """
+        enabled = set(self.plugin_manager.enabled_ids())
+        changed_version = []
+        for ident, button in tuple(self._plugin_action_buttons.items()):
+            live_version = self._c2e_loaded_plugins.get(ident)
+            active_version = self.plugin_manager.selected(ident)
+            ready = ident in enabled and live_version == active_version
+            if not ready:
+                if isinstance(button, Gtk.ToggleButton) and button.get_active():
+                    button.set_active(False)
+                button.set_visible(False)
+            else:
+                button.set_visible(True)
+        for ident in self.plugin_manager.enabled_ids():
+            version = self.plugin_manager.selected(ident)
+            previous = self._c2e_loaded_plugins.get(ident)
+            if previous is not None and previous != version:
+                changed_version.append(ident)
+                continue
+            if previous is None:
+                try:
+                    if load_plugin(self.plugin_manager, ident, self.plugin_host):
+                        self._c2e_loaded_plugins[ident] = version
+                except Exception as exc:
+                    message = f'{ident}: {type(exc).__name__}: {exc}'
+                    self.plugin_errors.append(message)
+                    print(f'SnapMark: live plugin enable failed: {message}', flush=True)
+                    self._notice(f'Could not enable {ident}: {exc}')
+            button = self._plugin_action_buttons.get(ident)
+            if button is not None and self._c2e_loaded_plugins.get(ident) == version:
+                button.set_visible(True)
+        if changed_version:
+            self._notice('Restart SnapMark to load the selected new plugin version: '
+                         + ', '.join(changed_version))
+        self._c2e_refresh_preferences_pages()
+
+    def _c2e_refresh_preferences_pages(self):
+        """Keep the plugin submenus in sync with the on-disk enabled state."""
+        stack = self._c2e_preferences_stack
+        navigation = self._c2e_preferences_navigation
+        if stack is None or navigation is None:
+            return
+        enabled = set(self.plugin_manager.enabled_ids())
+        registered = []
+        for ident in self.plugin_manager.known_ids():
+            page_name = 'plugin-' + ident
+            old = stack.get_child_by_name(page_name)
+            if ident not in enabled:
+                if old is not None:
+                    if stack.get_visible_child() is old:
+                        stack.set_visible_child_name('plugins')
+                    stack.remove(old)
+                continue
+            manifest = self.plugin_manager.manifest(
+                ident, self.plugin_manager.selected(ident)) or {}
+            fallback_title = ('Translation' if ident == 'translation' else
+                              'OCR' if ident == 'ocr' else
+                              manifest.get('name', ident.replace('-', ' ').title()))
+            factory = self.plugin_host.settings_factories.get(ident)
+            title = factory[0] if factory else fallback_title
+            if ident == 'example-settings':
+                title = 'Example Settings Plugin'
+            if old is None:
+                try:
+                    loaded = self._c2e_loaded_plugins.get(ident)
+                    selected = self.plugin_manager.selected(ident)
+                    if loaded != selected:
+                        raise RuntimeError('Selected plugin version requires restarting SnapMark')
+                    if factory is None:
+                        raise RuntimeError('The enabled plugin did not register a settings page')
+                    new_page = factory[1](self)
+                    if not isinstance(new_page, Gtk.Widget):
+                        raise TypeError('Preferences builder did not return a GTK widget')
+                except Exception as exc:
+                    detail = f'{type(exc).__name__}: {exc}'
+                    new_page = Adw.PreferencesPage()
+                    group = Adw.PreferencesGroup(
+                        title=title + ' settings unavailable',
+                        description='The plugin could not provide its settings.')
+                    group.add(Adw.ActionRow(title='Details', subtitle=detail[:500]))
+                    new_page.add(group)
+                    print(f'SnapMark: {ident} live settings failed: {detail}', flush=True)
+                stack.add_titled(new_page, page_name, title)
+            registered.append((ident, title,
+                               manifest.get('icon', 'application-x-addon-symbolic')))
+        navigation.populate_plugins(registered)
+
     def show_preferences(self):
         if self._preferences_window is not None:
             self._preferences_window.present()
             return
         # PreferencesPage is used for the content, with StackSidebar on the
         # LEFT instead of libadwaita's normal top-of-window page switcher.
-        window = Adw.Window(title='SnapMark Preferences', default_width=660,
-                            default_height=430, transient_for=self, modal=False)
+        window = Adw.Window(title='SnapMark Preferences', default_width=920,
+                            default_height=640, transient_for=self, modal=False)
         window.add_css_class('snapmark-window')
         self._preferences_window = window
         window.connect('close-request', lambda *_: self._forget_preferences())
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
         window.set_content(toolbar)
+        from .preferences_sidebar_c2e import PreferencesNavigation
         split = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         split.set_resize_start_child(False)
         split.set_shrink_start_child(False)
-        split.set_resize_end_child(True)
-        split.set_shrink_end_child(False)
-        split.set_position(160)
+        split.set_position(222)
         toolbar.set_content(split)
-
         stack = Gtk.Stack()
         stack.set_hexpand(True)
         stack.set_vexpand(True)
-        sidebar = Gtk.StackSidebar()
-        sidebar.set_stack(stack)
-        sidebar.set_size_request(145, -1)
-        sidebar.add_css_class('navigation-sidebar')
-        split.set_start_child(sidebar)
+        navigation = PreferencesNavigation(stack)
+        split.set_start_child(navigation)
         split.set_end_child(stack)
-
         page = Adw.PreferencesPage()
         group = Adw.PreferencesGroup(title='General')
         page.add(group)
         stack.add_titled(page, 'general', 'General')
-        from .plugin_ui import PluginPreferences
-        self._plugin_preferences = PluginPreferences(window, stack)
+        screenshot_page = Adw.PreferencesPage()
+        screenshot_group = Adw.PreferencesGroup(title='Screenshots',
+            description='GNOME Print Screen remains the screenshot provider; annotations stay in the editor.')
+        screenshot_page.add(screenshot_group)
+        stack.add_titled(screenshot_page, 'screenshot', 'Screenshots & Annotation')
+        appearance_page = Adw.PreferencesPage()
+        appearance_group = Adw.PreferencesGroup(title='Appearance',
+            description='Colors, strokes and highlight settings are edited directly in the main editor.')
+        appearance_page.add(appearance_group)
+        stack.add_titled(appearance_page, 'appearance', 'Appearance')
+        shortcuts_page = Adw.PreferencesPage()
+        shortcuts_group = Adw.PreferencesGroup(title='Keyboard shortcuts')
+        shortcuts_page.add(shortcuts_group)
+        for key, purpose in (
+            ('Ctrl+O', 'Open image'), ('Ctrl+C', 'Copy annotated screenshot'),
+            ('Ctrl+S', 'Save screenshot'), ('Ctrl+Z', 'Undo'),
+            ('Ctrl+Shift+Z / Ctrl+Y', 'Redo'), ('Ctrl+0', 'Actual pixel size'),
+            ('Ctrl+,', 'Preferences'), ('Ctrl+Q', 'Quit SnapMark'),
+        ):
+            shortcuts_group.add(Adw.ActionRow(title=key, subtitle=purpose))
+        stack.add_titled(shortcuts_page, 'shortcuts', 'Shortcuts')
         from .ai_runtime_ui import AIRuntimePreferences
         self._runtime_preferences = AIRuntimePreferences(window, stack)
-        for ident, (title, builder) in self.plugin_host.settings_factories.items():
-            plugin_page = builder(self)
+        from .plugin_ui import PluginPreferences
+        self._plugin_preferences = PluginPreferences(window, stack)
+        # The manager writes to plugins.json; refresh the EXISTING editor on
+        # enable/disable rather than requiring an application restart.
+        self._plugin_preferences.on_changed = self._c2e_plugins_changed
+        self._c2e_preferences_stack = stack
+        self._c2e_preferences_navigation = navigation
+        registered = []
+        # Enabled plugins are the source of truth for dynamic navigation.
+        # A faulty plugin must not silently lose its Preferences entry.
+        for ident in self.plugin_manager.enabled_ids():
+            manifest = self.plugin_manager.manifest(ident, self.plugin_manager.selected(ident)) or {}
+            default_title = 'Translation' if ident == 'translation' else (
+                'OCR' if ident == 'ocr' else manifest.get('name', ident.replace('-', ' ').title()))
+            icon = manifest.get('icon', 'application-x-addon-symbolic')
+            factory = self.plugin_host.settings_factories.get(ident)
+            title = factory[0] if factory else default_title
+            if ident == 'example-settings':
+                title = 'Example Settings Plugin'
+            failure = None
+            if factory:
+                try:
+                    plugin_page = factory[1](self)
+                    if not isinstance(plugin_page, Gtk.Widget):
+                        raise TypeError('Preferences builder did not return a GTK widget')
+                except Exception as exc:
+                    failure = f'{type(exc).__name__}: {exc}'
+            else:
+                prior = [str(msg) for msg in self.plugin_errors
+                         if str(msg).startswith(ident + ':')]
+                failure = (prior[-1] if prior else
+                           'The enabled plugin did not register a settings page')
+            if failure is not None:
+                # Display a real error page rather than silently removing
+                # Translation or another enabled plugin from the sidebar.
+                plugin_page = Adw.PreferencesPage()
+                error_group = Adw.PreferencesGroup(
+                    title=title + ' settings unavailable',
+                    description='The plugin could not provide its settings. '
+                                'Check the terminal output before trying again.')
+                error_group.add(Adw.ActionRow(title='Details', subtitle=failure[:500]))
+                plugin_page.add(error_group)
+                self.plugin_errors.append(f'{ident} preferences: {failure}')
+                print(f'SnapMark: preferences for {ident} failed: {failure}', flush=True)
             stack.add_titled(plugin_page, 'plugin-' + ident, title)
+            registered.append((ident, title, icon))
+        navigation.populate_plugins(registered)
+        about_page = Adw.PreferencesPage()
+        about_group = Adw.PreferencesGroup(title='SnapMark',
+            description='GTK4 / libadwaita screenshot editor for GNOME Wayland. OCR and translation are optional plugins.')
+        about_page.add(about_group)
+        stack.add_titled(about_page, 'about', 'About')
+        # All pages now exist; initial selection must not happen in the sidebar constructor.
+        stack.set_visible_child_name('general')
+        navigation._highlight()
         autostart = Autostart()
         startup = Adw.SwitchRow(title='Start automatically on login',
                                 subtitle='Watch GNOME screenshots in the background')
@@ -1435,7 +1610,7 @@ class EditorWindow(Adw.ApplicationWindow):
         reset.set_valign(Gtk.Align.CENTER)
         reset.set_sensitive(bool(self.settings.screenshot_directory()))
         folder.add_suffix(reset)
-        group.add(folder)
+        screenshot_group.add(folder)
 
         def toggle_switch(switch, _pspec):
             try:
@@ -1486,6 +1661,8 @@ class EditorWindow(Adw.ApplicationWindow):
 
     def _forget_preferences(self):
         self._preferences_window = None
+        self._c2e_preferences_stack = None
+        self._c2e_preferences_navigation = None
         return False
 
     def _notice(self, message):

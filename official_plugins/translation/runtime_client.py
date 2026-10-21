@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import codecs
 from pathlib import Path
 import urllib.error
 import urllib.request
@@ -16,6 +17,13 @@ ENDPOINT = 'http://127.0.0.1:8111'
 
 # Loaded by file path because official plugins are installed in versioned
 # directories and have no conventional Python package import context.
+_settings_spec = importlib.util.spec_from_file_location(
+    'snapmark_translation_settings_c2e', Path(__file__).with_name('settings_c2e.py'))
+if _settings_spec is None or _settings_spec.loader is None:
+    raise RuntimeError('Missing Translation C2-E settings module')
+_settings = importlib.util.module_from_spec(_settings_spec)
+_settings_spec.loader.exec_module(_settings)
+
 _guard_spec = importlib.util.spec_from_file_location(
     'snapmark_translation_format_guard', Path(__file__).with_name('format_guard_c2d.py'))
 if _guard_spec is None or _guard_spec.loader is None:
@@ -90,7 +98,52 @@ def choose_model(listing):
     return next((mid for mid in models if 'hy-mt' in mid.casefold()), models[0])
 
 
-def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None):
+def _stream_request(endpoint, path, *, payload, timeout=240, on_partial=None):
+    """Read OpenAI-compatible SSE; deliver untrusted previews but require [DONE]."""
+    base = _endpoint(endpoint)
+    data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    request = urllib.request.Request(base + path, data=data,
+        headers={'Content-Type': 'application/json', 'Accept': 'text/event-stream'}, method='POST')
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            content_type = response.headers.get('Content-Type', '')
+            if 'text/event-stream' not in content_type:
+                raise TranslationError('Runtime did not return SSE streaming output')
+            parts, total_bytes, finished = [], 0, False
+            for line in response:
+                total_bytes += len(line)
+                if total_bytes > 8 * 1024 * 1024:
+                    raise TranslationError('Streaming response exceeds 8 MiB limit')
+                if not line.startswith(b'data:'):
+                    continue
+                fragment = line[5:].strip()
+                if fragment == b'[DONE]':
+                    finished = True
+                    break
+                try:
+                    event = json.loads(fragment.decode('utf-8'))
+                    delta = event['choices'][0].get('delta', {})
+                    piece = delta.get('content', '')
+                except (ValueError, KeyError, IndexError, TypeError) as exc:
+                    raise TranslationError('Malformed Runtime streaming event') from exc
+                if piece is None:
+                    continue
+                if not isinstance(piece, str):
+                    raise TranslationError('Malformed streaming text')
+                parts.append(piece)
+                if on_partial is not None:
+                    on_partial(''.join(parts))
+            if not finished:
+                raise TranslationError('Runtime streaming output ended before [DONE]')
+            return ''.join(parts)
+    except urllib.error.HTTPError as exc:
+        raise TranslationError(f'Runtime API HTTP {exc.code} on {path}') from exc
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise TranslationError(f'Cannot stream from local Runtime: {type(exc).__name__}') from exc
+
+def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None,
+              settings=None, on_partial=None):
     if not isinstance(source_text, str) or not source_text.strip():
         raise TranslationError('OCR text is empty; enter or recognize some text first')
     if not isinstance(target_language, str) or not target_language.strip():
@@ -105,15 +158,16 @@ def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None)
         model = model_id
     else:
         model = choose_model(listing)
+    profile = _settings.read_profile(model) if settings is None else _settings.validate(settings)
     try:
         protected_source, protected_tokens = _guard.protect(source_text)
     except (TypeError, ValueError) as exc:
         raise TranslationError(f'Cannot protect technical text: {exc}') from exc
-    # No source-language setting: the model is instructed to detect it itself.
+    # User prompt is editable, but target language, one-result contract and
+    # nonnegotiable technical-identifier protection are enforced separately.
     prompt = ('Translate the following text into ' + target_language.strip() +
-              '. Automatically identify the source language. Preserve meaning, names, '
-              'paragraph breaks and formatting as faithfully as possible. '
-              'Return ONLY the translation, without introductions or explanations.')
+              '. Automatically identify the source language. ' + profile['prompt'] +
+              ' Return ONLY the translation, without introductions or explanations.')
     if protected_tokens:
         prompt += (' IMPORTANT: Technical placeholders of the form '
                    '[[SMTECH_00000]] represent protected command lines, file paths, '
@@ -121,16 +175,23 @@ def translate(source_text, target_language, *, endpoint=ENDPOINT, model_id=None)
                    'EXACTLY unchanged and present exactly once. Translate surrounding '
                    'natural-language text only. Never translate, split, remove, '
                    'duplicate or reinterpret a placeholder.')
-    response = _request(endpoint, '/v1/chat/completions', payload={
+    payload = {
         'model': model,
         'messages': [{'role': 'system', 'content': prompt},
                      {'role': 'user', 'content': protected_source}],
-        'stream': False, 'temperature': 0.0,
-    }, timeout=240)
-    try:
-        content = response['choices'][0]['message']['content']
-    except (KeyError, IndexError, TypeError) as exc:
-        raise TranslationError('Runtime returned no translation text') from exc
+        'stream': profile['streaming'], 'temperature': profile['temperature'],
+    }
+    if profile['max_tokens'] is not None:
+        payload['max_tokens'] = profile['max_tokens']
+    if profile['streaming']:
+        content = _stream_request(endpoint, '/v1/chat/completions', payload=payload,
+                                  timeout=240, on_partial=on_partial)
+    else:
+        response = _request(endpoint, '/v1/chat/completions', payload=payload, timeout=240)
+        try:
+            content = response['choices'][0]['message']['content']
+        except (KeyError, IndexError, TypeError) as exc:
+            raise TranslationError('Runtime returned no translation text') from exc
     if not isinstance(content, str) or not content.strip():
         raise TranslationError('Runtime returned an empty translation')
     try:

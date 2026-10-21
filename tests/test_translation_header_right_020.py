@@ -34,6 +34,6 @@ class TranslateRightAlignmentTests(unittest.TestCase):
 
     def test_only_translation_ui_version_changes(self):
         manifest = json.loads((ROOT/'official_plugins/translation/plugin.json').read_text())
-        self.assertEqual(manifest['version'],'0.1.4')
+        self.assertEqual(manifest['version'],'0.1.5')
         self.assertEqual(manifest['dependencies'],{'ocr':'0.1.2'})
-        self.assertIn('SnapMark-translation-0.1.4.zip',(ROOT/'scripts/build-translation-plugin-c2.py').read_text())
+        self.assertIn('SnapMark-translation-0.1.5.zip',(ROOT/'scripts/build-translation-plugin-c2.py').read_text())

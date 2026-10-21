@@ -7,15 +7,15 @@ from pathlib import Path
 from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('plugin.json', 'main.py', 'runtime_client.py', 'format_guard_c2d.py')
+FILES = ('plugin.json', 'main.py', 'runtime_client.py', 'format_guard_c2d.py', 'settings_c2e.py')
 
 
 def build(output):
     src = ROOT / 'official_plugins/translation'
     manifest = json.loads((src / 'plugin.json').read_text('utf-8'))
-    assert manifest['id'] == 'translation' and manifest['version'] == '0.1.4'
+    assert manifest['id'] == 'translation' and manifest['version'] == '0.1.5'
     output.mkdir(parents=True, exist_ok=True)
-    path = output / 'SnapMark-translation-0.1.4.zip'
+    path = output / 'SnapMark-translation-0.1.5.zip'
     with ZipFile(path, 'w', compression=ZIP_DEFLATED, compresslevel=9) as z:
         for name in FILES:
             data = (src / name).read_bytes()

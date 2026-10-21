@@ -22,7 +22,15 @@ from pathlib import Path, PurePosixPath
 PLUGIN_API = 1
 HOST_VERSION = '0.6.0'
 OFFICIAL_REPO = 'yanjing-chen/SnapMark'
+# Built-in plugin order is stable for compatibility with OCR -> Translation.
 PLUGIN_IDS = ('ocr', 'translation')
+# Other plugin IDs are validated, not hardcoded. Never derive filesystem paths
+# from unvalidated ZIP metadata.
+PLUGIN_ID_RE = re.compile(r'^[a-z][a-z0-9_-]{0,47}$')
+
+def valid_plugin_id(ident):
+    return isinstance(ident, str) and bool(PLUGIN_ID_RE.fullmatch(ident))
+
 MAX_PACKAGE_BYTES = 20 * 1024 * 1024
 MAX_UNPACKED_BYTES = 40 * 1024 * 1024
 MAX_ENTRIES = 350
@@ -51,8 +59,8 @@ def _manifest(data):
     if not isinstance(data, dict):
         raise PluginError('Invalid plugin manifest')
     ident, ver = data.get('id'), data.get('version')
-    if ident not in PLUGIN_IDS:
-        raise PluginError('Only SnapMark official OCR and Translation plugins are allowed')
+    if not valid_plugin_id(ident):
+        raise PluginError('Invalid plugin ID')
     version_key(ver)
     if type(data.get('api_version')) is not int or data['api_version'] != PLUGIN_API:
         raise PluginError('Plugin API version is not supported')
@@ -60,7 +68,7 @@ def _manifest(data):
     if version_key(minimum) > version_key(HOST_VERSION):
         raise PluginError(f'Plugin needs SnapMark {minimum} or later')
     dependencies = data.get('dependencies', {})
-    if not isinstance(dependencies, dict) or set(dependencies) - set(PLUGIN_IDS):
+    if not isinstance(dependencies, dict) or len(dependencies) > 24 or not all(valid_plugin_id(dep) for dep in dependencies):
         raise PluginError('Invalid plugin dependencies')
     if ident == 'translation' and 'ocr' not in dependencies:
         raise PluginError('Translation must declare its OCR dependency')
@@ -70,6 +78,12 @@ def _manifest(data):
         raise PluginError('A plugin cannot depend on itself')
     for depver in dependencies.values():
         version_key(depver)
+    title = data.get('name', ident.replace('-', ' ').title())
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 80:
+        raise PluginError('Invalid plugin display name')
+    icon = data.get('icon', 'application-x-addon-symbolic')
+    if not isinstance(icon, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,79}', icon):
+        raise PluginError('Invalid plugin icon name')
     entry = data.get('entrypoint')
     if entry is not None and (not isinstance(entry, str) or not re.fullmatch(r'[A-Za-z_]\w*(\.[A-Za-z_]\w*)*:[A-Za-z_]\w*', entry)):
         raise PluginError('Invalid plugin entrypoint')
@@ -127,8 +141,26 @@ class PluginManager:
             if os.path.exists(name):
                 os.unlink(name)
 
+    def known_ids(self):
+        """Built-ins plus installed, manifest-validated plugin IDs; no imports."""
+        discovered = set(PLUGIN_IDS)
+        if self.root.is_dir():
+            for folder in self.root.iterdir():
+                if (folder.is_dir() and not folder.is_symlink() and
+                        valid_plugin_id(folder.name)):
+                    try:
+                        if self.versions(folder.name):
+                            discovered.add(folder.name)
+                    except (PluginError, OSError):
+                        continue
+        return [*PLUGIN_IDS, *sorted(discovered - set(PLUGIN_IDS))]
+
+    def enabled_ids(self):
+        """Load built-ins first, then only enabled and dependency-ready plugins."""
+        return [ident for ident in self.known_ids() if self.is_available(ident)]
+
     def manifest(self, ident, version):
-        if ident not in PLUGIN_IDS:
+        if not valid_plugin_id(ident):
             raise PluginError('Unknown plugin')
         version_key(version)
         path = self.root / ident / version / 'plugin.json'
@@ -139,7 +171,7 @@ class PluginManager:
             return None
 
     def versions(self, ident):
-        if ident not in PLUGIN_IDS:
+        if not valid_plugin_id(ident):
             raise PluginError('Unknown plugin')
         folder = self.root / ident
         if not folder.is_dir():
@@ -157,13 +189,18 @@ class PluginManager:
         obj = self._state().get(ident)
         return bool(self.selected(ident) and isinstance(obj, dict) and obj.get('enabled') is True)
 
-    def is_available(self, ident):
-        if not self.is_enabled(ident):
+    def is_available(self, ident, _seen=None):
+        """Reject dependency cycles without recursion or loading code."""
+        seen = frozenset() if _seen is None else _seen
+        if not valid_plugin_id(ident) or ident in seen or not self.is_enabled(ident):
             return False
         manifest = self.manifest(ident, self.selected(ident))
-        return bool(manifest and all(self.is_available(dep) and
-                    version_key(self.selected(dep)) >= version_key(minimum)
-                    for dep, minimum in manifest.get('dependencies', {}).items()))
+        if not manifest:
+            return False
+        chain = seen | {ident}
+        return all(self.is_available(dep, chain) and
+                   version_key(self.selected(dep)) >= version_key(minimum)
+                   for dep, minimum in manifest.get('dependencies', {}).items())
 
     def select(self, ident, version, enabled=True):
         manifest = self.manifest(ident, version)
@@ -181,6 +218,13 @@ class PluginManager:
             minimum = active_translation['dependencies']['ocr']
             if version_key(version) < version_key(minimum):
                 raise PluginError(f'Translation requires OCR {minimum} or later')
+        for other in self.known_ids():
+            if other == ident or not self.is_enabled(other):
+                continue
+            dependent = self.manifest(other, self.selected(other))
+            minimum = (dependent or {}).get('dependencies', {}).get(ident)
+            if minimum and (not enabled or version_key(version) < version_key(minimum)):
+                raise PluginError(f'{other} requires {ident} {minimum} or later')
         state = self._state()
         state[ident] = {'version': version, 'enabled': bool(enabled)}
         self._save(state)
@@ -207,7 +251,7 @@ class PluginManager:
 
     def install_zip(self, payload: bytes, ident: str, version: str, expected_sha256: str):
         """Install *verified* official release bytes, never execute during install."""
-        if ident not in PLUGIN_IDS:
+        if not valid_plugin_id(ident):
             raise PluginError('Unknown plugin')
         version_key(version)
         if len(payload) > MAX_PACKAGE_BYTES:
@@ -258,7 +302,7 @@ def _http_bytes(url, *, max_bytes=MAX_PACKAGE_BYTES):
 
 def available_releases(ident):
     """Read OFFICIAL repository only; empty list is valid before first release."""
-    if ident not in PLUGIN_IDS:
+    if not valid_plugin_id(ident):
         raise PluginError('Unknown plugin')
     url = f'https://api.github.com/repos/{OFFICIAL_REPO}/releases?per_page=100'
     try:
@@ -294,7 +338,7 @@ def available_releases(ident):
 def install_release(manager, release):
     """Download ZIP and checksum from matched official release metadata."""
     ident, version = release['id'], release['version']
-    if ident not in PLUGIN_IDS:
+    if not valid_plugin_id(ident):
         raise PluginError('Unknown release plugin')
     version_key(version)
     prefix = f'https://github.com/{OFFICIAL_REPO}/releases/download/{ident}-v{version}/'

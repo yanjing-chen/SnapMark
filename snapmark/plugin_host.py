@@ -9,7 +9,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-from .plugins import PLUGIN_IDS, PluginError
+from .plugins import PluginError, valid_plugin_id
 
 
 class PluginHost:
@@ -17,33 +17,51 @@ class PluginHost:
 
     def __init__(self, editor):
         self.editor = editor
+        self._loading_plugin_id = None
+        self._loading_manager = None
         self.settings_factories = {}  # plugin id -> (title, builder)
         self.text_providers = {}  # registered plugin id -> current text getter
 
+    def _check(self, plugin_id):
+        if not valid_plugin_id(plugin_id):
+            raise PluginError('Invalid plugin ID')
+        if self._loading_plugin_id is None or self._loading_manager is None:
+            raise PluginError('Plugin registration outside the active loader')
+        if plugin_id != self._loading_plugin_id:
+            raise PluginError('Plugin attempted registration under another ID')
+        if not self._loading_manager.is_available(plugin_id):
+            raise PluginError('Only enabled, dependency-ready plugins can register')
+
     def register_toolbar_action(self, plugin_id, label, callback):
-        if plugin_id not in PLUGIN_IDS or not isinstance(label, str) or not callable(callback):
+        if not isinstance(label, str) or not callable(callback):
             raise PluginError('Invalid toolbar action registration')
+        self._check(plugin_id)
         self.editor.add_plugin_action(plugin_id, label, callback)
 
     def register_preferences_page(self, plugin_id, title, builder):
-        if plugin_id not in PLUGIN_IDS or not isinstance(title, str) or not callable(builder):
+        if not isinstance(title, str) or not callable(builder):
             raise PluginError('Invalid plugin preferences registration')
+        self._check(plugin_id)
+        if plugin_id in self.settings_factories:
+            raise PluginError('Duplicate preferences registration')
         self.settings_factories[plugin_id] = (title, builder)
 
     def register_result_panel(self, plugin_id, title, builder):
-        if plugin_id not in PLUGIN_IDS or not isinstance(title, str) or not callable(builder):
+        if not isinstance(title, str) or not callable(builder):
             raise PluginError('Invalid plugin result registration')
+        self._check(plugin_id)
         self.editor.add_plugin_result(plugin_id, title, builder)
 
     def register_text_provider(self, plugin_id, getter):
         """Expose current, user-edited OCR text to the optional translation plugin."""
-        if plugin_id not in PLUGIN_IDS or not callable(getter):
+        if not callable(getter):
             raise PluginError('Invalid text provider')
+        self._check(plugin_id)
         self.text_providers[plugin_id] = getter
 
     def get_text_provider(self, plugin_id):
-        if plugin_id not in PLUGIN_IDS:
-            raise PluginError('Unknown text provider')
+        if not valid_plugin_id(plugin_id):
+            raise PluginError('Invalid text provider ID')
         return self.text_providers.get(plugin_id)
 
 
@@ -52,7 +70,7 @@ def load_plugin(manager, ident, host):
 
     Caller catches and reports failures; never load a disabled plugin.
     """
-    if ident not in PLUGIN_IDS or not manager.is_available(ident):
+    if not valid_plugin_id(ident) or not manager.is_available(ident):
         return False
     selected = manager.selected(ident)
     manifest = manager.manifest(ident, selected)
@@ -70,6 +88,10 @@ def load_plugin(manager, ident, host):
         raise PluginError('Unable to load plugin module')
     instance = importlib.util.module_from_spec(spec)
     sys.modules[name] = instance
+    if host._loading_plugin_id is not None:
+        raise PluginError('Recursive plugin registration is not allowed')
+    host._loading_plugin_id = ident
+    host._loading_manager = manager
     try:
         spec.loader.exec_module(instance)
         register = getattr(instance, function, None)
@@ -79,4 +101,7 @@ def load_plugin(manager, ident, host):
     except BaseException:
         sys.modules.pop(name, None)
         raise
+    finally:
+        host._loading_plugin_id = None
+        host._loading_manager = None
     return True
