@@ -49,7 +49,38 @@ class TrayApiTests(unittest.TestCase):
         tray._menu_call(None, None, None, None, 'GetLayout',
                         GLib.Variant('(iias)', (0, -1, [])), invocation)
         self.assertEqual(invocation.value.get_type_string(), '(u(ia{sv}av))')
-        self.assertEqual(len(invocation.value.unpack()[1][2]), 3)
+        layout = invocation.value.unpack()[1]
+        self.assertEqual(layout[0], 0)
+        # Eight nodes: six menu entries plus two visible separators.
+        def unwrap(obj):
+            while hasattr(obj, 'unpack'):
+                obj = obj.unpack()
+            return obj
+        children = [unwrap(item) for item in layout[2]]
+        self.assertEqual([entry[0] for entry in children],
+                         [1, 7, 2, 3, 8, 4, 5, 6])
+        props = {entry[0]: entry[1] for entry in children}
+        def value(item_id, key):
+            return unwrap(props[item_id][key])
+        for item_id, label in ((1, 'SnapMark'),
+                               (2, 'Open Clipboard Image'),
+                               (3, 'Screenshot History'),
+                               (4, 'Preferences'),
+                               (5, 'About'),
+                               (6, 'Quit')):
+            self.assertEqual(value(item_id, 'label'), label)
+            self.assertTrue(value(item_id, 'visible'))
+            self.assertIn('icon-name', props[item_id])
+        for item_id in (7, 8):
+            self.assertEqual(value(item_id, 'type'), 'separator')
+            self.assertTrue(value(item_id, 'visible'))
+        # A header is never clickable; text/empty clipboards disable import.
+        self.assertFalse(value(1, 'enabled'))
+        self.assertFalse(value(2, 'enabled'))
+        self.assertTrue(value(3, 'enabled'))
+        # Enabling clipboard image data must enable the action dynamically.
+        tray.clipboard_ready = lambda: True
+        self.assertTrue(tray._item_properties(2)['enabled'].unpack())
 
 
 if __name__ == '__main__':

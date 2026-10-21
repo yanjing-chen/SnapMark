@@ -1,5 +1,7 @@
 """GTK4 application, CLI entry point, and screenshot watcher lifecycle."""
 import sys
+import os
+import tempfile
 from pathlib import Path
 import gi
 
@@ -11,11 +13,12 @@ gi.require_version('Pango', '1.0')
 gi.require_version('PangoCairo', '1.0')
 gi.require_foreign('cairo')
 
-from gi.repository import Adw, Gio, GLib
+from gi.repository import Adw, Gdk, Gio, GLib
 from .editor import EditorWindow
 from .watch import ScreenshotWatcher
 from .preferences import Settings
 from .tray import TrayIndicator
+from .history_c2g import show_history
 
 APP_ID = 'io.github.yanjingchen.SnapMark'
 
@@ -25,7 +28,13 @@ class SnapMarkApplication(Adw.Application):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.watcher = None
         self.windows = []
-        self.tray = TrayIndicator(self.show_or_present_editor, self.show_preferences, self.quit)
+        self.tray = TrayIndicator(self.show_or_present_editor, self.show_preferences, self.quit,
+                                  self.open_clipboard_image, self.open_history, self.show_about,
+                                  self.clipboard_has_image)
+        self._history_window = None
+        self._temporary_images = tempfile.TemporaryDirectory(prefix='snapmark-clipboard-')
+        self._tray_held = False
+        self._clipboard_signal_connected = False
         self.tray_started = False
         # Let GTK/libadwaita own the shutdown virtual method; register cleanup
         # as a signal handler instead of chaining an incompatible GI wrapper.
@@ -53,6 +62,68 @@ class SnapMarkApplication(Adw.Application):
         if not self.tray_started:
             self.tray_started = True
             self.tray.start()
+            if self.tray.available and not self._tray_held:
+                self.hold()
+                self._tray_held = True
+            display = Gdk.Display.get_default()
+            if display is not None and not self._clipboard_signal_connected:
+                display.get_clipboard().connect('changed', self._clipboard_changed)
+                self._clipboard_signal_connected = True
+            self.tray.refresh_clipboard_status()
+
+    def clipboard_has_image(self):
+        display = Gdk.Display.get_default()
+        if display is None:
+            return False
+        formats = display.get_clipboard().get_formats()
+        return (formats.contain_gtype(Gdk.Texture.__gtype__)
+                or any(formats.contain_mime_type(mime) for mime in
+                       ('image/png', 'image/jpeg', 'image/webp', 'image/bmp')))
+
+    def _clipboard_changed(self, *_unused):
+        self.tray.refresh_clipboard_status()
+
+    def open_clipboard_image(self):
+        display = Gdk.Display.get_default()
+        if display is None or not self.clipboard_has_image():
+            print('SnapMark: clipboard does not contain an image', flush=True)
+            return False
+        clipboard = display.get_clipboard()
+        def finished(clip, result):
+            try:
+                texture = clip.read_texture_finish(result)
+                if texture is None:
+                    raise ValueError('Clipboard image unavailable')
+                data = texture.save_to_png_bytes().get_data()
+                fd, name = tempfile.mkstemp(prefix='clipboard-', suffix='.png',
+                                              dir=self._temporary_images.name)
+                with os.fdopen(fd, 'wb') as output:
+                    output.write(data)
+                self.show_editor(Path(name))
+            except Exception as exc:
+                print(f'SnapMark: cannot open clipboard image: {exc}', flush=True)
+        clipboard.read_texture_async(None, finished)
+        return False
+
+    def open_history(self):
+        previous = self._history_window
+        self._history_window = show_history(self, previous)
+        if previous is None:
+            self._history_window.connect('close-request', self._history_closed)
+        return False
+
+    def _history_closed(self, *_unused):
+        self._history_window = None
+        return False
+
+    def show_about(self):
+        window = Adw.AboutWindow(application_name='SnapMark', version='C2-G development',
+                                 developer_name='SnapMark contributors')
+        window.set_application(self)
+        if self.windows:
+            window.set_transient_for(self.windows[-1])
+        window.present()
+        return False
 
     def show_preferences(self):
         if not self.windows:
@@ -187,6 +258,7 @@ class SnapMarkApplication(Adw.Application):
     def _on_shutdown(self, _application):
         # Cleanup only. Gtk/Adw handles parent shutdown automatically.
         self.tray.stop()
+        self._temporary_images.cleanup()
 
     def stop_watching(self):
         if self.watcher is None:
@@ -203,17 +275,8 @@ class SnapMarkApplication(Adw.Application):
         self.start_watching()
 
     def start_watching(self):
-        if self.watcher is not None:
-            return
-        self.watcher = ScreenshotWatcher(self.show_editor)
-        watched = self.watcher.start()
-        if not watched:
-            print('SnapMark: no screenshot folders available for monitoring', flush=True)
-            self.watcher = None
-            return
-        for directory in watched:
-            print(f'SnapMark: watching {directory}', flush=True)
-        self.hold()
+        """No-op by design. GNOME Print Screen never launches SnapMark."""
+        return
 
 
 def main():

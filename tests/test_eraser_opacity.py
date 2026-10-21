@@ -1,4 +1,4 @@
-"""Image-source erasing and pixel-opacity regression tests.
+"""Annotation-only erasing and pixel-opacity regression tests.
 
 The Cairo/GI checks are run by the GTK4 GitHub Actions job. They are skipped
 when only the pure Python model is installed locally.
@@ -67,19 +67,27 @@ class RenderEraserAndOpacityTests(unittest.TestCase):
         import sys
         return data[offset + (3 if sys.byteorder == 'little' else 0)]
 
-    def test_eraser_removes_original_pixels_to_alpha(self):
+    def test_eraser_leaves_original_image_opaque_and_unmodified(self):
         before = self.render([])
         eraser = Mark('eraser', 5, 20, 45, 20, width=7,
                       points=[(5, 20), (45, 20)])
         after = self.render([eraser])
+        self.assertEqual(before, after)
         self.assertEqual(self.alpha_at(before, 20, 20), 255)
-        self.assertEqual(self.alpha_at(after, 20, 20), 0)
-        self.assertEqual(self.alpha_at(after, 20, 2), 255)
+        self.assertEqual(self.alpha_at(after, 20, 20), 255)
 
-    def test_one_click_erase_clears_pixels(self):
-        after = self.render([Mark('eraser', 10, 12, 10, 12, width=5,
-                                  points=[(10, 12)])])
-        self.assertEqual(self.alpha_at(after, 10, 12), 0)
+    def test_one_click_erases_only_annotation_layer(self):
+        before = self.render([])
+        stroke = Mark('pen', 5, 12, 40, 12, width=6,
+                      points=[(5, 12), (40, 12)])
+        painted = self.render([stroke])
+        after = self.render([stroke, Mark('eraser', 10, 12, 10, 12, width=16,
+                                          points=[(10, 12)])])
+        self.assertNotEqual(painted, before)
+        self.assertNotEqual(after, painted)
+        self.assertEqual(self.alpha_at(after, 10, 12), 255)
+        off = (12 * 64 + 10) * 4
+        self.assertEqual(after[off:off + 4], before[off:off + 4])
 
     def test_mosaic_and_blur_opacity_affects_output(self):
         before = self.render([])

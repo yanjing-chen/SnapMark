@@ -1,4 +1,4 @@
-"""SnapMark official OCR plugin 0.2.0, official PP-OCRv6 tiny ONNX models.
+"""SnapMark official OCR plugin 0.2.4, official PP-OCRv6 tiny ONNX models.
 
 Setup is available only through explicit Preferences confirmation; it never
 writes to Local AI Runtime or system Python. Translation is an optional separate SnapMark plugin.
@@ -32,6 +32,9 @@ _setup_spec.loader.exec_module(_setup)
 _onnx_spec = importlib.util.spec_from_file_location(__name__ + '_onnx_c2', ROOT / 'onnx_c2.py')
 _onnx = importlib.util.module_from_spec(_onnx_spec)
 _onnx_spec.loader.exec_module(_onnx)
+_profile_spec = importlib.util.spec_from_file_location(__name__ + '_profiles_c2f', ROOT / 'profiles_c2f.py')
+_profiles_c2f = importlib.util.module_from_spec(_profile_spec)
+_profile_spec.loader.exec_module(_profiles_c2f)
 
 
 def _config_path():
@@ -107,6 +110,8 @@ class OCRController:
         self.proc = None
         self.proc_lock = threading.Lock()
         self.source_image = None
+        self.preview = None
+        self.preview_path = None
         editor.connect('close-request', self._on_close)
 
     def _on_close(self, *_args):
@@ -146,6 +151,14 @@ class OCRController:
         self.status.add_css_class('dim-label')
         self.status.set_ellipsize(Pango.EllipsizeMode.END)
         root.append(self.status)
+        self.preview = Gtk.Label(label='', xalign=0)
+        self.preview.set_wrap(True)
+        self.preview.set_max_width_chars(80)
+        self.preview.set_lines(2)
+        self.preview.set_selectable(False)
+        self.preview.set_visible(False)
+        self.preview.add_css_class('dim-label')
+        root.append(self.preview)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -513,8 +526,13 @@ class OCRController:
                         endpoint_state.set_text('Unavailable')
                         self.editor._notice('OCR Runtime catalog: ' + error[:160])
                     else:
-                        endpoint_state.set_text('Connected')
+                        endpoint_state.set_text('Connected' if items else 'Connected · no OCR models')
                     runtime_model.set_model(Gtk.StringList.new(items))
+                    # Restore the saved OCR model instead of silently choosing
+                    # the first registered model on every Preferences opening.
+                    preferred = self.settings.get('model', '')
+                    if items:
+                        runtime_model.set_selected(items.index(preferred) if preferred in items else 0)
                     return False
                 GLib.idle_add(done)
             threading.Thread(target=job, daemon=True).start()
@@ -526,8 +544,156 @@ class OCRController:
             advanced_button.set_active(True)
         refresh_registered()
         switch_mode()
+        self._add_c2f_settings(page, runtime_model, advanced_button)
+        # Tray Preferences has no OCR result panel to populate self.model_ids.
+        # Load eligible Runtime models asynchronously when this page opens.
+        GLib.idle_add(refresh_runtime, None)
         return page
 
+    def _add_c2f_settings(self, page, runtime_model, advanced_button):
+        """Advanced OCR profiles remain inside the OCR ZIP, not in SnapMark core."""
+        group = Adw.PreferencesGroup(
+            title='Advanced OCR settings',
+            description='Settings are stored separately for each installed Runtime OCR model. '
+                        'Lightweight PP-OCR uses its own unchanged CPU engine.')
+        page.add(group)
+        preset_row = Adw.ActionRow(title='Prompt preset',
+            subtitle='PaddleOCR-VL uses its model-native OCR: instruction')
+        preset_names = list(_profiles_c2f.PRESETS)
+        preset = Gtk.DropDown.new_from_strings(preset_names)
+        preset.set_valign(Gtk.Align.CENTER)
+        preset_row.add_suffix(preset)
+        group.add(preset_row)
+        prompt_view = Gtk.TextView()
+        prompt_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        for setter in ('set_top_margin', 'set_bottom_margin', 'set_left_margin', 'set_right_margin'):
+            getattr(prompt_view, setter)(8)
+        prompt_scroll = Gtk.ScrolledWindow()
+        prompt_scroll.set_min_content_height(105)
+        prompt_scroll.set_child(prompt_view)
+        group.add(prompt_scroll)
+        output_row = Adw.ActionRow(title='Output mode',
+            subtitle='Plain text or best-effort paragraphs; PaddleOCR-VL still uses OCR:')
+        output_names = list(_profiles_c2f.OUTPUTS)
+        output = Gtk.DropDown.new_from_strings(output_names)
+        output.set_valign(Gtk.Align.CENTER)
+        output_row.add_suffix(output)
+        group.add(output_row)
+        temperature_row = Adw.ActionRow(title='Temperature', subtitle='0.0 is the recommended OCR default')
+        temperature = Gtk.SpinButton.new_with_range(0.0, 1.0, 0.1)
+        temperature.set_digits(1)
+        temperature.set_valign(Gtk.Align.CENTER)
+        temperature_row.add_suffix(temperature)
+        group.add(temperature_row)
+        token_row = Adw.ActionRow(title='Maximum output tokens')
+        token_names = [str(x) for x in _profiles_c2f.TOKENS]
+        tokens = Gtk.DropDown.new_from_strings(token_names)
+        tokens.set_valign(Gtk.Align.CENTER)
+        token_row.add_suffix(tokens)
+        group.add(token_row)
+        streaming = Adw.SwitchRow(title='Streaming preview',
+            subtitle='Preview cannot be copied; an incomplete Runtime stream is rejected')
+        group.add(streaming)
+        group.add(Adw.ActionRow(title='Thinking / Top-P / Top-K',
+            subtitle='Unavailable until support is verified for the installed Runtime and model'))
+        action_row = Adw.ActionRow(title='OCR model profile',
+            subtitle='Saves only SnapMark OCR settings; does not modify Runtime or models')
+        reset = Gtk.Button(label='Restore defaults')
+        reset.set_valign(Gtk.Align.CENTER)
+        save = Gtk.Button(label='Save settings')
+        save.set_valign(Gtk.Align.CENTER)
+        save.add_css_class('suggested-action')
+        action_row.add_suffix(reset)
+        action_row.add_suffix(save)
+        group.add(action_row)
+        active_model = {'name': ''}
+        loading = {'value': False}
+        def current_model():
+            item = runtime_model.get_selected_item()
+            if item is not None and hasattr(item, 'get_string'):
+                return item.get_string()
+            name = self.settings.get('model', '')
+            return name if name in self.model_ids and self.settings['mode'] == 'high_performance' else ''
+        def show_profile(name, value=None):
+            loading['value'] = True
+            try:
+                active_model['name'] = name
+                ready = bool(name)
+                native = _profiles_c2f.native_paddle(name)
+                chosen = value or _profiles_c2f.read_profile(name)
+                if native and chosen['preset'] != 'Model default':
+                    chosen = dict(chosen, preset='Model default', prompt='')
+                preset.set_selected(preset_names.index(chosen['preset']))
+                output.set_selected(output_names.index(chosen['output']))
+                prompt_view.get_buffer().set_text('OCR:' if native else chosen['prompt'])
+                prompt_view.set_editable(ready and not native)
+                prompt_view.set_sensitive(ready)
+                preset.set_sensitive(ready and not native)
+                output.set_sensitive(ready)
+                temperature.set_value(chosen['temperature'])
+                tokens.set_selected(token_names.index(str(chosen['max_tokens'])))
+                streaming.set_active(chosen['streaming'])
+                save.set_sensitive(ready)
+                reset.set_sensitive(ready)
+            finally:
+                loading['value'] = False
+        def new_selection(*_args):
+            name = current_model()
+            if name != active_model['name']:
+                show_profile(name)
+        def preset_changed(widget, _pspec):
+            if loading['value']:
+                return
+            name = current_model()
+            if not name or _profiles_c2f.native_paddle(name):
+                return
+            value = preset_names[widget.get_selected()]
+            if value != 'Custom':
+                loading['value'] = True
+                try:
+                    prompt_view.get_buffer().set_text(_profiles_c2f.PRESETS[value])
+                finally:
+                    loading['value'] = False
+        def prompt_edited(_buffer):
+            if not loading['value'] and not _profiles_c2f.native_paddle(current_model()):
+                if preset_names[preset.get_selected()] != 'Custom':
+                    preset.set_selected(preset_names.index('Custom'))
+        def save_profile(_button):
+            name = current_model()
+            if not name:
+                self.editor._notice('Refresh registered Runtime OCR models first')
+                return
+            buffer = prompt_view.get_buffer()
+            prompt = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
+            selected = preset_names[preset.get_selected()]
+            if _profiles_c2f.native_paddle(name):
+                selected, prompt = 'Model default', ''
+            try:
+                _profiles_c2f.save_profile(name, {
+                    'preset': selected, 'prompt': prompt,
+                    'output': output_names[output.get_selected()],
+                    'temperature': temperature.get_value(),
+                    'max_tokens': int(token_names[tokens.get_selected()]),
+                    'streaming': streaming.get_active(),
+                })
+                self.settings['model'] = name
+                _atomic_save(self.settings)
+                self._refresh_models()
+                self.editor._notice('Advanced OCR settings saved for ' + name)
+            except (OSError, ValueError, IndexError) as exc:
+                self.editor._notice('Could not save OCR profile: ' + str(exc))
+        def defaults(_button):
+            show_profile(current_model(), dict(_profiles_c2f.DEFAULT))
+        runtime_model.connect('notify::selected', new_selection)
+        runtime_model.connect('notify::model', new_selection)
+        preset.connect('notify::selected', preset_changed)
+        prompt_view.get_buffer().connect('changed', prompt_edited)
+        save.connect('clicked', save_profile)
+        reset.connect('clicked', defaults)
+        advanced_button.connect('notify::active',
+            lambda b, _p: group.set_visible(b.get_active()))
+        group.set_visible(self.settings['mode'] == 'high_performance')
+        show_profile(current_model())
     def _model_selected(self, dropdown, _pspec):
         index = dropdown.get_selected()
         if index >= len(self.model_ids):
@@ -614,6 +780,13 @@ class OCRController:
             return False
         if self.timer is not None:
             self.timer.set_text(f'Time: {time.perf_counter() - self.started_at:.2f} s')
+        if self.preview_path is not None and self.preview is not None:
+            try:
+                latest = self.preview_path.read_text('utf-8')[-1200:]
+                self.preview.set_label('Unverified OCR preview: ' + latest)
+                self.preview.set_visible(bool(latest))
+            except (OSError, UnicodeError):
+                pass
         return True
 
     def _run(self, image):
@@ -631,6 +804,11 @@ class OCRController:
         self.generation += 1
         generation = self.generation
         cfg = dict(self.settings)
+        profile = (_profiles_c2f.read_profile(cfg['model'])
+                   if cfg['mode'] == 'high_performance' else {})
+        self.preview_path = None
+        if self.preview is not None:
+            self.preview.set_visible(False)
         self.running = True
         self.started_at = time.perf_counter()
         self.run_button.set_label('Cancel OCR')
@@ -653,6 +831,8 @@ class OCRController:
                     (root / 'request.json').write_text(json.dumps({
                         'models_root': cfg['models_root'], 'model': cfg['model'],
                         'image_path': str(root / 'input.png'),
+                        'profile': profile,
+                        'preview_path': (str(root / 'preview.txt') if profile.get('streaming') else None),
                     }), encoding='utf-8')
                     if is_onnx:
                         command = _onnx.command(root / 'input.png', cfg['model'])
@@ -664,6 +844,8 @@ class OCRController:
                         command = [str(interpreter), str(ROOT / 'worker.py'),
                                    '--request', str(root / 'request.json'),
                                    '--result', str(root / 'result.json')]
+                    if profile.get('streaming') and cfg['mode'] == 'high_performance':
+                        self.preview_path = root / 'preview.txt'
                     with self.proc_lock:
                         if generation != self.generation:
                             return
@@ -705,6 +887,9 @@ class OCRController:
         self.proc = None
         self.running = False
         self.started_at = None
+        self.preview_path = None
+        if self.preview is not None:
+            self.preview.set_visible(False)
         self.run_button.set_label('Run OCR')
         self.timer.set_text(f'Time: {elapsed:.2f} s')
         if self.editor.pixbuf is not self.source_image:
@@ -725,6 +910,9 @@ class OCRController:
             self.generation += 1
             self.running = False
             self.started_at = None
+            self.preview_path = None
+            if self.preview is not None:
+                self.preview.set_visible(False)
             if self.run_button is not None:
                 self.run_button.set_label('Run OCR')
             with self.proc_lock:

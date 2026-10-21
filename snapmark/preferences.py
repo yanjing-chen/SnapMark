@@ -19,7 +19,7 @@ def configuration_dir() -> Path:
 
 class Settings:
     DEFAULTS = {'screenshot_directory': '', 'start_minimized': False,
-                'recent_colors': []}
+                'recent_colors': [], 'image_format': 'png', 'image_quality': 90}
 
     def __init__(self, root=None):
         self.root = Path(root) if root else configuration_dir()
@@ -38,8 +38,28 @@ class Settings:
         result['start_minimized'] = data.get('start_minimized', False) is True
         recent = data.get('recent_colors', [])
         result['recent_colors'] = [c.lower() for c in recent if valid_color(c)][:6] if isinstance(recent, list) else []
+        raw_format = data.get('image_format', 'png')
+        result['image_format'] = raw_format if raw_format in ('png', 'jpeg', 'webp') else 'png'
+        raw_quality = data.get('image_quality', 90)
+        result['image_quality'] = raw_quality if type(raw_quality) is int and 1 <= raw_quality <= 100 else 90
         return result
 
+    def image_format(self):
+        return self.load()['image_format']
+    def set_image_format(self, value):
+        if value not in ('png', 'jpeg', 'webp'):
+            raise ValueError('Unsupported export format')
+        data = self.load()
+        data['image_format'] = value
+        self._save(data)
+    def image_quality(self):
+        return self.load()['image_quality']
+    def set_image_quality(self, value):
+        if type(value) is not int or not 1 <= value <= 100:
+            raise ValueError('Image quality must be 1–100')
+        data = self.load()
+        data['image_quality'] = value
+        self._save(data)
     def _save(self, data):
         self.root.mkdir(parents=True, exist_ok=True)
         import tempfile

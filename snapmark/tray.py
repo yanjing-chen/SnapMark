@@ -57,7 +57,16 @@ MENU_XML = '''<node><interface name="com.canonical.dbusmenu">
 <signal name="ItemsPropertiesUpdated"><arg type="a(ia{sv})"/><arg type="a(ias)"/></signal>
 </interface></node>'''
 
-MENU_ITEMS = {1: 'Open SnapMark', 2: 'Preferences', 3: 'Quit SnapMark'}
+MENU_ITEMS = {
+    1: 'SnapMark', 2: 'Open Clipboard Image', 3: 'Screenshot History',
+    4: 'Preferences', 5: 'About', 6: 'Quit',
+}
+MENU_ORDER = (1, 7, 2, 3, 8, 4, 5, 6)
+MENU_ICONS = {
+    1: 'camera-photo-symbolic', 2: 'edit-paste-symbolic',
+    3: 'document-open-recent-symbolic', 4: 'emblem-system-symbolic',
+    5: 'help-about-symbolic', 6: 'application-exit-symbolic',
+}
 
 
 def icon_file():
@@ -111,8 +120,15 @@ def icon_argb_pixmap():
 
 
 class TrayIndicator:
-    def __init__(self, open_editor, open_preferences, quit_app):
+    def __init__(self, open_editor, open_preferences, quit_app,
+                 open_clipboard=None, open_history=None, open_about=None,
+                 clipboard_ready=None):
         self.open_editor, self.open_preferences, self.quit_app = open_editor, open_preferences, quit_app
+        self.open_clipboard = open_clipboard or (lambda: None)
+        self.open_history = open_history or (lambda: None)
+        self.open_about = open_about or (lambda: None)
+        self.clipboard_ready = clipboard_ready or (lambda: False)
+        self._previous_clipboard = False
         self.bus = None
         self.registration_ids = []
         self.name = f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1'
@@ -202,11 +218,28 @@ class TrayIndicator:
             GLib.idle_add(self.open_preferences)
         invocation.return_value(None)
 
-    @staticmethod
-    def _item_properties(index):
-        return {'label': GLib.Variant('s', MENU_ITEMS[index]),
-                'enabled': GLib.Variant('b', True),
-                'visible': GLib.Variant('b', True)}
+    def _item_properties(self, index):
+        if index in (7, 8):
+            return {'type': GLib.Variant('s', 'separator'), 'visible': GLib.Variant('b', True)}
+        enabled = (self.clipboard_ready() if index == 2 else index != 1)
+        props = {'label': GLib.Variant('s', MENU_ITEMS[index]),
+                 'enabled': GLib.Variant('b', bool(enabled)),
+                 'visible': GLib.Variant('b', True)}
+        if index in MENU_ICONS:
+            props['icon-name'] = GLib.Variant('s', MENU_ICONS[index])
+        return props
+
+    def refresh_clipboard_status(self):
+        try:
+            ready = bool(self.clipboard_ready())
+            if self.bus is not None and ready != self._previous_clipboard:
+                self.bus.emit_signal(None, MENU_PATH, 'com.canonical.dbusmenu',
+                                     'ItemsPropertiesUpdated',
+                                     GLib.Variant('(a(ia{sv})a(ias))',
+                                         ([(2, {'enabled': GLib.Variant('b', ready)})], [])))
+            self._previous_clipboard = ready
+        except (GLib.Error, ValueError, TypeError):
+            pass
 
     def _menu_prop(self, _bus, _sender, _path, _iface, name):
         return {'Version': GLib.Variant('u', 2), 'TextDirection': GLib.Variant('s', 'ltr'),
@@ -218,29 +251,32 @@ class TrayIndicator:
             parent, depth, _ = args.unpack()
             if parent == 0:
                 children = [GLib.Variant('(ia{sv}av)', (i, self._item_properties(i), []))
-                            for i in MENU_ITEMS] if depth != 0 else []
+                            for i in MENU_ORDER] if depth != 0 else []
                 layout = (0, {}, children)
             else:
-                layout = (parent, self._item_properties(parent) if parent in MENU_ITEMS else {}, [])
+                layout = (parent, self._item_properties(parent) if parent in MENU_ORDER else {}, [])
             invocation.return_value(GLib.Variant('(u(ia{sv}av))', (1, layout)))
         elif name == 'GetGroupProperties':
             ids, _ = args.unpack()
-            ids = MENU_ITEMS.keys() if not ids else ids
+            ids = MENU_ORDER if not ids else ids
             invocation.return_value(GLib.Variant('(a(ia{sv}))',
-                                                 ([(i, self._item_properties(i)) for i in ids if i in MENU_ITEMS],)))
+                                                 ([(i, self._item_properties(i)) for i in ids if i in MENU_ORDER],)))
         elif name == 'GetProperty':
             index, prop = args.unpack()
-            value = self._item_properties(index).get(prop, GLib.Variant('s', '')) if index in MENU_ITEMS else GLib.Variant('s', '')
+            value = self._item_properties(index).get(prop, GLib.Variant('s', '')) if index in MENU_ORDER else GLib.Variant('s', '')
             invocation.return_value(GLib.Variant('(v)', (value,)))
         elif name in ('Event', 'EventGroup'):
             events = [args.unpack()] if name == 'Event' else args.unpack()[0]
             for index, event_id, *_ in events:
                 if event_id == 'clicked':
-                    callbacks = {1: self.open_editor, 2: self.open_preferences, 3: self.quit_app}
+                    callbacks = {2: self.open_clipboard, 3: self.open_history,
+                                 4: self.open_preferences, 5: self.open_about,
+                                 6: self.quit_app}
                     if index in callbacks:
                         GLib.idle_add(callbacks[index])
             invocation.return_value(None if name == 'Event' else GLib.Variant('(ai)', ([],)))
         elif name == 'AboutToShow':
+            self.refresh_clipboard_status()
             invocation.return_value(GLib.Variant('(b)', (False,)))
         elif name == 'AboutToShowGroup':
             invocation.return_value(GLib.Variant('(aiai)', ([], [])))
