@@ -23,11 +23,11 @@ def load_helper():
 class StandaloneONNXIntegrationTests(unittest.TestCase):
     def test_version_and_bundle_content(self):
         manifest = json.loads((ROOT / 'official_plugins/ocr/plugin.json').read_text())
-        self.assertEqual(manifest['version'], '0.2.0')
+        self.assertEqual(manifest['version'], '0.2.4')
         builder = (ROOT / 'scripts/build-ocr-plugin-c2.py').read_text()
         self.assertIn("'onnx_c2.py'", builder)
         self.assertIn("'official_models_c2.py'", builder)
-        self.assertIn('SnapMark-ocr-0.2.0.zip', builder)
+        self.assertIn('SnapMark-ocr-0.2.4.zip', builder)
 
     def test_controller_uses_onnx_only_for_lightweight(self):
         source = MAIN.read_text()
