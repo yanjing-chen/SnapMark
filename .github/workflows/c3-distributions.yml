@@ -1,4 +1,4 @@
-name: SnapMark 1.0.0 · Release candidate validation
+name: SnapMark 1.0.0 · AppImage-only validation
 on:
   push:
     branches: ['release/snapmark-v1.0.0']
@@ -64,25 +64,4 @@ jobs:
             dist/SnapMark-ocr-1.0.2.zip.sha256
             dist/SnapMark-translation-1.0.2.zip
             dist/SnapMark-translation-1.0.2.zip.sha256
-          if-no-files-found: error
-  flatpak:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: GNOME 50 Flatpak runtime and SDK
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak flatpak-builder gettext desktop-file-utils
-          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-          sudo flatpak install --system -y flathub org.gnome.Platform//50 org.gnome.Sdk//50
-      - name: Build Flatpak bundle (no user install)
-        run: |
-          bash scripts/build-flatpak.sh
-          test -s dist/SnapMark-x86_64.flatpak
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SnapMark-1.0.0-Flatpak-x86_64
-          path: |
-            dist/SnapMark-x86_64.flatpak
-            dist/SnapMark-x86_64.flatpak.sha256
           if-no-files-found: error

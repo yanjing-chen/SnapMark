@@ -16,7 +16,7 @@
 
 | Component | Version | Delivery |
 |---|---|---|
-| SnapMark | 1.0.0 | `SnapMark-1.0.0-x86_64.AppImage` or `SnapMark-x86_64.flatpak` |
+| SnapMark | 1.0.0 | `SnapMark-1.0.0-x86_64.AppImage` (x86_64; only distribution format) |
 | Official OCR plugin | **1.0.2** | `SnapMark-ocr-1.0.2.zip` and `.sha256` |
 | Official Translation plugin | **1.0.2** | `SnapMark-translation-1.0.2.zip` and `.sha256` |
 | Optional Local AI Runtime | 1.0.0 | Shared external installation; **not bundled**, managed separately |
@@ -34,12 +34,7 @@ chmod +x SnapMark-1.0.0-x86_64.AppImage
 ./SnapMark-1.0.0-x86_64.AppImage
 ```
 
-For the Flatpak bundle, **install it only if you choose to**:
-
-```bash
-flatpak install --user ./SnapMark-x86_64.flatpak
-flatpak run io.github.yanjingchen.SnapMark
-```
+SnapMark 1.0.0 is published as **AppImage only**; no Flatpak bundle is distributed.
 
 Install optional plugin ZIP archives in **Preferences → Plugins**, and select **1.0.2** for OCR before activating Translation. A shared external Runtime and compatible models must be configured separately for high-performance OCR and translation.
 
@@ -51,7 +46,7 @@ bash scripts/run-local.sh
 
 ## Sources and validation
 
-The Code01-Ver2-0 (Ryzen 7 6800H) integrated GTK version completed full automated regression and eight hands-on GUI checks on 2026-10-22. Release binaries require separate AppImage and Flatpak acceptance before publication. Xvfb CI smoke tests do not replace actual GNOME Wayland GUI testing.
+The Code01-Ver2-0 (Ryzen 7 6800H) integrated GTK version completed full automated regression and eight hands-on GUI checks on 2026-10-22. The AppImage passed real GNOME Wayland GUI acceptance on Code01 before publication. Xvfb CI smoke tests do not replace actual GNOME Wayland GUI testing.
 
 More details: [Release notes](docs/RELEASE_V1.0.0.md) and [C3 distribution notes](docs/C3_DISTRIBUTION.md).
 
