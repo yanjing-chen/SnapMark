@@ -23,13 +23,13 @@ class DualUIContractTests(unittest.TestCase):
         self.assertEqual(part.count("Gtk.Button(label='Run OCR')"), 1)
         for name in ('Copy text', 'Clear text', 'Save as TXT'):
             self.assertIn(f"('{name}',", part)
-        self.assertLess(part.index('root.append(scroll)'), part.index('root.append(actions)'))
+        self.assertLess(part.index('root.append(result_stack)'), part.index('root.append(actions)'))
 
     def test_ocr_model_timer_on_top(self):
         part = method(OCR, 'OCRController', 'build_panel')
         for label in ('OCR model', 'Time: Not run'):
             self.assertIn(label, part)
-        self.assertLess(part.index('root.append(header)'), part.index('root.append(scroll)'))
+        self.assertLess(part.index('root.append(header)'), part.index('root.append(result_stack)'))
 
     def test_ocr_no_double_selection(self):
         part = method(OCR, 'OCRController', 'build_panel')
@@ -43,7 +43,7 @@ class DualUIContractTests(unittest.TestCase):
         self.assertIn('def _error_dialog(', OCR)
         self.assertIn('self._error_dialog(reason)', OCR)
         self.assertIn('time.perf_counter()', OCR)
-        self.assertIn("{elapsed:.2f} s", OCR)
+        self.assertIn("_('Time: {seconds:.2f} s').format(seconds=elapsed)", OCR)
 
     def test_translation_top_target_only_and_translate(self):
         part = method(TRANSLATION, 'TranslationController', 'build_panel')
@@ -52,13 +52,13 @@ class DualUIContractTests(unittest.TestCase):
         self.assertNotIn('Source language', part)
         self.assertNotIn('source_dropdown', part)
         self.assertLess(part.index('header.append(dropdown)'), part.index('header.append(run)'))
-        self.assertLess(part.index('root.append(header)'), part.index('root.append(scroll)'))
+        self.assertLess(part.index('root.append(header)'), part.index('root.append(result_stack)'))
 
     def test_translation_three_bottom_buttons(self):
         part = method(TRANSLATION, 'TranslationController', 'build_panel')
         for name in ('Clear translation', 'Copy text', 'Save as TXT'):
             self.assertIn(f"('{name}',", part)
-        self.assertLess(part.index('root.append(scroll)'), part.index('root.append(actions)'))
+        self.assertLess(part.index('root.append(result_stack)'), part.index('root.append(actions)'))
 
     def test_translation_consumes_edited_ocr_text(self):
         self.assertIn("host.get_text_provider('ocr')", TRANSLATION)

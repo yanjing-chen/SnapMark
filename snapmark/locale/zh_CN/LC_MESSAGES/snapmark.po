@@ -1,0 +1,1235 @@
+# Chinese (Simplified, China) translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark C3 development\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 15:09+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_CN\n"
+"Language-Team: zh_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Select"
+msgstr "选择"
+
+msgid "Preferences"
+msgstr "首选项"
+
+msgid "General"
+msgstr "常规"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "System Default"
+msgstr "跟随系统"
+
+msgid "Screenshot Editor"
+msgstr "截图编辑器"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Eraser"
+msgstr "橡皮擦"
+
+msgid "Open an image…"
+msgstr "打开图片…"
+
+msgid "Ready for a screenshot"
+msgstr "准备编辑截图"
+
+msgid "Take a screenshot with Print Screen, or open an image."
+msgstr "使用 Print Screen 截图，或打开图片。"
+
+msgid "Stroke"
+msgstr "描边"
+
+msgid "Color"
+msgstr "颜色"
+
+msgid "Width"
+msgstr "宽度"
+
+msgid "Corner radius"
+msgstr "圆角半径"
+
+msgid "Fill shapes"
+msgstr "填充图形"
+
+msgid "Fill color"
+msgstr "填充颜色"
+
+msgid "Recent"
+msgstr "最近使用"
+
+msgid "Opacity"
+msgstr "不透明度"
+
+msgid "Layers"
+msgstr "图层"
+
+msgid "Rectangle"
+msgstr "矩形"
+
+msgid "Triangle"
+msgstr "三角形"
+
+msgid "Blur"
+msgstr "模糊"
+
+msgid "Mosaic"
+msgstr "马赛克"
+
+msgid "Arrow"
+msgstr "箭头"
+
+msgid "Line"
+msgstr "直线"
+
+msgid "Ellipse"
+msgstr "椭圆"
+
+msgid "Pen"
+msgstr "画笔"
+
+msgid "Text"
+msgstr "文字"
+
+msgid "Highlight"
+msgstr "荧光笔"
+
+msgid "Screenshots & Annotation"
+msgstr "截图与标注"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Shortcuts"
+msgstr "快捷键"
+
+msgid "Default image format"
+msgstr "默认图片格式"
+
+msgid "Start minimized"
+msgstr "启动时最小化"
+
+msgid "Actual pixel size"
+msgstr "实际像素大小"
+
+msgid "Advanced settings"
+msgstr "高级设置"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Automatic (GNOME screenshot folders)"
+msgstr "自动（GNOME 截图文件夹）"
+
+msgid "Automatically detect GNOME screenshot folders"
+msgstr "自动检测 GNOME 截图文件夹"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Block size"
+msgstr "像素块大小"
+
+msgid "Blur radius"
+msgstr "模糊半径"
+
+msgid "Brush size"
+msgstr "画笔大小"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Choose a folder"
+msgstr "选择文件夹"
+
+msgid "Choose screenshot history folder"
+msgstr "选择截图历史文件夹"
+
+msgid "Choose…"
+msgstr "选择…"
+
+msgid "Clear"
+msgstr "清空"
+
+msgid "Clear text"
+msgstr "清空文本"
+
+msgid "Clear translation"
+msgstr "清空译文"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Copy annotated screenshot"
+msgstr "复制标注后的截图"
+
+msgid "Copy image"
+msgstr "复制图片"
+
+msgid "Copy text"
+msgstr "复制文本"
+
+msgid "Current version"
+msgstr "当前版本"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Delete selected layer (Delete)"
+msgstr "删除选中图层（Delete）"
+
+msgid "Details"
+msgstr "详细信息"
+
+msgid "Disable"
+msgstr "禁用"
+
+msgid "Disabled"
+msgstr "已禁用"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Export"
+msgstr "导出"
+
+msgid "Font"
+msgstr "字体"
+
+msgid "Font size"
+msgstr "字号"
+
+msgid "For images saved from SnapMark, not GNOME Print Screen"
+msgstr "适用于 SnapMark 保存的图片，不影响 GNOME 截图"
+
+msgid "Freehand"
+msgstr "自由绘制"
+
+msgid "Higher quality uses more storage; PNG is lossless"
+msgstr "质量越高占用空间越大；PNG 为无损格式"
+
+msgid "Highlight mode"
+msgstr "高亮模式"
+
+msgid "Image"
+msgstr "图片"
+
+msgid "Image format"
+msgstr "图片格式"
+
+msgid "Install"
+msgstr "安装"
+
+msgid "Installed"
+msgstr "已安装"
+
+msgid "JPEG / WebP quality"
+msgstr "JPEG / WebP 质量"
+
+msgid "Keep the editor hidden when a status icon is available"
+msgstr "有状态栏图标时隐藏编辑器窗口"
+
+msgid "Keyboard shortcuts"
+msgstr "键盘快捷键"
+
+msgid "Launch SnapMark in the background; system screenshots stay independent"
+msgstr "后台启动 SnapMark；系统截图功能保持独立"
+
+msgid "Load more screenshots"
+msgstr "加载更多截图"
+
+msgid "Manage plugins"
+msgstr "管理插件"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Model not found"
+msgstr "未找到模型"
+
+msgid "No annotations yet"
+msgstr "暂无标注"
+
+msgid "No image"
+msgstr "没有图片"
+
+msgid "No image loaded"
+msgstr "尚未加载图片"
+
+msgid "No models installed"
+msgstr "未安装模型"
+
+msgid "No screenshots found"
+msgstr "未找到截图"
+
+msgid "OCR"
+msgstr "OCR 识别"
+
+msgid "OCR model"
+msgstr "OCR 模型"
+
+msgid "Open"
+msgstr "打开"
+
+msgid "Open Clipboard Image"
+msgstr "打开剪贴板图片"
+
+msgid "Open failed"
+msgstr "打开失败"
+
+msgid "Open image"
+msgstr "打开图片"
+
+msgid "Open screenshot"
+msgstr "打开截图"
+
+msgid "Options"
+msgstr "选项"
+
+msgid "Plugin management"
+msgstr "插件管理"
+
+msgid "Plugins"
+msgstr "插件"
+
+msgid "Plugins and extensions"
+msgstr "插件与扩展"
+
+msgid "Processing"
+msgstr "处理中"
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "Quit SnapMark"
+msgstr "退出 SnapMark"
+
+msgid "Ready"
+msgstr "就绪"
+
+msgid "Redo"
+msgstr "重做"
+
+msgid "Redo (Ctrl+Shift+Z)"
+msgstr "重做（Ctrl+Shift+Z）"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Restart SnapMark to apply language changes"
+msgstr "重启 SnapMark 后语言设置生效"
+
+msgid "Run OCR"
+msgstr "开始 OCR"
+
+msgid "Save annotated screenshot"
+msgstr "保存标注后的截图"
+
+msgid "Save as"
+msgstr "另存为"
+
+msgid "Save as TXT"
+msgstr "保存为 TXT"
+
+msgid "Save screenshot"
+msgstr "保存截图"
+
+msgid "Screenshot History"
+msgstr "截图历史"
+
+msgid "Screenshot history"
+msgstr "截图历史"
+
+msgid "Screenshot history folder"
+msgstr "截图历史文件夹"
+
+msgid "Screenshots"
+msgstr "截图"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Show/hide OCR panel"
+msgstr "显示/隐藏 OCR 面板"
+
+msgid "Show/hide Translation panel"
+msgstr "显示/隐藏翻译面板"
+
+msgid "SnapMark Preferences"
+msgstr "SnapMark 首选项"
+
+msgid "Start automatically on login"
+msgstr "登录时自动启动"
+
+msgid "Straight line"
+msgstr "直线"
+
+msgid "Strength"
+msgstr "强度"
+
+msgid "Stroke color"
+msgstr "描边颜色"
+
+msgid "Success"
+msgstr "成功"
+
+msgid "Target language"
+msgstr "目标语言"
+
+msgid "Text color"
+msgstr "文字颜色"
+
+msgid "Text font and size"
+msgstr "文字字体与字号"
+
+msgid "Time: Not run"
+msgstr "耗时：尚未运行"
+
+msgid "Translate"
+msgstr "翻译"
+
+msgid "Translation"
+msgstr "翻译"
+
+msgid "Translation model"
+msgstr "翻译模型"
+
+msgid "Undo"
+msgstr "撤销"
+
+msgid "Undo (Ctrl+Z)"
+msgstr "撤销（Ctrl+Z）"
+
+msgid "Uninstall"
+msgstr "卸载"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "100%"
+msgstr "100%"
+
+msgid "A current Runtime 1.0.0+ status is required."
+msgstr "需要获取 Runtime 1.0.0 或更高版本的当前状态。"
+
+msgid "AI Runtime"
+msgstr "AI 运行时"
+
+msgid "Activate selected version"
+msgstr "激活所选版本"
+
+msgid "Active inference backend"
+msgstr "当前推理后端"
+
+#, python-brace-format
+msgid "Active: v{}"
+msgstr "当前使用：v{}"
+
+msgid "Annotated image copied to clipboard"
+msgstr "已将标注图片复制到剪贴板"
+
+msgid "Apply selected backend preference"
+msgstr "应用选定的后端偏好"
+
+msgid "Apply to Runtime…"
+msgstr "应用到 Runtime…"
+
+msgid "Auto (recommended)"
+msgstr "自动（推荐）"
+
+msgid ""
+"Auto is recommended. Runtime decides the effective CPU/Vulkan/CUDA backend. Manual preferences are saved "
+"for future model requests; this page does not override a shared running service."
+msgstr "推荐自动模式。Runtime 决定实际使用 CPU、Vulkan 还是 CUDA。手动偏好仅用于后续模型请求，本页面不会覆盖正在运行的共享服务。"
+
+msgid "Backend preference"
+msgstr "后端偏好"
+
+msgid "Backend reported by Runtime"
+msgstr "Runtime 报告的后端"
+
+msgid "Brush size · 20 px"
+msgstr "画笔大小 · 20 像素"
+
+msgid ""
+"CPU/Vulkan and CUDA are separate Runtime-managed packages. Availability is not active inference. No "
+"operation occurs until explicitly confirmed. Click Refresh backend status to read first."
+msgstr "CPU/Vulkan 和 CUDA 是由 Runtime 分别管理的安装包。可用不代表正在推理。任何操作都必须明确确认。请先刷新后端状态。"
+
+msgid "Cannot change plugin state"
+msgstr "无法更改插件状态"
+
+msgid "Cannot check releases"
+msgstr "无法检查发行版本"
+
+msgid "Cannot enable plugin"
+msgstr "无法启用插件"
+
+msgid "Cannot inspect model files"
+msgstr "无法检查模型文件"
+
+msgid "Cannot install plugin"
+msgstr "无法安装插件"
+
+msgid "Cannot save AI Runtime setting"
+msgstr "无法保存 AI Runtime 设置"
+
+msgid "Cannot save backend preference"
+msgstr "无法保存后端偏好"
+
+msgid "Cannot save shared timeout"
+msgstr "无法保存共享超时"
+
+msgid "Cannot uninstall plugin"
+msgstr "无法卸载插件"
+
+msgid "Change shared Runtime idle timeout?"
+msgstr "修改共享 Runtime 空闲超时？"
+
+msgid "Check 1.0.0"
+msgstr "检查 1.0.0"
+
+msgid "Check Screenshots & Annotation → Screenshot history folder."
+msgstr "请检查“截图与标注”→“截图历史文件夹”。"
+
+msgid "Check health, registered models, and backend"
+msgstr "检查服务状态、已注册模型和后端"
+
+msgid "Checking official GitHub Releases…"
+msgstr "正在检查 GitHub 官方发行版…"
+
+msgid "Checking official pinned release metadata…"
+msgstr "正在检查官方固定版本的发行元数据…"
+
+msgid "Choose ZIP…"
+msgstr "选择 ZIP…"
+
+msgid "Choose a fill color"
+msgstr "选择填充颜色"
+
+msgid "Choose a local destination"
+msgstr "选择本地保存位置"
+
+msgid "Choose a stroke color"
+msgstr "选择描边颜色"
+
+msgid "Choose model files"
+msgstr "选择模型文件"
+
+msgid "Choose model folder"
+msgstr "选择模型文件夹"
+
+msgid "Click Refresh"
+msgstr "点击刷新"
+
+msgid "Colors, strokes and highlight settings are edited directly in the main editor."
+msgstr "颜色、描边和高亮设置可直接在主编辑器中修改。"
+
+msgid "Configuration scope"
+msgstr "配置作用范围"
+
+msgid "Connecting…"
+msgstr "正在连接…"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "Connection changed"
+msgstr "连接已更改"
+
+msgid "Connection status"
+msgstr "连接状态"
+
+msgid ""
+"Controls the local user service only, independently of the API endpoint. All actions are manual. Installing"
+" an application does not install models or GPU backends. Upgrades create a backup and do NOT restart a "
+"running service. Uninstall preserves model files, settings and backend packages by default."
+msgstr "仅管理本地用户服务，与 API 地址无关。所有操作均需手动执行。安装应用程序不会安装模型或 GPU 后端。升级会建立备份，且不会重启正在运行的服务。卸载默认保留模型、设置和后端安装包。"
+
+msgid "Corner radius · 0 px"
+msgstr "圆角半径 · 0 像素"
+
+msgid "Could not open Runtime instructions"
+msgstr "无法打开 Runtime 说明"
+
+msgid "Could not open Runtime releases"
+msgstr "无法打开 Runtime 发行版"
+
+msgid "Custom idle timeout"
+msgstr "自定义空闲超时"
+
+msgid "Dependency not enabled"
+msgstr "依赖项尚未启用"
+
+msgid "Disabled (0 seconds)"
+msgstr "已禁用（0 秒）"
+
+msgid "Disabled by default"
+msgstr "默认禁用"
+
+msgid "Does not delete downloaded AI models"
+msgstr "不会删除已下载的 AI 模型"
+
+#, python-brace-format
+msgid "Downloading v{}…"
+msgstr "正在下载 v{}…"
+
+msgid "Drag over the screenshot to select OCR pixels; Esc cancels"
+msgstr "拖动鼠标选择需要 OCR 的截图区域；按 Esc 取消"
+
+msgid "Enable AI Runtime integration"
+msgstr "启用 AI Runtime 集成"
+
+msgid "Enable it under Plugin Management, then restart SnapMark."
+msgstr "在插件管理中启用它，然后重新启动 SnapMark。"
+
+msgid "Endpoint"
+msgstr "服务地址"
+
+msgid "Example Settings Plugin"
+msgstr ""
+
+msgid "Existing Runtime detection"
+msgstr "检测现有 Runtime"
+
+msgid "Expand or collapse plugin settings"
+msgstr "展开或收起插件设置"
+
+msgid "Failed to copy image"
+msgstr "复制图片失败"
+
+msgid "GGUF models"
+msgstr "GGUF 模型"
+
+msgid "GTK4 / libadwaita screenshot editor for GNOME Wayland. OCR and translation are optional plugins."
+msgstr "面向 GNOME Wayland 的 GTK4/libadwaita 截图编辑器。OCR 和翻译是可选插件。"
+
+msgid "Hardware acceleration"
+msgstr "硬件加速"
+
+msgid "Image saved"
+msgstr "图片已保存"
+
+msgid "Images"
+msgstr "图片"
+
+msgid "Inspect with Runtime…"
+msgstr "使用 Runtime 检查…"
+
+msgid "Inspecting model files…"
+msgstr "正在检查模型文件…"
+
+msgid "Inspects only the selected folder; never scans subfolders."
+msgstr "仅检查选定文件夹，不扫描子文件夹。"
+
+msgid "Install and enable plugins to show their settings"
+msgstr "安装并启用插件后即可显示其设置"
+
+msgid "Install executable Python plugin?"
+msgstr "安装可执行 Python 插件？"
+
+msgid "Install local plugin ZIP"
+msgstr "安装本地插件 ZIP"
+
+msgid "Installed version"
+msgstr "已安装版本"
+
+msgid "Integration disabled"
+msgstr "集成已关闭"
+
+msgid "Invalid Runtime endpoint"
+msgstr "Runtime 地址无效"
+
+msgid "Invalid ZIP plugin"
+msgstr "无效的 ZIP 插件"
+
+msgid "Local AI Runtime"
+msgstr "本地 AI Runtime"
+
+msgid "Local AI Runtime project"
+msgstr "本地 AI Runtime 项目"
+
+msgid "Local files only"
+msgstr "仅限本地文件"
+
+msgid "Local folder only"
+msgstr "仅限本地文件夹"
+
+msgid "Local user installation"
+msgstr "本地用户安装"
+
+msgid "Manual read-only GitHub lookup · archive not downloaded or verified"
+msgstr "手动只读查询 GitHub · 未下载或验证压缩包"
+
+msgid "Manually refresh model inventory (may take several seconds)."
+msgstr "手动刷新模型清单（可能需要数秒）。"
+
+msgid "May unload the active model; requires confirmation"
+msgstr "可能卸载当前模型；需要确认"
+
+msgid "Model loaded in memory"
+msgstr "内存中已加载的模型"
+
+msgid ""
+"Model loading and idle unloading are managed by Local AI Runtime. SnapMark reads current settings and "
+"changes the shared idle interval only after an explicit confirmation on Runtime 1.0.0 or newer. Models are "
+"loaded when a later OCR or Translation request needs them."
+msgstr "模型加载及空闲卸载由本地 AI Runtime 管理。SnapMark 读取现有设置，且仅在 Runtime 1.0.0 或更新版本上获得明确确认后才修改共享空闲超时。模型将在后续 OCR 或翻译请求需要时加载。"
+
+msgid "Model memory management"
+msgstr "模型内存管理"
+
+msgid "Model query unavailable"
+msgstr "无法查询模型"
+
+msgid "Model registered"
+msgstr "模型已注册"
+
+msgid "More fill colors…"
+msgstr "更多填充颜色…"
+
+msgid "More stroke colors…"
+msgstr "更多描边颜色…"
+
+msgid "No GGUF bundles found"
+msgstr "未发现 GGUF 模型包"
+
+msgid "No GNOME screenshots found"
+msgstr "未找到 GNOME 截图"
+
+msgid "No change"
+msgstr "无更改"
+
+msgid "No changes"
+msgstr "无更改"
+
+msgid "No known user installation files found (remote service may still exist)"
+msgstr "未发现已知的用户安装文件（远程服务可能仍然存在）"
+
+msgid "No local models inspected yet"
+msgstr "尚未检查本地模型"
+
+msgid "No local user Runtime detected"
+msgstr "未检测到本地用户安装的 Runtime"
+
+msgid "No models checked yet"
+msgstr "尚未检查模型"
+
+msgid "No models reported"
+msgstr "未报告模型"
+
+msgid "No operation requested"
+msgstr "尚未请求操作"
+
+msgid "No versions installed"
+msgstr "未安装任何版本"
+
+msgid "Not checked"
+msgstr "尚未检查"
+
+msgid "Not checked · no install, restart, downgrade or uninstall is available yet"
+msgstr "尚未检查 · 当前不能安装、重启、降级或卸载"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Not installed / inactive"
+msgstr "未安装／未激活"
+
+msgid "Not loaded"
+msgstr "未加载"
+
+msgid "Not reported"
+msgstr "未报告"
+
+msgid "Not running"
+msgstr "未运行"
+
+msgid "Not verified · existing Runtime unchanged"
+msgstr "尚未验证 · 未更改现有 Runtime"
+
+msgid "OCR selection cancelled"
+msgstr "已取消 OCR 区域选择"
+
+msgid "OCR selection is too small; try again"
+msgstr "OCR 选区太小，请重试"
+
+msgid "Off by default; affects SnapMark only"
+msgstr "默认关闭；仅影响 SnapMark"
+
+msgid "Official GitHub Releases"
+msgstr "GitHub 官方发行版"
+
+msgid "Official Plugins"
+msgstr "官方插件"
+
+msgid "Official Runtime releases"
+msgstr "Runtime 官方发行版"
+
+msgid "Only models reported by the connected Runtime are listed. No model is downloaded or loaded by this page."
+msgstr "仅显示已连接 Runtime 报告的模型。本页面不会下载或加载模型。"
+
+msgid "Opacity · 25%"
+msgstr "不透明度 · 25%"
+
+msgid "Open a screenshot before selecting an OCR area"
+msgstr "请先打开截图，再选择 OCR 区域"
+
+msgid "Open the official source and installation instructions"
+msgstr "打开官方源码及安装说明"
+
+msgid ""
+"Optional shared inference service. Connecting never changes it; only explicitly confirmed actions may "
+"modify shared Runtime settings."
+msgstr "可选的共享推理服务。连接不会修改服务；只有明确确认的操作才可能修改共享 Runtime 设置。"
+
+msgid "Partial user installation files detected"
+msgstr "已检测到部分用户安装文件"
+
+msgid "Please choose a local directory."
+msgstr "请选择本地目录。"
+
+msgid "Please choose files on a local filesystem."
+msgstr "请选择本地文件系统中的文件。"
+
+msgid "Plugin Management"
+msgstr "插件管理"
+
+msgid "Plugin downloaded"
+msgstr "插件已下载"
+
+msgid "Plugin installation failed"
+msgstr "插件安装失败"
+
+msgid ""
+"Plugins are optional executable code: install only verified releases published by yanjing-chen/SnapMark. "
+"After changing plugins, reopen SnapMark to reload their interfaces."
+msgstr "插件是可选的可执行代码；仅安装由 yanjing-chen/SnapMark 发布且经验证的发行版。更改插件后，请重新打开 SnapMark 以重新加载界面。"
+
+msgid "Preview local GGUF model bundle"
+msgstr "预览本地 GGUF 模型包"
+
+msgid "Print Screen remains independent. Use Clipboard Image or Screenshot History to edit."
+msgstr "Print Screen 截图功能保持独立。可从剪贴板图片或截图历史中打开并编辑。"
+
+msgid "Reconnect and inspect the model again."
+msgstr "请重新连接并检查模型。"
+
+msgid "Refresh Models"
+msgstr "刷新模型"
+
+msgid "Refresh backend status first"
+msgstr "请先刷新后端状态"
+
+msgid "Refresh registered models"
+msgstr "刷新已注册模型"
+
+msgid "Refresh release versions"
+msgstr "刷新发行版本"
+
+msgid "Refresh to check available versions"
+msgstr "刷新以检查可用版本"
+
+msgid "Register this local model?"
+msgstr "注册此本地模型？"
+
+msgid "Registered Models"
+msgstr "已注册模型"
+
+msgid "Registration failed"
+msgstr "注册失败"
+
+msgid "Release check failed; try again"
+msgstr "检查发行版失败，请重试"
+
+msgid "Remove selected installed version"
+msgstr "移除选定的已安装版本"
+
+msgid "Reuse an existing service where possible. Connection checks do not start Runtime."
+msgstr "尽可能复用现有服务。连接检查不会启动 Runtime。"
+
+msgid "Review verified releases before installing; no automatic install yet"
+msgstr "安装前请审核已验证的发行版；暂不自动安装"
+
+msgid "Running · backend unknown"
+msgstr "正在运行 · 后端未知"
+
+msgid "Runtime 1.0.0 release check"
+msgstr "Runtime 1.0.0 发行版检查"
+
+msgid "Runtime already uses this backend preference."
+msgstr "Runtime 已使用此后端偏好。"
+
+msgid "Runtime application management"
+msgstr "Runtime 应用程序管理"
+
+msgid "Runtime backend packages and live state"
+msgstr "Runtime 后端安装包与运行状态"
+
+msgid "Runtime backend preference"
+msgstr "Runtime 后端偏好"
+
+msgid "Runtime inspection failed"
+msgstr "Runtime 检查失败"
+
+msgid "Runtime installation"
+msgstr "Runtime 安装"
+
+msgid "Runtime management"
+msgstr "Runtime 管理"
+
+msgid "Runtime management failed"
+msgstr "Runtime 管理失败"
+
+msgid "Runtime manager status"
+msgstr "Runtime 管理状态"
+
+msgid "Runtime preload status"
+msgstr "Runtime 预加载状态"
+
+msgid "Runtime timeout updated"
+msgstr "Runtime 超时已更新"
+
+msgid "Save & Check"
+msgstr "保存并检查"
+
+msgid "Save timeout…"
+msgstr "保存超时…"
+
+msgid "Saving confirmed timeout…"
+msgstr "正在保存已确认的超时…"
+
+msgid "Seconds · 0 disables automatic unloading · 86400 = 24 hours"
+msgstr "秒 · 0 表示关闭自动卸载 · 86400 = 24 小时"
+
+msgid "Select GGUF model files (main, mmproj, or splits)"
+msgstr "选择 GGUF 模型文件（主模型、mmproj 或分片）"
+
+msgid "Select files…"
+msgstr "选择文件…"
+
+msgid "Select folder…"
+msgstr "选择文件夹…"
+
+msgid "Select local GGUF model folder"
+msgstr "选择本地 GGUF 模型文件夹"
+
+msgid ""
+"Select multiple GGUF files or a folder. SnapMark detects main weights, mmproj and split GGUF pieces "
+"together. Registration of one complete non-split bundle requires separate inspection and explicit "
+"confirmation."
+msgstr "可以选择多个 GGUF 文件或一个文件夹。SnapMark 会共同识别主权重、mmproj 和 GGUF 分片。注册完整且未分片的模型包需要单独检查并明确确认。"
+
+msgid "Select the global Runtime preference (not SnapMark-only)"
+msgstr "选择 Runtime 全局偏好（并非仅限 SnapMark）"
+
+msgid "Select trusted SnapMark plugin ZIP"
+msgstr "选择可信的 SnapMark 插件 ZIP"
+
+msgid "Service not reachable · installation not determined"
+msgstr "服务无法连接 · 尚未确定安装状态"
+
+msgid "Shared Runtime backend preference"
+msgstr "共享 Runtime 后端偏好"
+
+msgid "Shared Runtime setting · editing requires confirmation · 0 disables unloading"
+msgstr "共享 Runtime 设置 · 修改需确认 · 0 表示禁用卸载"
+
+msgid "Shared Runtime setting · view only until explicitly confirmed"
+msgstr "共享 Runtime 设置 · 未明确确认前仅可查看"
+
+msgid "Startup model preload"
+msgstr "启动时预加载模型"
+
+msgid "Supports one main GGUF plus mmproj, and numbered GGUF shards."
+msgstr "支持一个主 GGUF、mmproj 以及编号的 GGUF 分片。"
+
+msgid "The idle timeout already has this value."
+msgstr "空闲超时已设为此值。"
+
+msgid "The plugin could not provide its settings."
+msgstr "插件无法提供其设置页面。"
+
+msgid "The plugin could not provide its settings. Check the terminal output before trying again."
+msgstr "插件无法提供设置。请检查终端输出后重试。"
+
+msgid "Type annotation…"
+msgstr ""
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Uninstall plugin version?"
+msgstr "卸载插件版本？"
+
+msgid "Unload after inactivity"
+msgstr "空闲后卸载"
+
+msgid "Unverified Python code. Only import ZIP files from sources you trust."
+msgstr "未经验证的 Python 代码。仅导入可信来源的 ZIP 文件。"
+
+msgid "Upgrade preflight"
+msgstr "升级前检查"
+
+msgid "Use Version"
+msgstr "使用此版本"
+
+msgid "Use existing Runtime"
+msgstr "使用已有 Runtime"
+
+msgid ""
+"Use verified official releases to install or upgrade Runtime. Destructive operations require confirmation "
+"and make backups."
+msgstr "使用已验证的官方发行版安装或升级 Runtime。破坏性操作需要确认并先行备份。"
+
+msgid "User installation files detected"
+msgstr "已检测到用户安装文件"
+
+msgid "View instructions…"
+msgstr "查看说明…"
+
+msgid "View releases…"
+msgstr "查看发行版…"
+
+msgid "Width · 4 px"
+msgstr "宽度 · 4 像素"
+
+msgid "ZIP installed, not enabled"
+msgstr "ZIP 已安装，但尚未启用"
+
+msgid "ZIP plugin packages"
+msgstr "ZIP 插件包"
+
+#, python-brace-format
+msgid "{} official release version(s)"
+msgstr "{} 个官方发行版本"
+
+msgid "Active backend / loaded model"
+msgstr "当前后端 / 已加载模型"
+
+msgid "Backend fallback"
+msgstr "后端回退"
+
+msgid "Backend operation status"
+msgstr "后端操作状态"
+
+msgid "Backup current application"
+msgstr "备份当前应用程序"
+
+msgid "CPU / Vulkan package"
+msgstr "CPU / Vulkan 安装包"
+
+msgid "CUDA package"
+msgstr "CUDA 安装包"
+
+msgid "Copies program, service unit and small settings; not GGUF files"
+msgstr "复制程序、服务单元及小型设置文件；不复制 GGUF 文件"
+
+msgid "Create backup"
+msgstr "创建备份"
+
+msgid "Detected backend availability"
+msgstr "检测到的后端可用性"
+
+msgid "Download & verify"
+msgstr "下载并验证"
+
+msgid "Download & verify Runtime 1.0.0"
+msgstr "下载并验证 Runtime 1.0.0"
+
+msgid "Explicitly start; no action on opening Preferences"
+msgstr "必须明确启动；打开首选项时不执行操作"
+
+msgid "Install / upgrade Runtime"
+msgstr "安装 / 升级 Runtime"
+
+msgid "Install / upgrade…"
+msgstr "安装 / 升级…"
+
+msgid "Install CPU/Vulkan…"
+msgstr "安装 CPU/Vulkan…"
+
+msgid "Install CUDA…"
+msgstr "安装 CUDA…"
+
+msgid "Install ZIP"
+msgstr "安装 ZIP"
+
+msgid "Install or upgrade Runtime CPU and Vulkan package"
+msgstr "安装或升级 Runtime CPU 和 Vulkan 安装包"
+
+msgid "Install or upgrade Runtime CUDA package"
+msgstr "安装或升级 Runtime CUDA 安装包"
+
+msgid "Interrupts users of this Runtime; use after an upgrade"
+msgstr "将中断此 Runtime 的使用者；请在升级后使用"
+
+msgid "OK"
+msgstr "确定"
+
+msgid "Pinned GitHub asset and SHA256SUMS; download only"
+msgstr "固定的 GitHub 发行文件及 SHA256SUMS；仅下载"
+
+msgid "Read current package and runtime status"
+msgstr "读取当前安装包与 Runtime 状态"
+
+msgid "Refresh backend status"
+msgstr "刷新后端状态"
+
+msgid "Remove settings…"
+msgstr "移除设置…"
+
+msgid "Remove three managed configuration files, but preserve all models and GPU backends"
+msgstr "删除三个受管理的配置文件，但保留所有模型和 GPU 后端"
+
+msgid "Requires verified application archive; creates automatic backup"
+msgstr "需要已验证的应用程序压缩包；自动创建备份"
+
+msgid "Restart user Runtime service"
+msgstr "重启用户 Runtime 服务"
+
+msgid "Restart…"
+msgstr "重启…"
+
+msgid "Restore latest application backup; service restart is separate"
+msgstr "恢复最近的应用程序备份；服务重启单独进行"
+
+msgid "Roll back CPU and Vulkan package"
+msgstr "回滚 CPU 和 Vulkan 安装包"
+
+msgid "Roll back CUDA package"
+msgstr "回滚 CUDA 安装包"
+
+msgid "Rollback CPU/Vulkan…"
+msgstr "回滚 CPU/Vulkan…"
+
+msgid "Rollback CUDA…"
+msgstr "回滚 CUDA…"
+
+msgid "Rollback application files"
+msgstr "回滚应用程序文件"
+
+msgid "Rollback…"
+msgstr "回滚…"
+
+msgid "Start user Runtime service"
+msgstr "启动用户 Runtime 服务"
+
+msgid "Start…"
+msgstr "启动…"
+
+msgid "Stop and remove application/service; preserve models and GPU backends"
+msgstr "停止并移除应用程序 / 服务；保留模型及 GPU 后端"
+
+msgid "Stop user Runtime service"
+msgstr "停止用户 Runtime 服务"
+
+msgid "Stops shared Runtime and any current model"
+msgstr "停止共享 Runtime 及当前所有模型"
+
+msgid "Stop…"
+msgstr "停止…"
+
+msgid "Uninstall Runtime application"
+msgstr "卸载 Runtime 应用程序"
+
+msgid "Uninstall and delete settings"
+msgstr "卸载并删除设置"
+
+msgid "Uninstall…"
+msgstr "卸载…"
+
+#, python-brace-format
+msgid "Installed {} v{}. Choose Use Version to activate it, then reopen SnapMark."
+msgstr "已安装 {} v{}。选择“使用此版本”以启用，然后重新打开 SnapMark。"
+
+msgid "No plugin releases published"
+msgstr "未发布任何插件版本"
+
+msgid ""
+"Only install plugins from publishers you trust. Local ZIP checksums do NOT establish publisher "
+"authenticity. The plugin will remain disabled until you enable it."
+msgstr "仅安装来自可信发布者的插件。仅有本地 ZIP 校验和并不能证明发布者身份。启用前插件将保持禁用。"
+
+#, python-brace-format
+msgid "Remove {} v{}? Other versions and AI models remain."
+msgstr "移除 {} v{}？其他版本和 AI 模型将保留。"
+
+msgid "Properties"
+msgstr "属性"
+
+msgid "Runtime version"
+msgstr "Runtime 版本"
+
+msgid "Show advanced settings"
+msgstr "展开高级设置"
+
+msgid "Backend preference and shared idle timeout"
+msgstr "后端偏好与共享空闲卸载时间"
+
+msgid "Show"
+msgstr "展开"
+
+msgid "Runtime maintenance"
+msgstr "Runtime 维护"
+
+msgid "Runtime maintenance tools"
+msgstr "Runtime 维护工具"
+
+msgid "Installation, service, backend packages and model registration"
+msgstr "安装、服务、后端安装包与模型注册"
+
+msgid "Open maintenance tools…"
+msgstr "打开维护工具…"
+
+msgid "Connected"
+msgstr "已连接"
+
+
+msgid "Open SnapMark"
+msgstr "打开 SnapMark"
+
+msgid "Restart SnapMark"
+msgstr "重新启动"
+
+msgid "Restart SnapMark?"
+msgstr "重新启动 SnapMark？"
+
+msgid "Unsaved annotations and unsaved OCR or translation edits may be lost. Local AI Runtime and its models will remain running."
+msgstr "未保存的标注和 OCR、翻译编辑内容可能会丢失。本地 AI Runtime 及其模型将继续运行。"
+
+msgid "Restart"
+msgstr "重新启动"

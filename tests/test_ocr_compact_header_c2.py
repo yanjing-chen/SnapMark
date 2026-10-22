@@ -28,8 +28,8 @@ class CompactOCRHeaderTests(unittest.TestCase):
         build = method('build_panel')
         self.assertIn("label='Time: Not run'", build)
         self.assertIn('Elapsed time for current or most recent OCR', build)
-        self.assertIn('Time: {elapsed:.2f} s', method('_done'))
-        self.assertIn('Time: {time.perf_counter() - self.started_at:.2f} s', method('_tick'))
+        self.assertIn("_('Time: {seconds:.2f} s').format(seconds=elapsed)", method('_done'))
+        self.assertIn("_('Time: {seconds:.2f} s').format(seconds=time.perf_counter() - self.started_at)", method('_tick'))
         self.assertNotIn('OCR: —', CODE)
 
     def test_translation_minimum_remains_backwards_compatible(self):

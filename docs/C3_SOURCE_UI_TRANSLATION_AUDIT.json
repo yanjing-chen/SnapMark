@@ -1,0 +1,86 @@
+{
+  "en": {
+    "discovered_ui_strings": 17,
+    "needs_translation": 17,
+    "examples": [
+      [
+        "snapmark/editor.py",
+        "Corner radius · 0 px"
+      ],
+      [
+        "snapmark/editor.py",
+        "SnapMark"
+      ],
+      [
+        "snapmark/editor.py",
+        "Default image format"
+      ],
+      [
+        "snapmark/editor.py",
+        "Screenshot history folder"
+      ],
+      [
+        "snapmark/ai_runtime_ui.py",
+        "Refresh Models"
+      ],
+      [
+        "snapmark/ai_runtime_ui.py",
+        "Apply selected backend preference"
+      ],
+      [
+        "snapmark/history_c2g.py",
+        "Load more screenshots"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Run OCR"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Available OCR models"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "OCR"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Test OCR"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Lightweight · PP-OCR"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Download official models…"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Advanced · Local AI Runtime"
+      ],
+      [
+        "official_plugins/ocr/main.py",
+        "Time: Not run"
+      ],
+      [
+        "official_plugins/translation/main.py",
+        "Time: Not run"
+      ],
+      [
+        "official_plugins/translation/main.py",
+        "Translate"
+      ]
+    ]
+  },
+  "zh_CN": {
+    "discovered_ui_strings": 17,
+    "needs_translation": 1,
+    "examples": [
+      [
+        "snapmark/editor.py",
+        "SnapMark"
+      ]
+    ]
+  }
+}

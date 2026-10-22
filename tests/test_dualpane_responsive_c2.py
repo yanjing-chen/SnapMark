@@ -153,7 +153,7 @@ class ResponsivePaneTests(unittest.TestCase):
         self.assertIn('right_spacer.set_hexpand(True)', part)
         self.assertIn('actions.set_valign(Gtk.Align.END)', part)
         self.assertIn('actions.set_homogeneous(False)', part)
-        self.assertLess(part.index('root.append(scroll)'), part.index('root.append(actions)'))
+        self.assertLess(part.index('root.append(result_stack)'), part.index('root.append(actions)'))
         self.assertEqual(part.count("Gtk.Button(label='Run OCR')"), 1)
 
     def test_translation_actions_right_aligned_and_after_editable_text(self):
@@ -162,9 +162,9 @@ class ResponsivePaneTests(unittest.TestCase):
         self.assertIn('right_spacer.set_hexpand(True)', part)
         self.assertIn('actions.set_valign(Gtk.Align.END)', part)
         self.assertIn('actions.set_homogeneous(False)', part)
-        self.assertLess(part.index('root.append(scroll)'), part.index('root.append(actions)'))
+        self.assertLess(part.index('root.append(result_stack)'), part.index('root.append(actions)'))
         self.assertIn('header.append(run)', part)
-        self.assertLess(part.index('header.append(run)'), part.index('root.append(scroll)'))
+        self.assertLess(part.index('header.append(run)'), part.index('root.append(result_stack)'))
 
     def test_no_second_ocr_area_and_source_language_selector(self):
         self.assertNotIn('Select region', method(OCR, 'OCRController', 'build_panel'))

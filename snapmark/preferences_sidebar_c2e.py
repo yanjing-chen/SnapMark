@@ -1,5 +1,8 @@
 """C2-E: real two-level GTK sidebar; navigation only, never installs models."""
+import gi
+gi.require_version('Gtk', '4.0')
 from gi.repository import Gtk
+from .i18n import _
 
 class PreferencesNavigation(Gtk.ScrolledWindow):
     """Fixed-order core and optional sections; subpages are truly nested."""
@@ -19,7 +22,6 @@ class PreferencesNavigation(Gtk.ScrolledWindow):
         for name, label, icon in (
             ('general', 'General', 'preferences-system-symbolic'),
             ('screenshot', 'Screenshots & Annotation', 'image-x-generic-symbolic'),
-            ('appearance', 'Appearance', 'applications-graphics-symbolic'),
             ('shortcuts', 'Shortcuts', 'preferences-desktop-keyboard-shortcuts-symbolic'),
         ):
             self._add(root, name, label, icon)
@@ -28,7 +30,7 @@ class PreferencesNavigation(Gtk.ScrolledWindow):
         plugin_line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
         root.append(plugin_line)
         self._add(plugin_line, 'plugins', 'Plugin Management', 'application-x-addon-symbolic', expand=True)
-        arrow = Gtk.ToggleButton(icon_name='pan-down-symbolic', tooltip_text='Expand or collapse plugin settings')
+        arrow = Gtk.ToggleButton(icon_name='pan-down-symbolic', tooltip_text=_('Expand or collapse plugin settings'))
         arrow.add_css_class('flat')
         plugin_line.append(arrow)
         self.submenu = Gtk.Revealer()
@@ -42,7 +44,7 @@ class PreferencesNavigation(Gtk.ScrolledWindow):
         self.submenu.set_child(inner)
         root.append(self.submenu)
         self.plugin_box = inner
-        self.plugin_empty = Gtk.Label(label='Install and enable plugins to show their settings', xalign=0)
+        self.plugin_empty = Gtk.Label(label=_('Install and enable plugins to show their settings'), xalign=0)
         self.plugin_empty.add_css_class('dim-label')
         inner.append(self.plugin_empty)
         root.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
@@ -61,7 +63,7 @@ class PreferencesNavigation(Gtk.ScrolledWindow):
         inside.set_margin_end(7)
         image = Gtk.Image.new_from_icon_name(icon)
         inside.append(image)
-        text = Gtk.Label(label=label, xalign=0)
+        text = Gtk.Label(label=_(label), xalign=0)
         text.set_hexpand(True)
         inside.append(text)
         button.set_child(inside)

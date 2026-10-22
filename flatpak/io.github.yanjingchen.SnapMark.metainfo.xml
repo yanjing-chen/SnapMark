@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.yanjingchen.SnapMark</id>
+  <name>SnapMark</name>
+  <summary>Screenshot annotation editor for GNOME</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>SnapMark edits existing screenshots, supports drawing and text annotations, screenshot history, and image export. GNOME Print Screen remains independent of SnapMark.</p>
+    <p>OCR and translation are optional plugins. Neither plugins nor AI models are included in the base application.</p>
+  </description>
+  <launchable type="desktop-id">io.github.yanjingchen.SnapMark.desktop</launchable>
+  <url type="homepage">https://github.com/yanjing-chen/SnapMark</url>
+  <developer id="io.github.yanjingchen"><name>SnapMark contributors</name></developer>
+  <provides><binary>snapmark</binary></provides>
+  <releases><release version="1.0.0" date="2026-10-22"><description><p>Stable GNOME screenshot editor with optional OCR and Translation plugins.</p></description></release></releases>
+</component>

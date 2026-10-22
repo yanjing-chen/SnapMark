@@ -2,6 +2,7 @@
 import sys
 import os
 import tempfile
+import subprocess
 from pathlib import Path
 import gi
 
@@ -14,9 +15,11 @@ gi.require_version('PangoCairo', '1.0')
 gi.require_foreign('cairo')
 
 from gi.repository import Adw, Gdk, Gio, GLib
+from . import __version__
 from .editor import EditorWindow
 from .watch import ScreenshotWatcher
 from .preferences import Settings
+from .i18n import configure as configure_interface_language, _
 from .tray import TrayIndicator
 from .history_c2g import show_history
 
@@ -25,11 +28,12 @@ APP_ID = 'io.github.yanjingchen.SnapMark'
 
 class SnapMarkApplication(Adw.Application):
     def __init__(self):
+        configure_interface_language(Settings().language())
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.watcher = None
         self.windows = []
         self.tray = TrayIndicator(self.show_or_present_editor, self.show_preferences, self.quit,
-                                  self.open_clipboard_image, self.open_history, self.show_about,
+                                  self.open_clipboard_image, self.open_history, self.request_restart,
                                   self.clipboard_has_image)
         self._history_window = None
         self._temporary_images = tempfile.TemporaryDirectory(prefix='snapmark-clipboard-')
@@ -106,18 +110,86 @@ class SnapMarkApplication(Adw.Application):
         return False
 
     def open_history(self):
+        # A GTK idle callback must not disappear silently if the gallery fails.
         previous = self._history_window
-        self._history_window = show_history(self, previous)
+        try:
+            window = show_history(self, previous)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            return False
+        self._history_window = window
         if previous is None:
-            self._history_window.connect('close-request', self._history_closed)
+            window.connect('close-request', self._history_closed)
         return False
 
     def _history_closed(self, *_unused):
         self._history_window = None
         return False
 
+    def request_restart(self):
+        """Restart SnapMark without a confirmation dialog or Runtime mutation.
+
+        A fresh process ID gives the SNI host a new unique item name.  The
+        detached helper waits until the previous process and its D-Bus owner
+        have exited, so the new indicator is registered after cleanup.
+        """
+        GLib.idle_add(self._restart_with_fresh_process)
+        return False
+
+    def _restart_launch_command(self):
+        appimage = os.environ.get('APPIMAGE')
+        if appimage and Path(appimage).is_file():
+            return [appimage]
+        # In a Flatpak sandbox this interpreter already points at the
+        # installed runtime, and the helper inherits the same sandbox.
+        return [sys.executable, '-m', 'snapmark.app']
+
+    def _restart_with_fresh_process(self):
+        argv = self._restart_launch_command()
+        # Do not use os.execv: reusing the PID lets SNI hosts retain the
+        # previous tray item.  A separate shell survives application shutdown
+        # and starts a new process only AFTER the old PID is gone.
+        helper = (
+            'old_pid="$1"; shift; '
+            'i=0; '
+            'while kill -0 "$old_pid" 2>/dev/null; do '
+            '  i=$((i+1)); '
+            '  if [ "$i" -ge 200 ]; then echo "Timed out waiting for old SnapMark PID" >&2; exit 21; fi; '
+            '  sleep 0.1; '
+            'done; '
+            'sleep 0.7; '
+            'exec "$@"'
+        )
+        try:
+            log_path = (Path(os.environ.get('XDG_CACHE_HOME') or Path.home() / '.cache')
+                        / 'snapmark' / 'restart.log')
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with log_path.open('ab') as logfile:
+                subprocess.Popen(
+                    ['/bin/sh', '-c', helper, 'snapmark-restart-helper',
+                     str(os.getpid()), *argv],
+                    stdin=subprocess.DEVNULL,
+                    stdout=logfile,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                    close_fds=True,
+                )
+        except OSError as exc:
+            print(f'SnapMark: unable to start restart helper: {exc}', flush=True)
+            return False
+        # No confirmation by explicit user request. Close pending dialogs and
+        # cancel plugin work through normal GTK teardown before relinquishing
+        # the application D-Bus name. Shared Local AI Runtime stays untouched.
+        for window in list(self.windows):
+            window.close()
+        if self._history_window is not None:
+            self._history_window.close()
+        self.quit()
+        return False
+
     def show_about(self):
-        window = Adw.AboutWindow(application_name='SnapMark', version='C2-G development',
+        window = Adw.AboutWindow(application_name='SnapMark', version=__version__,
                                  developer_name='SnapMark contributors')
         window.set_application(self)
         if self.windows:

@@ -9,9 +9,10 @@ EDITOR=(ROOT/'snapmark/editor.py').read_text('utf-8')
 
 class EnglishUIContracts(unittest.TestCase):
     def test_english_core_navigation_and_order(self):
-        for text in ('General', 'Screenshots & Annotation', 'Appearance', 'Shortcuts',
+        for text in ('General', 'Screenshots & Annotation', 'Shortcuts',
                      'Plugin Management', 'Local AI Runtime', 'About'):
             self.assertIn("'"+text+"'", NAV)
+        self.assertNotIn("('appearance', 'Appearance'", NAV)
         self.assertLess(NAV.index("'shortcuts'"),NAV.index("'ai-runtime'"))
         self.assertLess(NAV.index("'ai-runtime'"),NAV.index("'plugins'"))
     def test_no_chinese_hardcoded_core_navigation(self):

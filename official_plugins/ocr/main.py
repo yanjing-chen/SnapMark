@@ -13,6 +13,12 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+from snapmark.i18n import plugin_gettext
+from snapmark.stream_preview_c3 import StreamingPreview
+
+def _(message):
+    return plugin_gettext('ocr', message, Path(__file__).resolve().parent)
+
 
 import importlib.util
 
@@ -125,14 +131,14 @@ class OCRController:
             getattr(root, setter)(8)
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         model_icon = Gtk.Image.new_from_icon_name('edit-find-symbolic')
-        model_icon.set_tooltip_text('OCR model')
+        model_icon.set_tooltip_text(_('OCR model'))
         header.append(model_icon)
         combo = Gtk.DropDown.new_from_strings([''])
         combo.set_sensitive(False)
         combo.set_hexpand(False)
         combo.set_halign(Gtk.Align.START)
         combo.set_size_request(152, -1)
-        combo.set_tooltip_text('Select registered OCR model (configured in Preferences)')
+        combo.set_tooltip_text(_('Select registered OCR model (configured in Preferences)'))
         combo.connect('notify::selected', self._model_selected)
         self.model_dropdown = combo
         header.append(combo)
@@ -140,9 +146,10 @@ class OCRController:
         spacer.set_hexpand(True)
         header.append(spacer)
         run = Gtk.Button(label='Run OCR')
+        run.set_label(_('Run OCR'))
         run.add_css_class('suggested-action')
         run.connect('clicked', lambda _button: self.run_whole())
-        run.set_tooltip_text('OCR the complete original screenshot, without annotations')
+        run.set_tooltip_text(_('OCR the complete original screenshot, without annotations'))
         self.run_button = run
         header.append(run)
         root.append(header)
@@ -151,15 +158,6 @@ class OCRController:
         self.status.add_css_class('dim-label')
         self.status.set_ellipsize(Pango.EllipsizeMode.END)
         root.append(self.status)
-        self.preview = Gtk.Label(label='', xalign=0)
-        self.preview.set_wrap(True)
-        self.preview.set_max_width_chars(80)
-        self.preview.set_lines(2)
-        self.preview.set_selectable(False)
-        self.preview.set_visible(False)
-        self.preview.add_css_class('dim-label')
-        root.append(self.preview)
-
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroll.set_vexpand(True)
@@ -169,7 +167,12 @@ class OCRController:
         for setter in ('set_top_margin', 'set_bottom_margin', 'set_left_margin', 'set_right_margin'):
             getattr(tv, setter)(8)
         scroll.set_child(tv)
-        root.append(scroll)
+        result_stack = Gtk.Stack()
+        result_stack.set_vexpand(True)
+        result_stack.add_named(scroll, 'result')
+        self.preview = StreamingPreview(result_stack)
+        result_stack.set_visible_child_name('result')
+        root.append(result_stack)
         self.textview = tv
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -178,7 +181,8 @@ class OCRController:
         actions.set_hexpand(True)
         actions.set_valign(Gtk.Align.END)
         self.timer = Gtk.Label(label='Time: Not run')
-        self.timer.set_tooltip_text('Elapsed time for current or most recent OCR')
+        self.timer.set_label(_('Time: Not run'))
+        self.timer.set_tooltip_text(_('Elapsed time for current or most recent OCR'))
         actions.append(self.timer)
         right_spacer = Gtk.Box()
         right_spacer.set_hexpand(True)
@@ -188,7 +192,7 @@ class OCRController:
             ('Clear text', self.clear_text),
             ('Save as TXT', self.save_text),
         ):
-            button = Gtk.Button(label=caption)
+            button = Gtk.Button(label=_(caption))
             button.connect('clicked', lambda _button, cb=action: cb())
             actions.append(button)
         root.append(actions)
@@ -236,42 +240,46 @@ class OCRController:
         """
         page = Adw.PreferencesPage()
         intro = Adw.PreferencesGroup(title='OCR', description=(
-            'Choose lightweight OCR or higher-performance OCR through Local AI Runtime. '
-            'Model installation and registration belong in Preferences, not the editor.'))
+            _('Choose lightweight OCR or higher-performance OCR through Local AI Runtime. '
+            'Model installation and registration belong in Preferences, not the editor.')))
         page.add(intro)
 
         switch = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         switch.add_css_class('linked')
         switch.set_hexpand(True)
         light_button = Gtk.ToggleButton(label='Lightweight · PP-OCR')
+        light_button.set_label(_('Lightweight · PP-OCR'))
         advanced_button = Gtk.ToggleButton(label='Advanced · Local AI Runtime')
+        advanced_button.set_label(_('Advanced · Local AI Runtime'))
         advanced_button.set_group(light_button)
         for button in (light_button, advanced_button):
             button.set_hexpand(True)
             switch.append(button)
         intro.add(switch)
 
-        lightweight = Adw.PreferencesGroup(title='Lightweight engine', description=(
-            'PP-OCRv6 tiny models downloaded exclusively from PaddlePaddle official sources. '
-            'No Python, PaddlePaddle or local compilation is required.'))
+        lightweight = Adw.PreferencesGroup(title=_('Lightweight engine'), description=(
+            _('PP-OCRv6 tiny models downloaded exclusively from PaddlePaddle official sources. '
+            'No Python, PaddlePaddle or local compilation is required.')))
         page.add(lightweight)
-        language = Adw.ActionRow(title='Language', subtitle='Automatically recognized by the selected model')
-        language.add_suffix(Gtk.Label(label='Auto'))
+        language = Adw.ActionRow(title=_('Language'), subtitle=_('Automatically recognized by the selected model'))
+        language.add_suffix(Gtk.Label(label=_('Auto')))
         lightweight.add(language)
-        inference = Adw.ActionRow(title='Inference', subtitle='CPU · packaged engine (GitHub Actions)')
+        inference = Adw.ActionRow(title=_('Inference'), subtitle=_('CPU · packaged engine (GitHub Actions)'))
         lightweight.add(inference)
-        registered = Adw.ActionRow(title='Models')
+        registered = Adw.ActionRow(title=_('Models'))
         lightweight.add(registered)
-        online_row = Adw.ActionRow(title='Official model catalog', subtitle=(
-            'SnapMark-maintained list · all weights downloaded from PaddlePaddle only'))
-        refresh = Gtk.Button(label='Refresh models')
+        online_row = Adw.ActionRow(title=_('Official model catalog'), subtitle=(
+            _('SnapMark-maintained list · all weights downloaded from PaddlePaddle only')))
+        refresh = Gtk.Button(label=_('Refresh models'))
         refresh.set_valign(Gtk.Align.CENTER)
         online_row.add_suffix(refresh)
         lightweight.add(online_row)
         select_model = Adw.ComboRow(title='Available OCR models')
+        select_model.set_title(_('Available OCR models'))
         lightweight.add(select_model)
-        models_row = Adw.ActionRow(title='Selected model')
+        models_row = Adw.ActionRow(title=_('Selected model'))
         download = Gtk.Button(label='Download official models…')
+        download.set_label(_('Download official models…'))
         download.set_valign(Gtk.Align.CENTER)
         models_row.add_suffix(download)
         lightweight.add(models_row)
@@ -296,20 +304,20 @@ class OCRController:
         def refresh_status(*_args):
             model = catalog_entries[select_model.get_selected()] if select_model.get_selected() < len(catalog_entries) else None
             if model is None:
-                models_row.set_subtitle('No official models in catalog')
+                models_row.set_subtitle(_('No official models in catalog'))
                 download.set_sensitive(False)
                 return
             if not _onnx.model_compatible(model):
-                models_row.set_subtitle('Requires a newer engine or model verification · not available for download')
+                models_row.set_subtitle(_('Requires a newer engine or model verification · not available for download'))
                 download.set_sensitive(False)
             elif _onnx.installed_label(model['label']):
-                models_row.set_subtitle('Installed · official PaddlePaddle · SHA256 verified')
+                models_row.set_subtitle(_('Installed · official PaddlePaddle · SHA256 verified'))
                 download.set_sensitive(False)
             elif _onnx.engine_ready():
-                models_row.set_subtitle('Ready to download from PaddlePaddle official repositories')
+                models_row.set_subtitle(_('Ready to download from PaddlePaddle official repositories'))
                 download.set_sensitive(not busy)
             else:
-                models_row.set_subtitle('Prebuilt CPU engine not installed · keep using OCR 0.1.8')
+                models_row.set_subtitle(_('Prebuilt CPU engine not installed · keep using OCR 0.1.8'))
                 download.set_sensitive(False)
         select_model.connect('notify::selected', refresh_status)
 
@@ -319,7 +327,7 @@ class OCRController:
             busy = True
             refresh.set_sensitive(False)
             download.set_sensitive(False)
-            online_row.set_subtitle('Refreshing SnapMark catalog…')
+            online_row.set_subtitle(_('Refreshing SnapMark catalog…'))
             def job():
                 try:
                     catalog = _onnx.refresh_catalog()
@@ -331,7 +339,7 @@ class OCRController:
                     busy = False
                     refresh.set_sensitive(True)
                     if error:
-                        online_row.set_subtitle('Offline catalog retained · refresh failed')
+                        online_row.set_subtitle(_('Offline catalog retained · refresh failed'))
                         self.editor._notice('Official OCR catalog: '+error[:230])
                     else:
                         online_row.set_subtitle(message)
@@ -347,7 +355,7 @@ class OCRController:
             model = next((m for m in catalog_entries if m['label'] == label), None)
             if model is None or not _onnx.model_compatible(model):return
             confirm = Adw.AlertDialog(
-                heading='Download official PaddlePaddle OCR model?',
+                heading=_('Download official PaddlePaddle OCR model?'),
                 body=('Model: '+label+'\n\nDownload only from PaddlePaddle official Hugging Face '
                       'and PaddleOCR GitHub, with file verification. No existing model, '
                       'OCR engine, or Local AI Runtime will be overwritten.'))
@@ -361,7 +369,7 @@ class OCRController:
                 busy=True
                 refresh.set_sensitive(False)
                 download.set_sensitive(False)
-                models_row.set_subtitle('Downloading and verifying official models…')
+                models_row.set_subtitle(_('Downloading and verifying official models…'))
                 def job():
                     try:
                         message,error=_onnx.install_label(label,confirmed=True),None
@@ -391,41 +399,42 @@ class OCRController:
         download.connect('clicked',install_onnx_clicked)
         redraw_catalog()
         test_light = Gtk.Button(label='Test OCR')
+        test_light.set_label(_('Test OCR'))
         test_light.add_css_class('suggested-action')
         test_light.set_valign(Gtk.Align.CENTER)
-        light_test_row = Adw.ActionRow(title='Test OCR', subtitle='Recognize the current screenshot')
+        light_test_row = Adw.ActionRow(title=_('Test OCR'), subtitle=_('Recognize the current screenshot'))
         light_test_row.add_suffix(test_light)
         lightweight.add(light_test_row)
         test_light.connect('clicked', lambda _button: self.editor._notice(
-            'Open the OCR panel, select PP-OCRv6 tiny (ONNX CPU), then click Run OCR'))
+            _('Open the OCR panel, select PP-OCRv6 tiny (ONNX CPU), then click Run OCR')))
 
         # Keep the standard OCR page compact. Registration of existing legacy
         # lightweight model folders remains available behind a collapsed row,
         # rather than installing PaddlePaddle on the user's machine.
-        existing = Adw.ExpanderRow(title='Manage previously installed OCR models',
-            subtitle='Optional · register existing local model files')
+        existing = Adw.ExpanderRow(title=_('Manage previously installed OCR models'),
+            subtitle=_('Optional · register existing local model files'))
         lightweight.add(existing)
-        existing_python = Adw.EntryRow(title='Existing Python interpreter')
+        existing_python = Adw.EntryRow(title=_('Existing Python interpreter'))
         existing_python.set_text(self.settings['python'])
         existing.add_row(existing_python)
-        existing_models = Adw.EntryRow(title='Existing model directory')
+        existing_models = Adw.EntryRow(title=_('Existing model directory'))
         existing_models.set_text(self.settings['models_root'])
         existing.add_row(existing_models)
-        existing_choice = Adw.ComboRow(title='Existing model')
+        existing_choice = Adw.ComboRow(title=_('Existing model'))
         existing_choice.set_model(Gtk.StringList.new(list(MODEL_LABELS)))
         existing.add_row(existing_choice)
 
-        registration_status = Adw.ActionRow(title='Registered lightweight OCR models',
-            subtitle=', '.join(self.settings['registered_lightweight']) or 'None')
+        registration_status = Adw.ActionRow(title=_('Registered lightweight OCR models'),
+            subtitle=', '.join(self.settings['registered_lightweight']) or _('None'))
         existing.add_row(registration_status)
-        register_existing = Gtk.Button(label='Register selected installed model')
+        register_existing = Gtk.Button(label=_('Register selected installed model'))
         register_existing.set_valign(Gtk.Align.CENTER)
-        register_row = Adw.ActionRow(title='Register this existing model')
+        register_row = Adw.ActionRow(title=_('Register this existing model'))
         register_row.add_suffix(register_existing)
         existing.add_row(register_row)
-        unregister_existing = Gtk.Button(label='Unregister selected model')
+        unregister_existing = Gtk.Button(label=_('Unregister selected model'))
         unregister_existing.set_valign(Gtk.Align.CENTER)
-        unregister_row = Adw.ActionRow(title='Remove model registration (keep files)')
+        unregister_row = Adw.ActionRow(title=_('Remove model registration (keep files)'))
         unregister_row.add_suffix(unregister_existing)
         existing.add_row(unregister_row)
 
@@ -449,7 +458,7 @@ class OCRController:
                 _atomic_save(candidate)
                 self.settings = candidate
                 registration_status.set_subtitle(
-                    ', '.join(candidate['registered_lightweight']) or 'None')
+                    ', '.join(candidate['registered_lightweight']) or _('None'))
                 self._refresh_models()
                 refresh_registered()
             except (OSError, ValueError, IndexError) as exc:
@@ -460,36 +469,37 @@ class OCRController:
         unregister_existing.connect('clicked',
             lambda _button: change_existing_registration(False))
 
-        advanced = Adw.PreferencesGroup(title='Runtime connection', description=(
-            'High-performance Runtime OCR uses your existing Local AI Runtime. '
-            'Only installed models explicitly registered for OCR are eligible.'))
+        advanced = Adw.PreferencesGroup(title=_('Runtime connection'), description=(
+            _('High-performance Runtime OCR uses your existing Local AI Runtime. '
+            'Only installed models explicitly registered for OCR are eligible.')))
         page.add(advanced)
-        endpoint = Adw.ActionRow(title='Endpoint', subtitle='http://127.0.0.1:8111')
-        endpoint_state = Gtk.Label(label='Not checked')
+        endpoint = Adw.ActionRow(title=_('Endpoint'), subtitle='http://127.0.0.1:8111')
+        endpoint_state = Gtk.Label(label=_('Not checked'))
         endpoint.add_suffix(endpoint_state)
         advanced.add(endpoint)
-        runtime_model = Adw.ComboRow(title='Model', subtitle='Registered OCR models only')
+        runtime_model = Adw.ComboRow(title=_('Model'), subtitle=_('Registered OCR models only'))
         runtime_model.set_model(Gtk.StringList.new([]))
         advanced.add(runtime_model)
-        check = Gtk.Button(label='Refresh')
+        check = Gtk.Button(label=_('Refresh'))
         check.set_valign(Gtk.Align.CENTER)
-        check_row = Adw.ActionRow(title='Refresh connection and registered models')
+        check_row = Adw.ActionRow(title=_('Refresh connection and registered models'))
         check_row.add_suffix(check)
         advanced.add(check_row)
-        acceleration = Adw.ActionRow(title='Acceleration', subtitle='Managed by Runtime · Auto / Vulkan / CUDA')
+        acceleration = Adw.ActionRow(title=_('Acceleration'), subtitle=_('Managed by Runtime · Auto / Vulkan / CUDA'))
         advanced.add(acceleration)
         runtime_test = Gtk.Button(label='Test OCR')
+        runtime_test.set_label(_('Test OCR'))
         runtime_test.set_sensitive(False)
-        runtime_test.set_tooltip_text('Use Run OCR in the screenshot editor to test the selected Runtime OCR model')
+        runtime_test.set_tooltip_text(_('Use Run OCR in the screenshot editor to test the selected Runtime OCR model'))
         runtime_test.add_css_class('suggested-action')
-        runtime_test_row = Adw.ActionRow(title='Test OCR', subtitle='Use Run OCR in the screenshot editor')
+        runtime_test_row = Adw.ActionRow(title=_('Test OCR'), subtitle=_('Use Run OCR in the screenshot editor'))
         runtime_test_row.add_suffix(runtime_test)
         advanced.add(runtime_test_row)
 
         def refresh_registered():
             names = list(_onnx.available_models())
             names.extend(lightweight_available(self.settings, MODELS))
-            registered.set_subtitle(', '.join(names) if names else 'Not installed')
+            registered.set_subtitle(', '.join(names) if names else _('Not installed'))
 
         def switch_mode():
             selected = 'lightweight' if light_button.get_active() else 'high_performance'
@@ -513,7 +523,7 @@ class OCRController:
 
         def refresh_runtime(_button):
             check.set_sensitive(False)
-            endpoint_state.set_text('Checking…')
+            endpoint_state.set_text(_('Checking…'))
             def job():
                 try:
                     items = fetch_runtime_models('ocr')
@@ -523,10 +533,10 @@ class OCRController:
                 def done():
                     check.set_sensitive(True)
                     if error:
-                        endpoint_state.set_text('Unavailable')
+                        endpoint_state.set_text(_('Unavailable'))
                         self.editor._notice('OCR Runtime catalog: ' + error[:160])
                     else:
-                        endpoint_state.set_text('Connected' if items else 'Connected · no OCR models')
+                        endpoint_state.set_text(_('Connected') if items else _('Connected · no OCR models'))
                     runtime_model.set_model(Gtk.StringList.new(items))
                     # Restore the saved OCR model instead of silently choosing
                     # the first registered model on every Preferences opening.
@@ -553,14 +563,14 @@ class OCRController:
     def _add_c2f_settings(self, page, runtime_model, advanced_button):
         """Advanced OCR profiles remain inside the OCR ZIP, not in SnapMark core."""
         group = Adw.PreferencesGroup(
-            title='Advanced OCR settings',
-            description='Settings are stored separately for each installed Runtime OCR model. '
-                        'Lightweight PP-OCR uses its own unchanged CPU engine.')
+            title=_('Advanced OCR settings'),
+            description=_('Settings are stored separately for each installed Runtime OCR model. '
+                        'Lightweight PP-OCR uses its own unchanged CPU engine.'))
         page.add(group)
-        preset_row = Adw.ActionRow(title='Prompt preset',
-            subtitle='PaddleOCR-VL uses its model-native OCR: instruction')
+        preset_row = Adw.ActionRow(title=_('Prompt preset'),
+            subtitle=_('PaddleOCR-VL uses its model-native OCR: instruction'))
         preset_names = list(_profiles_c2f.PRESETS)
-        preset = Gtk.DropDown.new_from_strings(preset_names)
+        preset = Gtk.DropDown.new_from_strings([_(name) for name in preset_names])
         preset.set_valign(Gtk.Align.CENTER)
         preset_row.add_suffix(preset)
         group.add(preset_row)
@@ -572,35 +582,35 @@ class OCRController:
         prompt_scroll.set_min_content_height(105)
         prompt_scroll.set_child(prompt_view)
         group.add(prompt_scroll)
-        output_row = Adw.ActionRow(title='Output mode',
-            subtitle='Plain text or best-effort paragraphs; PaddleOCR-VL still uses OCR:')
+        output_row = Adw.ActionRow(title=_('Output mode'),
+            subtitle=_('Plain text or best-effort paragraphs; PaddleOCR-VL still uses OCR:'))
         output_names = list(_profiles_c2f.OUTPUTS)
-        output = Gtk.DropDown.new_from_strings(output_names)
+        output = Gtk.DropDown.new_from_strings([_(name) for name in output_names])
         output.set_valign(Gtk.Align.CENTER)
         output_row.add_suffix(output)
         group.add(output_row)
-        temperature_row = Adw.ActionRow(title='Temperature', subtitle='0.0 is the recommended OCR default')
+        temperature_row = Adw.ActionRow(title=_('Temperature'), subtitle=_('0.0 is the recommended OCR default'))
         temperature = Gtk.SpinButton.new_with_range(0.0, 1.0, 0.1)
         temperature.set_digits(1)
         temperature.set_valign(Gtk.Align.CENTER)
         temperature_row.add_suffix(temperature)
         group.add(temperature_row)
-        token_row = Adw.ActionRow(title='Maximum output tokens')
+        token_row = Adw.ActionRow(title=_('Maximum output tokens'))
         token_names = [str(x) for x in _profiles_c2f.TOKENS]
         tokens = Gtk.DropDown.new_from_strings(token_names)
         tokens.set_valign(Gtk.Align.CENTER)
         token_row.add_suffix(tokens)
         group.add(token_row)
-        streaming = Adw.SwitchRow(title='Streaming preview',
-            subtitle='Preview cannot be copied; an incomplete Runtime stream is rejected')
+        streaming = Adw.SwitchRow(title=_('Streaming preview'),
+            subtitle=_('Preview cannot be copied; an incomplete Runtime stream is rejected'))
         group.add(streaming)
-        group.add(Adw.ActionRow(title='Thinking / Top-P / Top-K',
-            subtitle='Unavailable until support is verified for the installed Runtime and model'))
-        action_row = Adw.ActionRow(title='OCR model profile',
-            subtitle='Saves only SnapMark OCR settings; does not modify Runtime or models')
-        reset = Gtk.Button(label='Restore defaults')
+        group.add(Adw.ActionRow(title=_('Thinking / Top-P / Top-K'),
+            subtitle=_('Unavailable until support is verified for the installed Runtime and model')))
+        action_row = Adw.ActionRow(title=_('OCR model profile'),
+            subtitle=_('Saves only SnapMark OCR settings; does not modify Runtime or models'))
+        reset = Gtk.Button(label=_('Restore defaults'))
         reset.set_valign(Gtk.Align.CENTER)
-        save = Gtk.Button(label='Save settings')
+        save = Gtk.Button(label=_('Save settings'))
         save.set_valign(Gtk.Align.CENTER)
         save.add_css_class('suggested-action')
         action_row.add_suffix(reset)
@@ -661,7 +671,7 @@ class OCRController:
         def save_profile(_button):
             name = current_model()
             if not name:
-                self.editor._notice('Refresh registered Runtime OCR models first')
+                self.editor._notice(_('Refresh registered Runtime OCR models first'))
                 return
             buffer = prompt_view.get_buffer()
             prompt = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
@@ -717,7 +727,7 @@ class OCRController:
         """Make missing OCR dependencies discoverable even if result pane is hidden."""
         self._status(f'OCR unavailable: {reason}', toast=True)
         dialog = Adw.AlertDialog(
-            heading='OCR is not ready',
+            heading=_('OCR is not ready'),
             body=f'{reason}\n\nConfigure Preferences → OCR. No models will be downloaded automatically.',
         )
         dialog.add_response('ok', 'OK')
@@ -779,22 +789,23 @@ class OCRController:
         if generation != self.generation or not self.running or self.started_at is None:
             return False
         if self.timer is not None:
-            self.timer.set_text(f'Time: {time.perf_counter() - self.started_at:.2f} s')
+            self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=time.perf_counter() - self.started_at))
         if self.preview_path is not None and self.preview is not None:
             try:
-                latest = self.preview_path.read_text('utf-8')[-1200:]
-                self.preview.set_label('Unverified OCR preview: ' + latest)
-                self.preview.set_visible(bool(latest))
+                latest = self.preview_path.read_text('utf-8')
+                self.preview.set_text(latest)
+                self.preview.set_visible(True)
+                self._status(_('Unverified OCR preview: '), toast=False)
             except (OSError, UnicodeError):
                 pass
         return True
 
     def _run(self, image):
         if self.running:
-            self._status('OCR is already running', toast=True)
+            self._status(_('OCR is already running'), toast=True)
             return
         if self.textview is None or self.timer is None:
-            self.editor._notice('OCR panel is not ready')
+            self.editor._notice(_('OCR panel is not ready'))
             return
         reason = self._check_ready()
         if reason:
@@ -808,13 +819,16 @@ class OCRController:
                    if cfg['mode'] == 'high_performance' else {})
         self.preview_path = None
         if self.preview is not None:
-            self.preview.set_visible(False)
+            if cfg['mode'] == 'high_performance' and profile.get('streaming'):
+                self.preview.start()
+            else:
+                self.preview.set_visible(False)
         self.running = True
         self.started_at = time.perf_counter()
-        self.run_button.set_label('Cancel OCR')
+        self.run_button.set_label(_('Cancel OCR'))
         engine = 'Local AI Runtime' if cfg['mode'] == 'high_performance' else 'local CPU'
         self._status(f"Recognizing with {cfg['model']} ({engine})…", toast=True)
-        self.timer.set_text('Time: 0.00 s')
+        self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=0.0))
         GLib.timeout_add(100, self._tick, generation)
 
         def job():
@@ -890,10 +904,10 @@ class OCRController:
         self.preview_path = None
         if self.preview is not None:
             self.preview.set_visible(False)
-        self.run_button.set_label('Run OCR')
-        self.timer.set_text(f'Time: {elapsed:.2f} s')
+        self.run_button.set_label(_('Run OCR'))
+        self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=elapsed))
         if self.editor.pixbuf is not self.source_image:
-            self._status('Image changed; stale OCR output was discarded', toast=True)
+            self._status(_('Image changed; stale OCR output was discarded'), toast=True)
         elif err:
             self._error_dialog(str(err)[:600])
         else:
@@ -902,7 +916,7 @@ class OCRController:
             before = self._get_text()
             suffix = ('\n' if before.endswith('\n') else '\n\n') if before else ''
             buffer.insert(buffer.get_end_iter(), suffix + output)
-            self._status(f'OCR completed; {len(output)} text characters, editable', toast=True)
+            self._status(_('OCR completed; {count} text characters, editable').format(count=len(output)), toast=True)
         return False
 
     def cancel(self):
@@ -914,7 +928,7 @@ class OCRController:
             if self.preview is not None:
                 self.preview.set_visible(False)
             if self.run_button is not None:
-                self.run_button.set_label('Run OCR')
+                self.run_button.set_label(_('Run OCR'))
             with self.proc_lock:
                 proc = self.proc
                 if proc is not None and proc.poll() is None:
@@ -923,14 +937,14 @@ class OCRController:
                     except ProcessLookupError:
                         pass
                 self.proc = None
-            self._status('OCR cancelled', toast=True)
-            self.timer.set_text('Time: cancelled')
+            self._status(_('OCR cancelled'), toast=True)
+            self.timer.set_text(_('Time: cancelled'))
 
     def clear_text(self):
         if not self._get_text():
             return
-        dialog = Adw.AlertDialog(heading='Clear OCR text?',
-                                 body='This deletes your edits and recognized text from the result pane.')
+        dialog = Adw.AlertDialog(heading=_('Clear OCR text?'),
+                                 body=_('This deletes your edits and recognized text from the result pane.'))
         dialog.add_response('cancel', 'Keep text')
         dialog.add_response('clear', 'Clear text')
         dialog.set_response_appearance('clear', Adw.ResponseAppearance.DESTRUCTIVE)
@@ -951,7 +965,7 @@ class OCRController:
         if not self._get_text():
             self._status('No OCR text to save')
             return
-        dialog = Gtk.FileDialog(title='Save OCR text')
+        dialog = Gtk.FileDialog(title=_('Save OCR text'))
         name = self.editor.filename.stem if self.editor.filename else 'screenshot'
         dialog.set_initial_name(name + '-ocr.txt')
         dialog.save(self.editor, None, self._save_done)

@@ -1,0 +1,440 @@
+# Chinese (Simplified, China) translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark C3-dev\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 22:38+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_CN\n"
+"Language-Team: zh_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Advanced settings"
+msgstr "高级设置"
+
+msgid "Auto detect"
+msgstr "自动检测"
+
+msgid "CPU"
+msgstr ""
+
+msgid "CUDA"
+msgstr ""
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Clear text"
+msgstr "清空文本"
+
+msgid "Copy text"
+msgstr "复制文本"
+
+msgid "Custom prompt"
+msgstr "自定义提示词"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "High-performance OCR"
+msgstr "高性能 OCR"
+
+msgid "Image recognition"
+msgstr "图像识别"
+
+msgid "Install model"
+msgstr "安装模型"
+
+msgid "Installed models"
+msgstr "已安装模型"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Lightweight OCR"
+msgstr "轻量级 OCR"
+
+msgid "Local AI Runtime"
+msgstr "本地 AI 运行环境"
+
+msgid "Max tokens"
+msgstr "最大 Token 数"
+
+msgid "Maximum output tokens"
+msgstr "最大输出 Token 数"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Model loading"
+msgstr "正在加载模型"
+
+msgid "Model management"
+msgstr "模型管理"
+
+msgid "No models installed"
+msgstr "未安装模型"
+
+msgid "OCR"
+msgstr "OCR 识别"
+
+msgid "OCR complete"
+msgstr "OCR 识别完成"
+
+msgid "OCR failed"
+msgstr "OCR 识别失败"
+
+msgid "OCR model"
+msgstr "OCR 模型"
+
+msgid "OCR plugin"
+msgstr "OCR 插件"
+
+msgid "OCR result"
+msgstr "OCR 结果"
+
+msgid "OCR settings"
+msgstr "OCR 设置"
+
+msgid "Plain text"
+msgstr "纯文本"
+
+msgid "Preserve paragraphs"
+msgstr "保留段落"
+
+msgid "Processing"
+msgstr "处理中"
+
+msgid "Prompt"
+msgstr "提示词"
+
+msgid "Prompt preset"
+msgstr "提示词预设"
+
+msgid "Recognition mode"
+msgstr "识别模式"
+
+msgid "Recognized text"
+msgstr "识别文本"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Refresh models"
+msgstr "刷新模型列表"
+
+msgid "Restore defaults"
+msgstr "恢复默认值"
+
+msgid "Run OCR"
+msgstr "开始 OCR"
+
+msgid "Save as TXT"
+msgstr "保存为 TXT"
+
+msgid "Save as…"
+msgstr "另存为…"
+
+msgid "Save settings"
+msgstr "保存设置"
+
+msgid "Select a model"
+msgstr "选择模型"
+
+msgid "Show thinking"
+msgstr "显示思考内容"
+
+msgid "Streaming"
+msgstr "流式输出"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "Text recognition"
+msgstr "文字识别"
+
+msgid "Thinking mode"
+msgstr "思考模式"
+
+msgid "Time: Not run"
+msgstr "耗时：尚未运行"
+
+msgid "Vulkan"
+msgstr ""
+
+msgid "0.0 is the recommended OCR default"
+msgstr "推荐使用 OCR 默认值 0.0"
+
+msgid "Acceleration"
+msgstr "加速方式"
+
+msgid "Advanced OCR settings"
+msgstr "高级 OCR 设置"
+
+msgid "Advanced · Local AI Runtime"
+msgstr "高级 · 本地 AI Runtime"
+
+msgid "Automatically recognized by the selected model"
+msgstr "由所选模型自动识别"
+
+msgid "Available OCR models"
+msgstr "可用 OCR 模型"
+
+msgid "CPU · packaged engine (GitHub Actions)"
+msgstr "CPU · 打包推理引擎（GitHub Actions）"
+
+msgid "Cancel OCR"
+msgstr "取消 OCR"
+
+msgid ""
+"Choose lightweight OCR or higher-performance OCR through Local AI Runtime. Model "
+"installation and registration belong in Preferences, not the editor."
+msgstr "可以选择轻量 OCR 或由本地 AI Runtime 提供的高性能 OCR。模型的安装与注册应在首选项中进行，而不是在编辑器中。"
+
+msgid "Clear OCR text?"
+msgstr "清空 OCR 文本？"
+
+msgid "Download official PaddlePaddle OCR model?"
+msgstr "下载 PaddlePaddle 官方 OCR 模型？"
+
+msgid "Download official models…"
+msgstr "下载官方模型…"
+
+msgid "Downloading and verifying official models…"
+msgstr "正在下载并验证官方模型…"
+
+msgid "Elapsed time for current or most recent OCR"
+msgstr "当前或最近一次 OCR 耗时"
+
+msgid "Endpoint"
+msgstr "服务地址"
+
+msgid "Existing Python interpreter"
+msgstr "现有 Python 解释器"
+
+msgid "Existing model"
+msgstr "现有模型"
+
+msgid "Existing model directory"
+msgstr "现有模型目录"
+
+msgid ""
+"High-performance Runtime OCR uses your existing Local AI Runtime. Only installed models "
+"explicitly registered for OCR are eligible."
+msgstr "高性能 Runtime OCR 使用现有的本地 AI Runtime。只有已经安装且明确注册为 OCR 的模型才可选用。"
+
+msgid "Inference"
+msgstr "推理"
+
+msgid "Installed · official PaddlePaddle · SHA256 verified"
+msgstr "已安装 · PaddlePaddle 官方提供 · SHA256 已验证"
+
+msgid "Lightweight engine"
+msgstr "轻量级引擎"
+
+msgid "Lightweight · PP-OCR"
+msgstr "轻量级 · PP-OCR"
+
+msgid "Manage previously installed OCR models"
+msgstr "管理已安装的 OCR 模型"
+
+msgid "Managed by Runtime · Auto / Vulkan / CUDA"
+msgstr "由 Runtime 管理 · 自动 / Vulkan / CUDA"
+
+msgid "Models"
+msgstr "模型"
+
+msgid "No official models in catalog"
+msgstr "目录中没有官方模型"
+
+msgid "None"
+msgstr "无"
+
+msgid "Not checked"
+msgstr "尚未检查"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "OCR is not ready"
+msgstr "OCR 尚未就绪"
+
+msgid "OCR model profile"
+msgstr "OCR 模型配置"
+
+msgid "OCR panel is not ready"
+msgstr "OCR 面板尚未就绪"
+
+msgid "OCR the complete original screenshot, without annotations"
+msgstr "识别完整原始截图，不包括标注"
+
+msgid "Official model catalog"
+msgstr "官方模型目录"
+
+msgid "Offline catalog retained · refresh failed"
+msgstr "刷新失败 · 已保留离线目录"
+
+msgid "Open the OCR panel, select PP-OCRv6 tiny (ONNX CPU), then click Run OCR"
+msgstr "打开 OCR 面板，选择 PP-OCRv6 tiny (ONNX CPU)，然后点击开始 OCR"
+
+msgid "Optional · register existing local model files"
+msgstr "可选 · 注册现有本地模型文件"
+
+msgid "Output mode"
+msgstr "输出模式"
+
+msgid ""
+"PP-OCRv6 tiny models downloaded exclusively from PaddlePaddle official sources. No Python, "
+"PaddlePaddle or local compilation is required."
+msgstr "PP-OCRv6 tiny 模型仅从 PaddlePaddle 官方来源下载。不需要额外安装 Python、PaddlePaddle 或在本地编译。"
+
+msgid "PaddleOCR-VL uses its model-native OCR: instruction"
+msgstr "PaddleOCR-VL 使用模型原生 OCR 指令"
+
+msgid "Plain text or best-effort paragraphs; PaddleOCR-VL still uses OCR:"
+msgstr "纯文本或尽可能保留段落；PaddleOCR-VL 仍使用 OCR 指令："
+
+msgid "Prebuilt CPU engine not installed · keep using OCR 0.1.8"
+msgstr "未安装预构建 CPU 引擎 · 请继续使用 OCR 0.1.8"
+
+msgid "Preview cannot be copied; an incomplete Runtime stream is rejected"
+msgstr "预览内容不可复制；不接受未完成的 Runtime 流式结果"
+
+msgid "Ready to download from PaddlePaddle official repositories"
+msgstr "可从 PaddlePaddle 官方仓库下载"
+
+msgid "Recognize the current screenshot"
+msgstr "识别当前截图"
+
+msgid "Refresh connection and registered models"
+msgstr "刷新连接和已注册模型"
+
+msgid "Refresh registered Runtime OCR models first"
+msgstr "请先刷新 Runtime 中已注册的 OCR 模型"
+
+msgid "Refreshing SnapMark catalog…"
+msgstr "正在刷新 SnapMark 目录…"
+
+msgid "Register selected installed model"
+msgstr "注册选定的已安装模型"
+
+msgid "Register this existing model"
+msgstr "注册此现有模型"
+
+msgid "Registered OCR models only"
+msgstr "仅显示已注册的 OCR 模型"
+
+msgid "Registered lightweight OCR models"
+msgstr "已注册的轻量 OCR 模型"
+
+msgid "Remove model registration (keep files)"
+msgstr "移除模型注册（保留文件）"
+
+msgid "Requires a newer engine or model verification · not available for download"
+msgstr "需要更新的推理引擎或模型验证 · 暂不可下载"
+
+msgid "Runtime connection"
+msgstr "Runtime 连接"
+
+msgid "Save OCR text"
+msgstr "保存 OCR 文本"
+
+msgid "Saves only SnapMark OCR settings; does not modify Runtime or models"
+msgstr "仅保存 SnapMark OCR 设置，不修改 Runtime 或模型"
+
+msgid "Select registered OCR model (configured in Preferences)"
+msgstr "选择已注册的 OCR 模型（在首选项中配置）"
+
+msgid "Selected model"
+msgstr "所选模型"
+
+msgid ""
+"Settings are stored separately for each installed Runtime OCR model. Lightweight PP-OCR uses"
+" its own unchanged CPU engine."
+msgstr "每个已安装的 Runtime OCR 模型均有独立设置。轻量 PP-OCR 继续使用原有 CPU 引擎。"
+
+msgid "SnapMark-maintained list · all weights downloaded from PaddlePaddle only"
+msgstr "由 SnapMark 维护的列表 · 所有权重均从 PaddlePaddle 下载"
+
+msgid "Streaming preview"
+msgstr "流式预览"
+
+msgid "Test OCR"
+msgstr "测试 OCR"
+
+msgid "Thinking / Top-P / Top-K"
+msgstr "思考 / Top-P / Top-K"
+
+msgid "This deletes your edits and recognized text from the result pane."
+msgstr "这将删除结果栏中的编辑内容和识别文本。"
+
+msgid "Unavailable until support is verified for the installed Runtime and model"
+msgstr "只有确认现有 Runtime 和模型支持后才能使用"
+
+msgid "Unregister selected model"
+msgstr "取消注册所选模型"
+
+msgid "Use Run OCR in the screenshot editor"
+msgstr "在截图编辑器中使用“开始 OCR”"
+
+msgid "Use Run OCR in the screenshot editor to test the selected Runtime OCR model"
+msgstr "在截图编辑器中点击“开始 OCR”，测试选定的 Runtime OCR 模型"
+
+msgid "Auto"
+msgstr "自动"
+
+
+msgid "Time: {seconds:.2f} s"
+msgstr "耗时：{seconds:.2f} 秒"
+
+msgid "Time: cancelled"
+msgstr "耗时：已取消"
+
+msgid "Unverified OCR preview: "
+msgstr "未经验证的 OCR 预览："
+
+msgid "Checking…"
+msgstr "正在检查…"
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Connected · no OCR models"
+msgstr "已连接 · 没有 OCR 模型"
+
+msgid "OCR is already running"
+msgstr "OCR 正在运行"
+
+msgid "Image changed; stale OCR output was discarded"
+msgstr "图片已改变，已丢弃过期的 OCR 结果"
+
+msgid "OCR cancelled"
+msgstr "OCR 已取消"
+
+msgid "OCR completed; {count} text characters, editable"
+msgstr "OCR 完成；识别 {count} 个字符，可编辑"
+
+msgid "Model default"
+msgstr "模型默认"
+
+msgid "Faithful text"
+msgstr "忠实识别文本"
+
+msgid "Custom"
+msgstr "自定义"

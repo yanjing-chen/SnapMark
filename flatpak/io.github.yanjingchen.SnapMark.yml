@@ -1,0 +1,29 @@
+app-id: io.github.yanjingchen.SnapMark
+default-branch: stable
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: snapmark
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --share=ipc
+  - --share=network
+  - --device=dri
+  - --filesystem=xdg-pictures:ro
+  - --talk-name=org.kde.StatusNotifierWatcher
+modules:
+  - name: snapmark
+    buildsystem: simple
+    build-commands:
+      - python3 -c "import gi, cairo; gi.require_version('Gtk','4.0'); gi.require_version('Adw','1'); from gi.repository import Gtk, Adw"
+      - install -d /app/bin /app/share/snapmark /app/share/applications /app/share/metainfo /app/share/icons/hicolor/256x256/apps /app/share/icons/hicolor/32x32/apps
+      - cp -a snapmark /app/share/snapmark/snapmark
+      - install -m 0755 scripts/flatpak-launcher.sh /app/bin/snapmark
+      - install -m 0644 assets/io.github.yanjingchen.SnapMark.desktop /app/share/applications/io.github.yanjingchen.SnapMark.desktop
+      - install -m 0644 flatpak/io.github.yanjingchen.SnapMark.metainfo.xml /app/share/metainfo/io.github.yanjingchen.SnapMark.metainfo.xml
+      - install -m 0644 assets/io.github.yanjingchen.SnapMark-256.png /app/share/icons/hicolor/256x256/apps/io.github.yanjingchen.SnapMark.png
+      - install -m 0644 assets/io.github.yanjingchen.SnapMark-32.png /app/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png
+    sources:
+      - type: dir
+        path: ..

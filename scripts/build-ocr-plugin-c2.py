@@ -23,6 +23,13 @@ def build(output):
             info.compress_type = ZIP_DEFLATED
             info.external_attr = (0o100644 << 16)
             z.writestr(info, data, compress_type=ZIP_DEFLATED, compresslevel=9)
+        locale_root = ROOT / 'snapmark' / 'locale'
+        for catalog in sorted(locale_root.glob('*/LC_MESSAGES/snapmark-ocr.mo')):
+            arcname = 'locale/' + catalog.parent.parent.name + '/LC_MESSAGES/' + catalog.name
+            info = ZipInfo(arcname, date_time=(2026, 10, 15, 0, 0, 0))
+            info.compress_type = ZIP_DEFLATED
+            info.external_attr = (0o100644 << 16)
+            z.writestr(info, catalog.read_bytes(), compress_type=ZIP_DEFLATED, compresslevel=9)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     sidecar = path.with_name(path.name + '.sha256')
     sidecar.write_text(f'{digest}  {path.name}\n', encoding='ascii')

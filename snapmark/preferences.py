@@ -19,7 +19,7 @@ def configuration_dir() -> Path:
 
 class Settings:
     DEFAULTS = {'screenshot_directory': '', 'start_minimized': False,
-                'recent_colors': [], 'image_format': 'png', 'image_quality': 90}
+                'recent_colors': [], 'image_format': 'png', 'image_quality': 90, 'language': 'system'}
 
     def __init__(self, root=None):
         self.root = Path(root) if root else configuration_dir()
@@ -34,6 +34,18 @@ class Settings:
         except (FileNotFoundError, OSError, ValueError):
             pass
         result = self.DEFAULTS.copy()
+        from .i18n import CODES
+        lang = data.get('language', 'system')
+        # Older C3 releases allowed 30 languages and 'system'. Read them safely
+        # without changing the user's preferences.json or any other setting.
+        # An unsupported former explicit language (including nl) falls back
+        # to English; legacy 'system' follows the OS only for Simplified Chinese.
+        if lang == 'system':
+            env = next((os.environ.get(k, '') for k in ('LC_ALL', 'LC_MESSAGES', 'LANGUAGE', 'LANG')
+                        if os.environ.get(k)), '')
+            result['language'] = 'zh_CN' if env.lower().replace('-', '_').startswith('zh_cn') else 'en'
+        else:
+            result['language'] = lang if lang in CODES else 'en'
         result['screenshot_directory'] = data.get('screenshot_directory', '') if isinstance(data.get('screenshot_directory', ''), str) else ''
         result['start_minimized'] = data.get('start_minimized', False) is True
         recent = data.get('recent_colors', [])
@@ -43,6 +55,17 @@ class Settings:
         raw_quality = data.get('image_quality', 90)
         result['image_quality'] = raw_quality if type(raw_quality) is int and 1 <= raw_quality <= 100 else 90
         return result
+
+    def language(self):
+        return self.load()['language']
+
+    def set_language(self, code):
+        from .i18n import CODES
+        if code != 'system' and code not in CODES:
+            raise ValueError('Unsupported interface language')
+        data = self.load()
+        data['language'] = code
+        self._save(data)
 
     def image_format(self):
         return self.load()['image_format']

@@ -1,0 +1,88 @@
+name: SnapMark 1.0.0 · Release candidate validation
+on:
+  push:
+    branches: ['release/snapmark-v1.0.0']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  appimage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build and test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3 python3-gi python3-cairo python3-gi-cairo \
+            gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 gir1.2-pango-1.0 \
+            libgtk-4-1 libadwaita-1-0 gobject-introspection libgdk-pixbuf2.0-bin \
+            xvfb dbus-x11 curl file desktop-file-utils librsvg2-2 librsvg2-common gettext
+      - name: Full native GTK regression (Xvfb; separate GNOME Wayland acceptance)
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+        run: |
+          xvfb-run -a dbus-run-session -- /usr/bin/python3 -m unittest discover -s tests -q
+      - name: Build pinned SnapMark 1.0.0 AppImage
+        env:
+          SNAPMARK_VERSION: '1.0.0'
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+        run: |
+          xvfb-run -a dbus-run-session -- bash scripts/build-appimage.sh
+          python3 scripts/check-base-package.py build/SnapMark.AppDir/usr/share/snapmark
+      - name: Verify AppImage launch
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          xvfb-run -a dbus-run-session -- timeout 60 \
+            ./dist/SnapMark-1.0.0-x86_64.AppImage --smoke-test
+          (cd dist && sha256sum -- SnapMark-1.0.0-x86_64.AppImage > SnapMark-1.0.0-x86_64.AppImage.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SnapMark-1.0.0-AppImage-x86_64
+          path: |
+            dist/SnapMark-1.0.0-x86_64.AppImage
+            dist/SnapMark-1.0.0-x86_64.AppImage.sha256
+          if-no-files-found: error
+  plugins:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build exact frozen 1.0.2 plugins
+        run: |
+          python3 scripts/build-c3-stream-plugins.py --output dist
+          echo 'b46bcb2358368ab39b5170da0a73b7de6d8c755a451eb5c8d904fad5226afca4  dist/SnapMark-ocr-1.0.2.zip' | sha256sum -c -
+          echo 'bb864f36dbd7b01c9c55681c427be5e52238dc153ad7fe1c6ef8883cf6bc7289  dist/SnapMark-translation-1.0.2.zip' | sha256sum -c -
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SnapMark-OCR-Translation-1.0.2
+          path: |
+            dist/SnapMark-ocr-1.0.2.zip
+            dist/SnapMark-ocr-1.0.2.zip.sha256
+            dist/SnapMark-translation-1.0.2.zip
+            dist/SnapMark-translation-1.0.2.zip.sha256
+          if-no-files-found: error
+  flatpak:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: GNOME 50 Flatpak runtime and SDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder gettext desktop-file-utils
+          sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          sudo flatpak install --system -y flathub org.gnome.Platform//50 org.gnome.Sdk//50
+      - name: Build Flatpak bundle (no user install)
+        run: |
+          bash scripts/build-flatpak.sh
+          test -s dist/SnapMark-x86_64.flatpak
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SnapMark-1.0.0-Flatpak-x86_64
+          path: |
+            dist/SnapMark-x86_64.flatpak
+            dist/SnapMark-x86_64.flatpak.sha256
+          if-no-files-found: error

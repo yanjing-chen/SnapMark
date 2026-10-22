@@ -40,6 +40,12 @@ class TrayApiTests(unittest.TestCase):
             self.assertEqual(value.get_type_string(), expected)
 
     def test_menu_layout_variants(self):
+        # This legacy structural contract checks the canonical English menu.
+        # Explicitly select English so it does not depend on the language
+        # left selected by C3's real zh_CN/nl gettext tests.
+        from snapmark.i18n import configure
+        configure('en')
+        self.addCleanup(configure, 'system')
         class Invocation:
             value = None
             def return_value(self, v):
@@ -51,22 +57,22 @@ class TrayApiTests(unittest.TestCase):
         self.assertEqual(invocation.value.get_type_string(), '(u(ia{sv}av))')
         layout = invocation.value.unpack()[1]
         self.assertEqual(layout[0], 0)
-        # Eight nodes: six menu entries plus two visible separators.
+        # Eight nodes: six menu actions plus two visible separators.
         def unwrap(obj):
             while hasattr(obj, 'unpack'):
                 obj = obj.unpack()
             return obj
         children = [unwrap(item) for item in layout[2]]
         self.assertEqual([entry[0] for entry in children],
-                         [1, 7, 2, 3, 8, 4, 5, 6])
+                         [1, 7, 2, 3, 8, 4, 9, 6])
         props = {entry[0]: entry[1] for entry in children}
         def value(item_id, key):
             return unwrap(props[item_id][key])
-        for item_id, label in ((1, 'SnapMark'),
+        for item_id, label in ((1, 'Open SnapMark'),
                                (2, 'Open Clipboard Image'),
                                (3, 'Screenshot History'),
                                (4, 'Preferences'),
-                               (5, 'About'),
+                               (9, 'Restart SnapMark'),
                                (6, 'Quit')):
             self.assertEqual(value(item_id, 'label'), label)
             self.assertTrue(value(item_id, 'visible'))
@@ -74,8 +80,8 @@ class TrayApiTests(unittest.TestCase):
         for item_id in (7, 8):
             self.assertEqual(value(item_id, 'type'), 'separator')
             self.assertTrue(value(item_id, 'visible'))
-        # A header is never clickable; text/empty clipboards disable import.
-        self.assertFalse(value(1, 'enabled'))
+        # Open is clickable; empty clipboards still disable import.
+        self.assertTrue(value(1, 'enabled'))
         self.assertFalse(value(2, 'enabled'))
         self.assertTrue(value(3, 'enabled'))
         # Enabling clipboard image data must enable the action dynamically.

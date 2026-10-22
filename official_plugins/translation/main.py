@@ -12,6 +12,12 @@ import tempfile
 import time
 import threading
 from pathlib import Path
+from snapmark.i18n import plugin_gettext
+from snapmark.stream_preview_c3 import StreamingPreview
+
+def _(message):
+    return plugin_gettext('translation', message, Path(__file__).resolve().parent)
+
 from gi.repository import Adw, Gio, GLib, Gtk, Pango
 
 ROOT = Path(__file__).resolve().parent
@@ -118,24 +124,24 @@ class TranslationController:
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.set_hexpand(True)
         model_icon = Gtk.Image.new_from_icon_name('accessories-dictionary-symbolic')
-        model_icon.set_tooltip_text('Translation model')
+        model_icon.set_tooltip_text(_('Translation model'))
         header.append(model_icon)
         selector = Gtk.DropDown.new_from_strings([''])
         selector.set_sensitive(False)
         selector.set_hexpand(False)
         selector.set_size_request(110, -1)
-        selector.set_tooltip_text('Registered translation model')
+        selector.set_tooltip_text(_('Registered translation model'))
         selector.connect('notify::selected', self._model_changed)
         self.model_dropdown = selector
         header.append(selector)
         language_icon = Gtk.Image.new_from_icon_name('preferences-desktop-locale-symbolic')
-        language_icon.set_tooltip_text('Target language; source detected automatically')
+        language_icon.set_tooltip_text(_('Target language; source detected automatically'))
         header.append(language_icon)
-        dropdown = Gtk.DropDown.new_from_strings([name for name, _code in LANGUAGES])
+        dropdown = Gtk.DropDown.new_from_strings([_(name) for name, _code in LANGUAGES])
         dropdown.set_selected([code for _label, code in LANGUAGES].index(self.target))
         dropdown.set_hexpand(False)
         dropdown.set_size_request(138, -1)
-        dropdown.set_tooltip_text('Select target language')
+        dropdown.set_tooltip_text(_('Select target language'))
         dropdown.connect('notify::selected', self._target_changed)
         header.append(dropdown)
         # Grow into spare header space so Translate stays at the far-right edge.
@@ -144,6 +150,7 @@ class TranslationController:
         translate_spacer.set_hexpand(True)
         header.append(translate_spacer)
         run = Gtk.Button(label='Translate')
+        run.set_label(_('Translate'))
         run.set_halign(Gtk.Align.END)
         run.set_hexpand(False)
         run.add_css_class('suggested-action')
@@ -157,14 +164,6 @@ class TranslationController:
         self.status.set_ellipsize(Pango.EllipsizeMode.END)
         root.append(self.status)
 
-        self.preview = Gtk.Label(label='', xalign=0)
-        self.preview.set_selectable(False)
-        self.preview.set_wrap(True)
-        self.preview.set_max_width_chars(80)
-        self.preview.set_lines(3)
-        self.preview.set_visible(False)
-        self.preview.add_css_class('dim-label')
-        root.append(self.preview)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scroll.set_min_content_height(110)
@@ -174,7 +173,12 @@ class TranslationController:
         for setter in ('set_top_margin', 'set_bottom_margin', 'set_left_margin', 'set_right_margin'):
             getattr(tv, setter)(8)
         scroll.set_child(tv)
-        root.append(scroll)
+        result_stack = Gtk.Stack()
+        result_stack.set_vexpand(True)
+        result_stack.add_named(scroll, 'result')
+        self.preview = StreamingPreview(result_stack)
+        result_stack.set_visible_child_name('result')
+        root.append(result_stack)
         self.textview = tv
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -183,7 +187,8 @@ class TranslationController:
         actions.set_hexpand(True)
         actions.set_valign(Gtk.Align.END)
         self.timer = Gtk.Label(label='Time: Not run')
-        self.timer.set_tooltip_text('Elapsed time for translation')
+        self.timer.set_label(_('Time: Not run'))
+        self.timer.set_tooltip_text(_('Elapsed time for translation'))
         actions.append(self.timer)
         right_spacer = Gtk.Box()
         right_spacer.set_hexpand(True)
@@ -193,7 +198,7 @@ class TranslationController:
             ('Copy text', self.copy_text),
             ('Save as TXT', self.save_text),
         ):
-            button = Gtk.Button(label=label)
+            button = Gtk.Button(label=_(label))
             button.connect('clicked', lambda _button, cb=callback: cb())
             actions.append(button)
         root.append(actions)
@@ -241,7 +246,7 @@ class TranslationController:
         if generation != self.generation or not self.running or self.started_at is None:
             return False
         if self.timer:
-            self.timer.set_text(f'Time: {time.perf_counter() - self.started_at:.2f} s')
+            self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=time.perf_counter() - self.started_at))
         return True
 
     def _text(self):
@@ -257,7 +262,7 @@ class TranslationController:
 
     def _error(self, message):
         self._status('Translation failed: ' + str(message), notify=True)
-        dialog = Adw.AlertDialog(heading='Translation unavailable', body=str(message))
+        dialog = Adw.AlertDialog(heading=_('Translation unavailable'), body=str(message))
         dialog.add_response('ok', 'OK')
         dialog.set_default_response('ok')
         dialog.present(self.editor)
@@ -275,14 +280,14 @@ class TranslationController:
     def build_preferences(self, _editor):
         """Optional per-model presets, sampling, and safe streaming controls."""
         page = Adw.PreferencesPage()
-        group = Adw.PreferencesGroup(title='Translation prompt',
-            description='The translation instructions can be edited. Technical placeholder validation is always enforced.')
+        group = Adw.PreferencesGroup(title=_('Translation prompt'),
+            description=_('The translation instructions can be edited. Technical placeholder validation is always enforced.'))
         page.add(group)
         model_name = self.selected_model or '__default__'
         profile = config_c2e.read_profile(model_name)
-        row = Adw.ActionRow(title='Preset')
+        row = Adw.ActionRow(title=_('Preset'))
         presets = list(config_c2e.PRESETS) + ['Custom']
-        selection = Gtk.DropDown.new_from_strings(presets)
+        selection = Gtk.DropDown.new_from_strings([_(name) for name in presets])
         selection.set_valign(Gtk.Align.CENTER)
         selection.set_selected(presets.index(profile['preset']))
         row.add_suffix(selection)
@@ -303,34 +308,34 @@ class TranslationController:
             if name in config_c2e.PRESETS:
                 prompt_view.get_buffer().set_text(config_c2e.PRESETS[name])
         selection.connect('notify::selected', use_preset)
-        params = Adw.PreferencesGroup(title='Inference parameters',
-            description='Preferences are saved per translation model. Unsupported reasoning switches are not sent to Runtime.')
+        params = Adw.PreferencesGroup(title=_('Inference parameters'),
+            description=_('Preferences are saved per translation model. Unsupported reasoning switches are not sent to Runtime.'))
         page.add(params)
-        temperature_row = Adw.ActionRow(title='Temperature', subtitle='0.0 keeps the existing deterministic default')
+        temperature_row = Adw.ActionRow(title=_('Temperature'), subtitle=_('0.0 keeps the existing deterministic default'))
         temperature = Gtk.SpinButton.new_with_range(0.0, 1.0, 0.1)
         temperature.set_digits(1)
         temperature.set_value(profile['temperature'])
         temperature.set_valign(Gtk.Align.CENTER)
         temperature_row.add_suffix(temperature)
         params.add(temperature_row)
-        stream = Adw.SwitchRow(title='Streaming preview',
-            subtitle='Preview is not selectable or saveable; the final text is displayed only after technical validation')
+        stream = Adw.SwitchRow(title=_('Streaming preview'),
+            subtitle=_('Preview is not selectable or saveable; the final text is displayed only after technical validation'))
         stream.set_active(profile['streaming'])
         params.add(stream)
-        tokens_row = Adw.ActionRow(title='Maximum output tokens')
+        tokens_row = Adw.ActionRow(title=_('Maximum output tokens'))
         options = ['Model default', '1024', '2048', '4096', '8192']
-        token_selector = Gtk.DropDown.new_from_strings(options)
+        token_selector = Gtk.DropDown.new_from_strings([_(name) if name == 'Model default' else name for name in options])
         token_selector.set_valign(Gtk.Align.CENTER)
         current = str(profile['max_tokens']) if profile['max_tokens'] else 'Model default'
         token_selector.set_selected(options.index(current))
         tokens_row.add_suffix(token_selector)
         params.add(tokens_row)
-        reason = Adw.ActionRow(title='Thinking mode',
-            subtitle='Automatic (model default). Explicit controls require verified Runtime/model support.')
+        reason = Adw.ActionRow(title=_('Thinking mode'),
+            subtitle=_('Automatic (model default). Explicit controls require verified Runtime/model support.'))
         params.add(reason)
-        save_row = Adw.ActionRow(title='Save model settings',
-            subtitle='Does not install models or change Local AI Runtime.')
-        save_button = Gtk.Button(label='Save settings')
+        save_row = Adw.ActionRow(title=_('Save model settings'),
+            subtitle=_('Does not install models or change Local AI Runtime.'))
+        save_button = Gtk.Button(label=_('Save settings'))
         save_button.add_css_class('suggested-action')
         save_button.set_valign(Gtk.Align.CENTER)
         save_row.add_suffix(save_button)
@@ -347,7 +352,7 @@ class TranslationController:
                     'max_tokens': None if token_selector.get_selected() == 0 else int(options[token_selector.get_selected()]),
                     'thinking': 'auto',
                 })
-                self.editor._notice('Translation settings saved')
+                self.editor._notice(_('Translation settings saved'))
             except (OSError, ValueError) as exc:
                 self.editor._notice('Cannot save translation settings: ' + str(exc))
         save_button.connect('clicked', do_save)
@@ -355,11 +360,13 @@ class TranslationController:
 
     def _partial(self, generation, text):
         if generation == self.generation and self.running and self.preview is not None:
-            # This unselectable preview cannot leak protected placeholders into copy/save.
+            # Unverified content stays outside the editable/saveable result.
+            # Never reveal guarded technical placeholders even mid-token.
             import re
             safe = re.sub(r'\[\[SMTECH_\d{0,5}\]?\]?', '[protected]', text)
-            self.preview.set_label('Unverified streaming preview: ' + safe[-600:])
+            self.preview.set_text(safe)
             self.preview.set_visible(True)
+            self._status(_('Unverified streaming preview: '))
         return False
 
     def _run(self, _button):
@@ -379,12 +386,12 @@ class TranslationController:
         model_id = self.selected_model
         profile = config_c2e.read_profile(model_id)
         if self.preview is not None:
-            self.preview.set_visible(False)
+            self.preview.start() if profile.get('streaming') else self.preview.set_visible(False)
         self.started_at = time.perf_counter()
-        self.timer.set_text('Time: 0.00 s')
+        self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=0.0))
         GLib.timeout_add(100, self._tick, generation)
         self.translate_button.set_sensitive(False)
-        self._status('Translating locally; identifying source language…')
+        self._status(_('Translating locally; identifying source language…'))
         before = self._text()
 
         def job():
@@ -408,23 +415,23 @@ class TranslationController:
         if self.preview is not None:
             self.preview.set_visible(False)
         self.started_at = None
-        self.timer.set_text(f'Time: {elapsed:.2f} s')
+        self.timer.set_text(_('Time: {seconds:.2f} s').format(seconds=elapsed))
         self.translate_button.set_sensitive(True)
         if error:
             self._error(error)
             return False
         if self._text() != previous or self.source_getter() != source or self.target != target or self.selected_model != model_id:
-            self._status('Source, target language, or translation was edited during inference; stale result discarded', notify=True)
+            self._status(_('Source, target language, or translation was edited during inference; stale result discarded'), notify=True)
             return False
         self.textview.get_buffer().set_text(result)
-        self._status(f'Translated into {target} with {model}', notify=True)
+        self._status(_('Translated into {target} with {model}').format(target=target, model=model), notify=True)
         return False
 
     def clear_translation(self):
         if not self._text():
             return
-        dialog = Adw.AlertDialog(heading='Clear translation?',
-                                 body='This deletes the translation and your edits in the right pane only.')
+        dialog = Adw.AlertDialog(heading=_('Clear translation?'),
+                                 body=_('This deletes the translation and your edits in the right pane only.'))
         dialog.add_response('cancel', 'Keep translation')
         dialog.add_response('clear', 'Clear translation')
         dialog.set_response_appearance('clear', Adw.ResponseAppearance.DESTRUCTIVE)
@@ -446,7 +453,7 @@ class TranslationController:
         if not self._text():
             self._status('No translation to save')
             return
-        dialog = Gtk.FileDialog(title='Save translation')
+        dialog = Gtk.FileDialog(title=_('Save translation'))
         name = self.editor.filename.stem if self.editor.filename else 'screenshot'
         dialog.set_initial_name(name + '-translation.txt')
         dialog.save(self.editor, None, self._save_done)

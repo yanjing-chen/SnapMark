@@ -82,8 +82,8 @@ class OCRTranslationCatalogTests(unittest.TestCase):
     def test_ocr_time_below_editor_run_top(self):
         text=(OCR/'main.py').read_text()
         section=text.split('def build_panel(',1)[1].split('def _apply_models(',1)[0]
-        self.assertLess(section.index('header.append(run)'),section.index('root.append(scroll)'))
-        self.assertGreater(section.index('actions.append(self.timer)'),section.index('root.append(scroll)'))
+        self.assertLess(section.index('header.append(run)'),section.index('root.append(result_stack)'))
+        self.assertGreater(section.index('actions.append(self.timer)'),section.index('root.append(result_stack)'))
         self.assertNotIn('OCR area',section)
 
     def test_translation_timer_before_clear_translation_bottom(self):

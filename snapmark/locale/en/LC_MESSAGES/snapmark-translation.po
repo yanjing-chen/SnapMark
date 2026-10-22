@@ -1,0 +1,224 @@
+# English translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark C3-dev\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 22:38+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Advanced sampling"
+msgstr ""
+
+msgid "Auto-detect source language"
+msgstr ""
+
+msgid "Automatic"
+msgstr ""
+
+msgid "Automatically detect source language"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Clear translation"
+msgstr ""
+
+msgid "Copy text"
+msgstr ""
+
+msgid "Custom prompt"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Format protection"
+msgstr ""
+
+msgid "Local AI Runtime"
+msgstr ""
+
+msgid "Max tokens"
+msgstr ""
+
+msgid "Maximum output tokens"
+msgstr ""
+
+msgid "Model and language"
+msgstr ""
+
+msgid "Model loading"
+msgstr ""
+
+msgid "No translation model installed"
+msgstr ""
+
+msgid "OCR text"
+msgstr ""
+
+msgid "Preserve formatting"
+msgstr ""
+
+msgid "Prompt"
+msgstr ""
+
+msgid "Prompt preset"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Repetition Penalty"
+msgstr ""
+
+msgid "Restore defaults"
+msgstr ""
+
+msgid "Save as TXT"
+msgstr ""
+
+msgid "Save as…"
+msgstr ""
+
+msgid "Save settings"
+msgstr ""
+
+msgid "Show thinking content"
+msgstr ""
+
+msgid "Source language"
+msgstr ""
+
+msgid "Streaming"
+msgstr ""
+
+msgid "Target language"
+msgstr ""
+
+msgid "Technical document translation"
+msgstr ""
+
+msgid "Temperature"
+msgstr ""
+
+msgid "Thinking mode"
+msgstr ""
+
+msgid "Time: Not run"
+msgstr ""
+
+msgid "Top-K"
+msgstr ""
+
+msgid "Top-P"
+msgstr ""
+
+msgid "Translate"
+msgstr ""
+
+msgid "Translation"
+msgstr ""
+
+msgid "Translation complete"
+msgstr ""
+
+msgid "Translation failed"
+msgstr ""
+
+msgid "Translation model"
+msgstr ""
+
+msgid "Translation plugin"
+msgstr ""
+
+msgid "Translation result"
+msgstr ""
+
+msgid "Translation settings"
+msgstr ""
+
+msgid "0.0 keeps the existing deterministic default"
+msgstr ""
+
+msgid "Automatic (model default). Explicit controls require verified Runtime/model support."
+msgstr ""
+
+msgid "Clear translation?"
+msgstr ""
+
+msgid "Does not install models or change Local AI Runtime."
+msgstr ""
+
+msgid "Elapsed time for translation"
+msgstr ""
+
+msgid "Inference parameters"
+msgstr ""
+
+msgid ""
+"Preferences are saved per translation model. Unsupported reasoning switches are not sent to "
+"Runtime."
+msgstr ""
+
+msgid "Preset"
+msgstr ""
+
+msgid ""
+"Preview is not selectable or saveable; the final text is displayed only after technical "
+"validation"
+msgstr ""
+
+msgid "Registered translation model"
+msgstr ""
+
+msgid "Save model settings"
+msgstr ""
+
+msgid "Save translation"
+msgstr ""
+
+msgid "Select target language"
+msgstr ""
+
+msgid "Streaming preview"
+msgstr ""
+
+msgid "Target language; source detected automatically"
+msgstr ""
+
+msgid ""
+"The translation instructions can be edited. Technical placeholder validation is always "
+"enforced."
+msgstr ""
+
+msgid "This deletes the translation and your edits in the right pane only."
+msgstr ""
+
+msgid "Translation prompt"
+msgstr ""
+
+msgid "Translation settings saved"
+msgstr ""
+
+msgid "Translation unavailable"
+msgstr ""

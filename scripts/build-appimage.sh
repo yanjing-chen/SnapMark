@@ -4,6 +4,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+SM_VERSION="${SNAPMARK_VERSION:-1.0.0}"
 if [[ "$(uname -m)" != x86_64 ]]; then
   echo 'This initial AppImage workflow supports x86_64 only.' >&2
   exit 1
@@ -19,7 +20,7 @@ if [[ ! -s "$TOOL" ]]; then
     -o "$TOOL"
 fi
 chmod +x "$TOOL"
-ARCH=x86_64 VERSION=0.6.0-b2a APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" \
-  "$ROOT/build/SnapMark.AppDir" "$ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
-chmod +x "$ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
-echo "Created: $ROOT/dist/SnapMark-0.6.0-b2a-x86_64.AppImage"
+ARCH=x86_64 VERSION="$SM_VERSION" APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" \
+  "$ROOT/build/SnapMark.AppDir" "$ROOT/dist/SnapMark-${SM_VERSION}-x86_64.AppImage"
+chmod +x "$ROOT/dist/SnapMark-${SM_VERSION}-x86_64.AppImage"
+echo "Created: $ROOT/dist/SnapMark-${SM_VERSION}-x86_64.AppImage"

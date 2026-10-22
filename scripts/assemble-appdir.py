@@ -68,6 +68,8 @@ def main() -> None:
     (APP / 'usr/bin').mkdir(parents=True)
     LIB_DST.mkdir(parents=True)
     (APP / 'usr/share/snapmark').mkdir(parents=True)
+    # Distributions must contain only the base app. No official_plugins,
+    # Local AI Runtime, model files or per-user configuration is bundled.
     shutil.copytree(ROOT / 'snapmark', APP / 'usr/share/snapmark/snapmark',
                     ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
     # The tray resource is loaded from the mounted AppDir, independently of

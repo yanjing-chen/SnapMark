@@ -10,6 +10,7 @@ from pathlib import Path
 import cairo
 
 from gi.repository import Gio, GLib
+from .i18n import _
 
 ITEM_PATH = '/StatusNotifierItem'
 MENU_PATH = '/MenuBar'
@@ -58,14 +59,14 @@ MENU_XML = '''<node><interface name="com.canonical.dbusmenu">
 </interface></node>'''
 
 MENU_ITEMS = {
-    1: 'SnapMark', 2: 'Open Clipboard Image', 3: 'Screenshot History',
-    4: 'Preferences', 5: 'About', 6: 'Quit',
+    1: 'Open SnapMark', 2: 'Open Clipboard Image', 3: 'Screenshot History',
+    4: 'Preferences', 6: 'Quit', 9: 'Restart SnapMark',
 }
-MENU_ORDER = (1, 7, 2, 3, 8, 4, 5, 6)
+MENU_ORDER = (1, 7, 2, 3, 8, 4, 9, 6)
 MENU_ICONS = {
-    1: 'camera-photo-symbolic', 2: 'edit-paste-symbolic',
+    1: 'window-new-symbolic', 2: 'edit-paste-symbolic',
     3: 'document-open-recent-symbolic', 4: 'emblem-system-symbolic',
-    5: 'help-about-symbolic', 6: 'application-exit-symbolic',
+    6: 'application-exit-symbolic', 9: 'view-refresh-symbolic',
 }
 
 
@@ -78,6 +79,10 @@ def icon_file():
         candidates.append(Path(appdir) / 'usr/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
         candidates.append(Path(appdir) / 'usr/share/snapmark/assets/io.github.yanjingchen.SnapMark-32.png')
     else:
+        # Flatpak installs the icon into /app/share/icons, not alongside the
+        # Python package in /app/share/snapmark. Never depend on a host icon.
+        if Path('/.flatpak-info').is_file():
+            candidates.append(Path('/app/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png'))
         candidates.append(Path(__file__).resolve().parent.parent / 'assets' / 'io.github.yanjingchen.SnapMark-32.png')
     candidates.append(Path.home() / '.local/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
     return next((f for f in candidates if f.is_file()), None)
@@ -121,17 +126,23 @@ def icon_argb_pixmap():
 
 class TrayIndicator:
     def __init__(self, open_editor, open_preferences, quit_app,
-                 open_clipboard=None, open_history=None, open_about=None,
+                 open_clipboard=None, open_history=None, restart_app=None,
                  clipboard_ready=None):
         self.open_editor, self.open_preferences, self.quit_app = open_editor, open_preferences, quit_app
         self.open_clipboard = open_clipboard or (lambda: None)
         self.open_history = open_history or (lambda: None)
-        self.open_about = open_about or (lambda: None)
+        self.restart_app = restart_app or (lambda: None)
         self.clipboard_ready = clipboard_ready or (lambda: False)
         self._previous_clipboard = False
         self.bus = None
         self.registration_ids = []
-        self.name = f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1'
+        # Flatpak permits owning the app ID and its subnames on the session
+        # bus; the old org.freedesktop.StatusNotifierItem-<pid>-1 name cannot
+        # be owned under its default D-Bus policy. Preserve the old name for
+        # AppImage and ordinary host Python execution.
+        self.name = ('io.github.yanjingchen.SnapMark.StatusNotifierItem'
+                     if Path('/.flatpak-info').is_file()
+                     else f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1')
         self.available = False
         self.watch_id = 0
         self.pixmaps = []
@@ -208,7 +219,7 @@ class TrayIndicator:
                  'AttentionMovieName': GLib.Variant('s', ''),
                  'IconThemePath': GLib.Variant('s', ''),
                  'ToolTip': GLib.Variant('(sa(iiay)ss)', ('SnapMark', self.pixmaps,
-                                                        'SnapMark', 'Screenshot annotation'))}
+                                                        'SnapMark', _('Screenshot annotation')))}
         return props.get(name)
 
     def _item_call(self, _bus, _sender, _path, _iface, name, _args, invocation):
@@ -221,8 +232,8 @@ class TrayIndicator:
     def _item_properties(self, index):
         if index in (7, 8):
             return {'type': GLib.Variant('s', 'separator'), 'visible': GLib.Variant('b', True)}
-        enabled = (self.clipboard_ready() if index == 2 else index != 1)
-        props = {'label': GLib.Variant('s', MENU_ITEMS[index]),
+        enabled = self.clipboard_ready() if index == 2 else True
+        props = {'label': GLib.Variant('s', _(MENU_ITEMS[index])),
                  'enabled': GLib.Variant('b', bool(enabled)),
                  'visible': GLib.Variant('b', True)}
         if index in MENU_ICONS:
@@ -269,9 +280,9 @@ class TrayIndicator:
             events = [args.unpack()] if name == 'Event' else args.unpack()[0]
             for index, event_id, *_ in events:
                 if event_id == 'clicked':
-                    callbacks = {2: self.open_clipboard, 3: self.open_history,
-                                 4: self.open_preferences, 5: self.open_about,
-                                 6: self.quit_app}
+                    callbacks = {1: self.open_editor, 2: self.open_clipboard,
+                                 3: self.open_history, 4: self.open_preferences,
+                                 9: self.restart_app, 6: self.quit_app}
                     if index in callbacks:
                         GLib.idle_add(callbacks[index])
             invocation.return_value(None if name == 'Event' else GLib.Variant('(ai)', ([],)))

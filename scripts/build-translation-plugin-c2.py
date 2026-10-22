@@ -23,6 +23,13 @@ def build(output):
             entry.compress_type = ZIP_DEFLATED
             entry.external_attr = 0o100644 << 16
             z.writestr(entry, data, compress_type=ZIP_DEFLATED, compresslevel=9)
+        locale_root = ROOT / 'snapmark' / 'locale'
+        for catalog in sorted(locale_root.glob('*/LC_MESSAGES/snapmark-translation.mo')):
+            arcname = 'locale/' + catalog.parent.parent.name + '/LC_MESSAGES/' + catalog.name
+            info = ZipInfo(arcname, date_time=(2026, 10, 15, 0, 0, 0))
+            info.compress_type = ZIP_DEFLATED
+            info.external_attr = (0o100644 << 16)
+            z.writestr(info, catalog.read_bytes(), compress_type=ZIP_DEFLATED, compresslevel=9)
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     path.with_name(path.name + '.sha256').write_text(f'{digest}  {path.name}\n', 'ascii')
     print('TRANSLATION_PLUGIN_ZIP=', path)

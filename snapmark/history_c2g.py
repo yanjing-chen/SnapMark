@@ -9,6 +9,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Adw, Gdk, GdkPixbuf, GLib, Gtk, Pango
 from .screenshot_paths import IMAGE_SUFFIXES, is_screenshot_folder
 from .preferences import Settings
+from .i18n import _
 
 
 def history_paths(pictures, configured='', home=None, limit=200):
@@ -136,7 +137,7 @@ def show_history(app, existing=None):
     location = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES)
     pictures = Path(location) if location else Path.home() / 'Pictures'
     items = history_paths(pictures, Settings().screenshot_directory())
-    window = Adw.ApplicationWindow(application=app, title='Screenshot History',
+    window = Adw.ApplicationWindow(application=app, title=_('Screenshot History'),
                                     default_width=1020, default_height=680)
     view = Adw.ToolbarView()
     window.set_content(view)
@@ -149,8 +150,8 @@ def show_history(app, existing=None):
     body.append(scroll)
     if not items:
         scroll.set_child(Adw.StatusPage(icon_name='folder-pictures-symbolic',
-                                      title='No GNOME screenshots found',
-                                      description='Check Screenshots & Annotation → Screenshot history folder.'))
+                                      title=_('No GNOME screenshots found'),
+                                      description=_('Check Screenshots & Annotation → Screenshot history folder.')))
     else:
         flow = Gtk.FlowBox()
         flow.set_selection_mode(Gtk.SelectionMode.NONE)
@@ -216,6 +217,7 @@ def show_history(app, existing=None):
                 GLib.idle_add(fill_thumbnail, priority=GLib.PRIORITY_DEFAULT_IDLE)
 
         more = Gtk.Button(label='Load more screenshots')
+        more.set_label(_('Load more screenshots'))
         more.add_css_class('flat')
         more.set_halign(Gtk.Align.CENTER)
         more.set_margin_bottom(10)

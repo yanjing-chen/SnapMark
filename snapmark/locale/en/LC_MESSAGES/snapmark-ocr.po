@@ -1,0 +1,397 @@
+# English translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark C3-dev\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 22:38+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Advanced settings"
+msgstr ""
+
+msgid "Auto detect"
+msgstr ""
+
+msgid "CPU"
+msgstr ""
+
+msgid "CUDA"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Clear text"
+msgstr ""
+
+msgid "Copy text"
+msgstr ""
+
+msgid "Custom prompt"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "High-performance OCR"
+msgstr ""
+
+msgid "Image recognition"
+msgstr ""
+
+msgid "Install model"
+msgstr ""
+
+msgid "Installed models"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Lightweight OCR"
+msgstr ""
+
+msgid "Local AI Runtime"
+msgstr ""
+
+msgid "Max tokens"
+msgstr ""
+
+msgid "Maximum output tokens"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "Model loading"
+msgstr ""
+
+msgid "Model management"
+msgstr ""
+
+msgid "No models installed"
+msgstr ""
+
+msgid "OCR"
+msgstr ""
+
+msgid "OCR complete"
+msgstr ""
+
+msgid "OCR failed"
+msgstr ""
+
+msgid "OCR model"
+msgstr ""
+
+msgid "OCR plugin"
+msgstr ""
+
+msgid "OCR result"
+msgstr ""
+
+msgid "OCR settings"
+msgstr ""
+
+msgid "Plain text"
+msgstr ""
+
+msgid "Preserve paragraphs"
+msgstr ""
+
+msgid "Processing"
+msgstr ""
+
+msgid "Prompt"
+msgstr ""
+
+msgid "Prompt preset"
+msgstr ""
+
+msgid "Recognition mode"
+msgstr ""
+
+msgid "Recognized text"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Refresh models"
+msgstr ""
+
+msgid "Restore defaults"
+msgstr ""
+
+msgid "Run OCR"
+msgstr ""
+
+msgid "Save as TXT"
+msgstr ""
+
+msgid "Save as…"
+msgstr ""
+
+msgid "Save settings"
+msgstr ""
+
+msgid "Select a model"
+msgstr ""
+
+msgid "Show thinking"
+msgstr ""
+
+msgid "Streaming"
+msgstr ""
+
+msgid "Temperature"
+msgstr ""
+
+msgid "Text recognition"
+msgstr ""
+
+msgid "Thinking mode"
+msgstr ""
+
+msgid "Time: Not run"
+msgstr ""
+
+msgid "Vulkan"
+msgstr ""
+
+msgid "0.0 is the recommended OCR default"
+msgstr ""
+
+msgid "Acceleration"
+msgstr ""
+
+msgid "Advanced OCR settings"
+msgstr ""
+
+msgid "Advanced · Local AI Runtime"
+msgstr ""
+
+msgid "Automatically recognized by the selected model"
+msgstr ""
+
+msgid "Available OCR models"
+msgstr ""
+
+msgid "CPU · packaged engine (GitHub Actions)"
+msgstr ""
+
+msgid "Cancel OCR"
+msgstr ""
+
+msgid ""
+"Choose lightweight OCR or higher-performance OCR through Local AI Runtime. Model "
+"installation and registration belong in Preferences, not the editor."
+msgstr ""
+
+msgid "Clear OCR text?"
+msgstr ""
+
+msgid "Download official PaddlePaddle OCR model?"
+msgstr ""
+
+msgid "Download official models…"
+msgstr ""
+
+msgid "Downloading and verifying official models…"
+msgstr ""
+
+msgid "Elapsed time for current or most recent OCR"
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Existing Python interpreter"
+msgstr ""
+
+msgid "Existing model"
+msgstr ""
+
+msgid "Existing model directory"
+msgstr ""
+
+msgid ""
+"High-performance Runtime OCR uses your existing Local AI Runtime. Only installed models "
+"explicitly registered for OCR are eligible."
+msgstr ""
+
+msgid "Inference"
+msgstr ""
+
+msgid "Installed · official PaddlePaddle · SHA256 verified"
+msgstr ""
+
+msgid "Lightweight engine"
+msgstr ""
+
+msgid "Lightweight · PP-OCR"
+msgstr ""
+
+msgid "Manage previously installed OCR models"
+msgstr ""
+
+msgid "Managed by Runtime · Auto / Vulkan / CUDA"
+msgstr ""
+
+msgid "Models"
+msgstr ""
+
+msgid "No official models in catalog"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Not checked"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "OCR is not ready"
+msgstr ""
+
+msgid "OCR model profile"
+msgstr ""
+
+msgid "OCR panel is not ready"
+msgstr ""
+
+msgid "OCR the complete original screenshot, without annotations"
+msgstr ""
+
+msgid "Official model catalog"
+msgstr ""
+
+msgid "Offline catalog retained · refresh failed"
+msgstr ""
+
+msgid "Open the OCR panel, select PP-OCRv6 tiny (ONNX CPU), then click Run OCR"
+msgstr ""
+
+msgid "Optional · register existing local model files"
+msgstr ""
+
+msgid "Output mode"
+msgstr ""
+
+msgid ""
+"PP-OCRv6 tiny models downloaded exclusively from PaddlePaddle official sources. No Python, "
+"PaddlePaddle or local compilation is required."
+msgstr ""
+
+msgid "PaddleOCR-VL uses its model-native OCR: instruction"
+msgstr ""
+
+msgid "Plain text or best-effort paragraphs; PaddleOCR-VL still uses OCR:"
+msgstr ""
+
+msgid "Prebuilt CPU engine not installed · keep using OCR 0.1.8"
+msgstr ""
+
+msgid "Preview cannot be copied; an incomplete Runtime stream is rejected"
+msgstr ""
+
+msgid "Ready to download from PaddlePaddle official repositories"
+msgstr ""
+
+msgid "Recognize the current screenshot"
+msgstr ""
+
+msgid "Refresh connection and registered models"
+msgstr ""
+
+msgid "Refresh registered Runtime OCR models first"
+msgstr ""
+
+msgid "Refreshing SnapMark catalog…"
+msgstr ""
+
+msgid "Register selected installed model"
+msgstr ""
+
+msgid "Register this existing model"
+msgstr ""
+
+msgid "Registered OCR models only"
+msgstr ""
+
+msgid "Registered lightweight OCR models"
+msgstr ""
+
+msgid "Remove model registration (keep files)"
+msgstr ""
+
+msgid "Requires a newer engine or model verification · not available for download"
+msgstr ""
+
+msgid "Runtime connection"
+msgstr ""
+
+msgid "Save OCR text"
+msgstr ""
+
+msgid "Saves only SnapMark OCR settings; does not modify Runtime or models"
+msgstr ""
+
+msgid "Select registered OCR model (configured in Preferences)"
+msgstr ""
+
+msgid "Selected model"
+msgstr ""
+
+msgid ""
+"Settings are stored separately for each installed Runtime OCR model. Lightweight PP-OCR uses"
+" its own unchanged CPU engine."
+msgstr ""
+
+msgid "SnapMark-maintained list · all weights downloaded from PaddlePaddle only"
+msgstr ""
+
+msgid "Streaming preview"
+msgstr ""
+
+msgid "Test OCR"
+msgstr ""
+
+msgid "Thinking / Top-P / Top-K"
+msgstr ""
+
+msgid "This deletes your edits and recognized text from the result pane."
+msgstr ""
+
+msgid "Unavailable until support is verified for the installed Runtime and model"
+msgstr ""
+
+msgid "Unregister selected model"
+msgstr ""
+
+msgid "Use Run OCR in the screenshot editor"
+msgstr ""
+
+msgid "Use Run OCR in the screenshot editor to test the selected Runtime OCR model"
+msgstr ""
+
+msgid "Auto"
+msgstr ""

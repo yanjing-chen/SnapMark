@@ -126,7 +126,7 @@ class PluginPanelBehavior(unittest.TestCase):
             self.assertIn('right_spacer.set_hexpand(True)',part)
             self.assertLess(part.index('actions.append(self.timer)'),part.index('actions.append(right_spacer)'))
             self.assertLess(part.index('actions.append(right_spacer)'),part.index('root.append(actions)'))
-            self.assertLess(part.index('root.append(scroll)'),part.index('root.append(actions)'))
+            self.assertLess(part.index('root.append(result_stack)'),part.index('root.append(actions)'))
 
     def test_editor_models_are_not_installed_from_editor(self):
         ocr_panel = meth(OCR,'OCRController','build_panel')

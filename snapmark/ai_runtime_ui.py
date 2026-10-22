@@ -1,6 +1,8 @@
 """AI Runtime Preferences: safe status, consent-gated idle timeout and registration."""
 from __future__ import annotations
 
+from .i18n import _
+
 import threading
 from gi.repository import Adw, Gio, GLib, Gtk
 
@@ -45,70 +47,119 @@ class AIRuntimePreferences:
         self.widgets = {}
         page = Adw.PreferencesPage()
         stack.add_titled(page, 'ai-runtime', 'AI Runtime')
+        stack.get_page(page).set_title(_('AI Runtime'))
 
-        integration = Adw.PreferencesGroup(title='Local AI Runtime', description=(
-            'Optional shared inference service. Connecting never changes it; '
-            'only explicitly confirmed actions may modify shared Runtime settings.'))
+        integration = Adw.PreferencesGroup(title=_('Local AI Runtime'), description=(
+            _('Optional shared inference service. Connecting never changes it; '
+            'only explicitly confirmed actions may modify shared Runtime settings.')))
         page.add(integration)
-        enabled = Adw.SwitchRow(title='Enable AI Runtime integration',
-                                subtitle='Off by default; affects SnapMark only')
+        enabled = Adw.SwitchRow(title=_('Enable AI Runtime integration'),
+                                subtitle=_('Off by default; affects SnapMark only'))
         enabled.set_active(self.config['enabled'])
         integration.add(enabled)
         self.widgets['enabled'] = enabled
 
-        connection = Adw.PreferencesGroup(title='Connection', description=(
-            'Reuse an existing service where possible. Connection checks do not start Runtime.'))
+        connection = Adw.PreferencesGroup(title=_('Connection'), description=(
+            _('Reuse an existing service where possible. Connection checks do not start Runtime.')))
         page.add(connection)
-        endpoint = Adw.EntryRow(title='Endpoint')
+        endpoint = Adw.EntryRow(title=_('Endpoint'))
         endpoint.set_text(self.config['endpoint'])
         connection.add(endpoint)
         self.widgets['endpoint'] = endpoint
-        save = Gtk.Button(label='Save & Check')
+        save = Gtk.Button(label=_('Save & Check'))
         save.set_valign(Gtk.Align.CENTER)
         save.add_css_class('suggested-action')
-        action = Adw.ActionRow(title='Use existing Runtime',
-                               subtitle='Check health, registered models, and backend')
+        action = Adw.ActionRow(title=_('Use existing Runtime'),
+                               subtitle=_('Check health, registered models, and backend'))
         action.add_suffix(save)
         connection.add(action)
         self.widgets['check'] = save
-        status = Adw.ActionRow(title='Connection status',
-                               subtitle='Integration disabled' if not self.config['enabled'] else 'Not checked')
+        status = Adw.ActionRow(title=_('Connection status'),
+                               subtitle=_('Integration disabled') if not self.config['enabled'] else _('Not checked'))
         connection.add(status)
         self.widgets['status'] = status
+        # Lightweight read-only summary stays on the main page. The existing
+        # backend controls and service/model management remain intact below.
+        version = Adw.ActionRow(title=_('Runtime version'), subtitle=_('Not checked'))
+        connection.add(version)
+        self.widgets['version_summary'] = version
 
-        group = Adw.PreferencesGroup(title='Hardware acceleration', description=(
-            'Auto is recommended. Runtime decides the effective CPU/Vulkan/CUDA backend. '
+        # Advanced preferences: collapsed by default. The nested groups are
+        # ordinary Adw.PreferencesGroup widgets; no fragile GTK tree scanning.
+        advanced = Adw.PreferencesGroup(title=_('Advanced settings'))
+        page.add(advanced)
+        advanced_action = Adw.ActionRow(title=_('Show advanced settings'),
+            subtitle=_('Backend preference and shared idle timeout'))
+        advanced_button = Gtk.ToggleButton(label=_('Show'))
+        advanced_button.set_valign(Gtk.Align.CENTER)
+        advanced_action.add_suffix(advanced_button)
+        advanced.add(advanced_action)
+        self.advanced_revealer = Gtk.Revealer()
+        self.advanced_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.advanced_revealer.set_transition_duration(160)
+        advanced_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        advanced_box.set_margin_top(12)
+        self.advanced_revealer.set_child(advanced_box)
+        advanced.add(self.advanced_revealer)
+        advanced_button.connect('toggled', lambda b:
+            self.advanced_revealer.set_reveal_child(b.get_active()))
+        self.advanced_box = advanced_box
+        self.widgets['advanced_toggle'] = advanced_button
+
+        # Maintenance operations are kept in a separate on-demand window.
+        # Importantly, opening either page NEVER starts/stops Runtime.
+        maintenance_link = Adw.PreferencesGroup(title=_('Runtime maintenance'))
+        page.add(maintenance_link)
+        maintenance_row = Adw.ActionRow(title=_('Runtime maintenance tools'),
+            subtitle=_('Installation, service, backend packages and model registration'))
+        maintenance_button = Gtk.Button(label=_('Open maintenance tools…'))
+        maintenance_button.set_valign(Gtk.Align.CENTER)
+        maintenance_button.connect('clicked', self._open_maintenance)
+        maintenance_row.add_suffix(maintenance_button)
+        maintenance_link.add(maintenance_row)
+        self.widgets['maintenance_button'] = maintenance_button
+
+        self.maintenance_window = Adw.PreferencesWindow(title=_('Runtime maintenance tools'))
+        self.maintenance_window.set_default_size(900, 670)
+        self.maintenance_window.set_transient_for(self.window)
+        self.maintenance_window.set_hide_on_close(True)
+        self.maintenance_page = Adw.PreferencesPage()
+        self.maintenance_window.add(self.maintenance_page)
+
+        group = Adw.PreferencesGroup(title=_('Hardware acceleration'), description=(
+            _('Auto is recommended. Runtime decides the effective CPU/Vulkan/CUDA backend. '
             'Manual preferences are saved for future model requests; this page does not '
-            'override a shared running service.'))
-        page.add(group)
-        pref = Adw.ActionRow(title='Backend preference')
+            'override a shared running service.')))
+        self.advanced_box.append(group)
+        pref = Adw.ActionRow(title=_('Backend preference'))
         options = Gtk.DropDown.new_from_strings(['Auto (recommended)', 'CPU', 'Vulkan', 'CUDA'])
+        options.set_model(Gtk.StringList.new([_('Auto (recommended)'), 'CPU', 'Vulkan', 'CUDA']))
         options.set_valign(Gtk.Align.CENTER)
         options.set_selected(BACKEND_PREFERENCES.index(self.config['backend_preference']))
         pref.add_suffix(options)
         group.add(pref)
         self.widgets['backend_preference'] = options
-        effective = Adw.ActionRow(title='Backend reported by Runtime', subtitle='Not checked')
-        group.add(effective)
+        effective = Adw.ActionRow(title=_('Backend reported by Runtime'), subtitle=_('Not checked'))
+        connection.add(effective)
         self.widgets['effective'] = effective
-        service_pref = Adw.ActionRow(title='Runtime backend preference', subtitle='Not checked')
+        service_pref = Adw.ActionRow(title=_('Runtime backend preference'), subtitle=_('Not checked'))
         group.add(service_pref)
         self.widgets['service_preference'] = service_pref
-        actual = Adw.ActionRow(title='Active inference backend', subtitle='Not checked')
-        group.add(actual)
+        actual = Adw.ActionRow(title=_('Active inference backend'), subtitle=_('Not checked'))
+        connection.add(actual)
         self.widgets['actual'] = actual
-        loaded = Adw.ActionRow(title='Model loaded in memory', subtitle='Not checked')
-        group.add(loaded)
+        loaded = Adw.ActionRow(title=_('Model loaded in memory'), subtitle=_('Not checked'))
+        connection.add(loaded)
         self.widgets['loaded'] = loaded
 
         # B4 + C1: separate, shared Runtime backend state and management.
         # The earlier dropdown only saves SnapMark-local preference and is not
         # the selected preference in the shared Runtime service.
-        packages = Adw.PreferencesGroup(title='Runtime backend packages and live state',
-            description=('CPU/Vulkan and CUDA are separate Runtime-managed packages. '
+        packages = Adw.PreferencesGroup(title=_('Runtime backend packages and live state'),
+            description=(_('CPU/Vulkan and CUDA are separate Runtime-managed packages. '
                          'Availability is not active inference. No operation occurs until '
-                         'explicitly confirmed. Click Refresh backend status to read first.'))
-        page.add(packages)
+                         'explicitly confirmed. Click Refresh backend status to read first.')))
+        self.maintenance_page.add(packages)
         for key, title in (
             ('b4_llama', 'CPU / Vulkan package'),
             ('b4_cuda', 'CUDA package'),
@@ -116,16 +167,17 @@ class AIRuntimePreferences:
             ('b4_active', 'Active backend / loaded model'),
             ('b4_fallback', 'Backend fallback'),
             ('b4_progress', 'Backend operation status')):
-            row = Adw.ActionRow(title=title, subtitle='Not checked')
+            row = Adw.ActionRow(title=_(title), subtitle=_('Not checked'))
             packages.add(row)
             self.widgets[key] = row
         # Keep dropdown and confirmation action on separate ActionRows.
         # Two wide suffix widgets previously squeezed the title into a column.
         shared_choice = Adw.ActionRow(
-            title='Shared Runtime backend preference',
-            subtitle='Select the global Runtime preference (not SnapMark-only)')
+            title=_('Shared Runtime backend preference'),
+            subtitle=_('Select the global Runtime preference (not SnapMark-only)'))
         shared_dropdown = Gtk.DropDown.new_from_strings(
             ['Auto (recommended)', 'CPU', 'Vulkan', 'CUDA'])
+        shared_dropdown.set_model(Gtk.StringList.new([_('Auto (recommended)'), 'CPU', 'Vulkan', 'CUDA']))
         shared_dropdown.set_selected(0)
         shared_dropdown.set_valign(Gtk.Align.CENTER)
         shared_dropdown.set_sensitive(False)
@@ -134,8 +186,9 @@ class AIRuntimePreferences:
 
         apply_choice = Adw.ActionRow(
             title='Apply selected backend preference',
-            subtitle='May unload the active model; requires confirmation')
-        save_shared = Gtk.Button(label='Apply to Runtime…')
+            subtitle=_('May unload the active model; requires confirmation'))
+        apply_choice.set_title(_('Apply selected backend preference'))
+        save_shared = Gtk.Button(label=_('Apply to Runtime…'))
         save_shared.set_valign(Gtk.Align.CENTER)
         save_shared.set_sensitive(False)
         save_shared.connect('clicked', self._b4_action, 'preference')
@@ -151,8 +204,8 @@ class AIRuntimePreferences:
             ('cuda_rollback', 'Roll back CUDA package', 'Rollback CUDA…'),
         )
         for key, title, label in action_rows:
-            row = Adw.ActionRow(title=title)
-            button = Gtk.Button(label=label)
+            row = Adw.ActionRow(title=_(title))
+            button = Gtk.Button(label=_(label))
             button.set_valign(Gtk.Align.CENTER)
             button.set_sensitive(key == 'refresh' and self.config['enabled'])
             button.connect('clicked', self._b4_action, key)
@@ -162,27 +215,27 @@ class AIRuntimePreferences:
 
         # Read-only service lifecycle state. Never call a Runtime mutation
         # endpoint or preload a model while constructing Settings.
-        memory = Adw.PreferencesGroup(title='Model memory management', description=(
-            'Model loading and idle unloading are managed by Local AI Runtime. '
+        memory = Adw.PreferencesGroup(title=_('Model memory management'), description=(
+            _('Model loading and idle unloading are managed by Local AI Runtime. '
             'SnapMark reads current settings and changes the shared idle interval only '
             'after an explicit confirmation on Runtime 1.0.0 or newer. '
-            'Models are loaded when a later OCR or Translation request needs them.'))
-        page.add(memory)
-        preload_row = Adw.ActionRow(title='Startup model preload', subtitle='Not checked')
+            'Models are loaded when a later OCR or Translation request needs them.')))
+        self.advanced_box.append(memory)
+        preload_row = Adw.ActionRow(title=_('Startup model preload'), subtitle=_('Not checked'))
         memory.add(preload_row)
         self.widgets['preload'] = preload_row
-        preload_state = Adw.ActionRow(title='Runtime preload status', subtitle='Not checked')
+        preload_state = Adw.ActionRow(title=_('Runtime preload status'), subtitle=_('Not checked'))
         memory.add(preload_state)
         self.widgets['preload_state'] = preload_state
-        idle_row = Adw.ActionRow(title='Unload after inactivity', subtitle='Not checked')
+        idle_row = Adw.ActionRow(title=_('Unload after inactivity'), subtitle=_('Not checked'))
         memory.add(idle_row)
         self.widgets['idle_unload'] = idle_row
-        scope = Adw.ActionRow(title='Configuration scope', subtitle=(
-            'Shared Runtime setting · view only until explicitly confirmed'))
+        scope = Adw.ActionRow(title=_('Configuration scope'), subtitle=(
+            _('Shared Runtime setting · view only until explicitly confirmed')))
         memory.add(scope)
         self.widgets['idle_scope'] = scope
-        change_row = Adw.ActionRow(title='Custom idle timeout', subtitle=(
-            'Seconds · 0 disables automatic unloading · 86400 = 24 hours'))
+        change_row = Adw.ActionRow(title=_('Custom idle timeout'), subtitle=(
+            _('Seconds · 0 disables automatic unloading · 86400 = 24 hours')))
         spin = Gtk.SpinButton.new_with_range(0, 86400, 30)
         spin.set_numeric(True)
         spin.set_value(600)
@@ -190,7 +243,7 @@ class AIRuntimePreferences:
         spin.set_valign(Gtk.Align.CENTER)
         spin.set_sensitive(False)
         change_row.add_suffix(spin)
-        apply_idle = Gtk.Button(label='Save timeout…')
+        apply_idle = Gtk.Button(label=_('Save timeout…'))
         apply_idle.set_valign(Gtk.Align.CENTER)
         apply_idle.set_sensitive(False)
         apply_idle.connect('clicked', self._idle_save_clicked)
@@ -199,15 +252,16 @@ class AIRuntimePreferences:
         self.widgets['idle_spin'] = spin
         self.widgets['idle_save'] = apply_idle
 
-        models = Adw.PreferencesGroup(title='Registered Models', description=(
-            'Only models reported by the connected Runtime are listed. '
-            'No model is downloaded or loaded by this page.'))
-        page.add(models)
-        placeholder = Adw.ActionRow(title='No models checked yet')
+        models = Adw.PreferencesGroup(title=_('Registered Models'), description=(
+            _('Only models reported by the connected Runtime are listed. '
+            'No model is downloaded or loaded by this page.')))
+        self.maintenance_page.add(models)
+        placeholder = Adw.ActionRow(title=_('No models checked yet'))
         models.add(placeholder)
-        refresh_row = Adw.ActionRow(title='Refresh registered models', subtitle=(
-            'Manually refresh model inventory (may take several seconds).'))
+        refresh_row = Adw.ActionRow(title=_('Refresh registered models'), subtitle=(
+            _('Manually refresh model inventory (may take several seconds).')))
         refresh = Gtk.Button(label='Refresh Models')
+        refresh.set_label(_('Refresh Models'))
         refresh.set_valign(Gtk.Align.CENTER)
         refresh.set_sensitive(False)
         refresh.connect('clicked', self._refresh_models_clicked)
@@ -217,52 +271,52 @@ class AIRuntimePreferences:
         self.widgets['models_group'] = models
         self.widgets['models_placeholder'] = placeholder
 
-        install = Adw.PreferencesGroup(title='Runtime installation', description=(
-            'Use verified official releases to install or upgrade Runtime. '
-            'Destructive operations require confirmation and make backups.'))
-        page.add(install)
-        guide = Adw.ActionRow(title='Local AI Runtime project',
-                              subtitle='Open the official source and installation instructions')
-        open_guide = Gtk.Button(label='View instructions…')
+        install = Adw.PreferencesGroup(title=_('Runtime installation'), description=(
+            _('Use verified official releases to install or upgrade Runtime. '
+            'Destructive operations require confirmation and make backups.')))
+        self.maintenance_page.add(install)
+        guide = Adw.ActionRow(title=_('Local AI Runtime project'),
+                              subtitle=_('Open the official source and installation instructions'))
+        open_guide = Gtk.Button(label=_('View instructions…'))
         open_guide.set_valign(Gtk.Align.CENTER)
         guide.add_suffix(open_guide)
         install.add(guide)
-        detection = Adw.ActionRow(title='Existing Runtime detection', subtitle=(
-            'Integration disabled' if not self.config['enabled'] else 'Not checked'))
+        detection = Adw.ActionRow(title=_('Existing Runtime detection'), subtitle=(
+            _('Integration disabled') if not self.config['enabled'] else _('Not checked')))
         install.add(detection)
         self.widgets['installation_status'] = detection
-        releases_row = Adw.ActionRow(title='Official Runtime releases', subtitle=(
-            'Review verified releases before installing; no automatic install yet'))
-        open_releases = Gtk.Button(label='View releases…')
+        releases_row = Adw.ActionRow(title=_('Official Runtime releases'), subtitle=(
+            _('Review verified releases before installing; no automatic install yet')))
+        open_releases = Gtk.Button(label=_('View releases…'))
         open_releases.set_valign(Gtk.Align.CENTER)
         open_releases.connect('clicked', self._open_releases)
         releases_row.add_suffix(open_releases)
         install.add(releases_row)
-        local_row = Adw.ActionRow(title='Local user installation', subtitle=(
-            'User installation files detected' if self.local_installation.complete else
-            'Partial user installation files detected' if self.local_installation.installed else
-            'No known user installation files found (remote service may still exist)'))
+        local_row = Adw.ActionRow(title=_('Local user installation'), subtitle=(
+            _('User installation files detected') if self.local_installation.complete else
+            _('Partial user installation files detected') if self.local_installation.installed else
+            _('No known user installation files found (remote service may still exist)')))
         install.add(local_row)
         self.widgets['local_install'] = local_row
-        target = Adw.ActionRow(title='Runtime 1.0.0 release check', subtitle=(
-            'Manual read-only GitHub lookup · archive not downloaded or verified'))
-        check_release = Gtk.Button(label='Check 1.0.0')
+        target = Adw.ActionRow(title=_('Runtime 1.0.0 release check'), subtitle=(
+            _('Manual read-only GitHub lookup · archive not downloaded or verified')))
+        check_release = Gtk.Button(label=_('Check 1.0.0'))
         check_release.set_valign(Gtk.Align.CENTER)
         check_release.connect('clicked', self._check_release_clicked)
         target.add_suffix(check_release)
         install.add(target)
         self.widgets['release_check'] = check_release
         self.widgets['release_status'] = target
-        upgrade = Adw.ActionRow(title='Upgrade preflight', subtitle=(
-            'Not checked · no install, restart, downgrade or uninstall is available yet'))
+        upgrade = Adw.ActionRow(title=_('Upgrade preflight'), subtitle=(
+            _('Not checked · no install, restart, downgrade or uninstall is available yet')))
         install.add(upgrade)
         self.widgets['upgrade_preflight'] = upgrade
-        management = Adw.PreferencesGroup(title='Runtime application management', description=(
-            'Controls the local user service only, independently of the API endpoint. '
+        management = Adw.PreferencesGroup(title=_('Runtime application management'), description=(
+            _('Controls the local user service only, independently of the API endpoint. '
             'All actions are manual. Installing an application does not install models or GPU '
             'backends. Upgrades create a backup and do NOT restart a running service. '
-            'Uninstall preserves model files, settings and backend packages by default.'))
-        page.add(management)
+            'Uninstall preserves model files, settings and backend packages by default.')))
+        self.maintenance_page.add(management)
         self._management_row(management, 'download', 'Download & verify Runtime 1.0.0',
                              'Pinned GitHub asset and SHA256SUMS; download only',
                              'Download & verify')
@@ -287,31 +341,31 @@ class AIRuntimePreferences:
         self._management_row(management, 'purge_config', 'Uninstall and delete settings',
                              'Remove three managed configuration files, but preserve all models and GPU backends',
                              'Remove settings…')
-        progress = Adw.ActionRow(title='Runtime manager status', subtitle='No operation requested')
+        progress = Adw.ActionRow(title=_('Runtime manager status'), subtitle=_('No operation requested'))
         management.add(progress)
         self.widgets['manager_status'] = progress
         self._refresh_manager_buttons()
 
-        select = Adw.PreferencesGroup(title='Preview local GGUF model bundle', description=(
-            'Select multiple GGUF files or a folder. SnapMark detects main weights, '
+        select = Adw.PreferencesGroup(title=_('Preview local GGUF model bundle'), description=(
+            _('Select multiple GGUF files or a folder. SnapMark detects main weights, '
             'mmproj and split GGUF pieces together. Registration of one complete '
-            'non-split bundle requires separate inspection and explicit confirmation.'))
-        page.add(select)
-        buttons_row = Adw.ActionRow(title='Choose model files', subtitle=(
-            'Supports one main GGUF plus mmproj, and numbered GGUF shards.'))
-        select_files = Gtk.Button(label='Select files…')
+            'non-split bundle requires separate inspection and explicit confirmation.')))
+        self.maintenance_page.add(select)
+        buttons_row = Adw.ActionRow(title=_('Choose model files'), subtitle=(
+            _('Supports one main GGUF plus mmproj, and numbered GGUF shards.')))
+        select_files = Gtk.Button(label=_('Select files…'))
         select_files.set_valign(Gtk.Align.CENTER)
         select_files.connect('clicked', self._choose_files)
         buttons_row.add_suffix(select_files)
         select.add(buttons_row)
-        folder_row = Adw.ActionRow(title='Choose model folder', subtitle=(
-            'Inspects only the selected folder; never scans subfolders.'))
-        select_folder = Gtk.Button(label='Select folder…')
+        folder_row = Adw.ActionRow(title=_('Choose model folder'), subtitle=(
+            _('Inspects only the selected folder; never scans subfolders.')))
+        select_folder = Gtk.Button(label=_('Select folder…'))
         select_folder.set_valign(Gtk.Align.CENTER)
         select_folder.connect('clicked', self._choose_folder)
         folder_row.add_suffix(select_folder)
         select.add(folder_row)
-        placeholder = Adw.ActionRow(title='No local models inspected yet')
+        placeholder = Adw.ActionRow(title=_('No local models inspected yet'))
         select.add(placeholder)
         self.widgets['preview_group'] = select
         self.widgets['preview_placeholder'] = placeholder
@@ -321,6 +375,10 @@ class AIRuntimePreferences:
         save.connect('clicked', self._check_clicked)
         open_guide.connect('clicked', self._open_instructions)
         self._set_available(self.config['enabled'])
+
+    def _open_maintenance(self, _button):
+        self.maintenance_window.present()
+        return False
 
     def _b4_buttons(self):
         ready = bool(self.backend_overview and self.backend_overview_endpoint ==
@@ -345,13 +403,13 @@ class AIRuntimePreferences:
             self._b4_read()
             return
         if not self.backend_overview or self.backend_overview_endpoint != self.config['endpoint']:
-            self._message('Refresh backend status first', 'A current Runtime 1.0.0+ status is required.')
+            self._message(_('Refresh backend status first'), _('A current Runtime 1.0.0+ status is required.'))
             return
         if action == 'preference':
             desired = BACKEND_PREFERENCES[self.widgets['b4_choice'].get_selected()]
             previous = self.backend_overview.preference
             if desired == previous:
-                self._message('No change', 'Runtime already uses this backend preference.')
+                self._message(_('No change'), _('Runtime already uses this backend preference.'))
                 return
             title = 'Change the shared Runtime backend preference?'
             body = (f'Change {previous} to {desired}. Runtime may unload the active model. '
@@ -468,7 +526,10 @@ class AIRuntimePreferences:
     def _management_row(self, group, action, title, subtitle, caption):
         row = Adw.ActionRow(title=GLib.markup_escape_text(title),
                             subtitle=GLib.markup_escape_text(subtitle))
+        row.set_title(GLib.markup_escape_text(_(title)))
+        row.set_subtitle(GLib.markup_escape_text(_(subtitle)))
         button = Gtk.Button(label=caption)
+        button.set_label(_(caption))
         button.set_valign(Gtk.Align.CENTER)
         button.connect('clicked', self._management_clicked, action)
         row.add_suffix(button)
@@ -569,13 +630,13 @@ class AIRuntimePreferences:
         self.runtime_management_busy = False
         self._refresh_manager_buttons()
         self.widgets['manager_status'].set_subtitle((error or result or 'No result')[:280])
-        self._message('Runtime management failed' if error else 'Runtime management',
+        self._message(_('Runtime management failed') if error else _('Runtime management'),
                       error or result)
         self.local_installation = inspect_local_installation()
         self.widgets['local_install'].set_subtitle(
-            'User installation files detected' if self.local_installation.complete else
-            'Partial user installation files detected' if self.local_installation.installed else
-            'No local user Runtime detected')
+            _('User installation files detected') if self.local_installation.complete else
+            _('Partial user installation files detected') if self.local_installation.installed else
+            _('No local user Runtime detected'))
         # Status check remains read-only. Never auto-restart after install.
         return False
 
@@ -605,11 +666,11 @@ class AIRuntimePreferences:
         seconds = self.widgets['idle_spin'].get_value_as_int()
         before = self.idle_verified_seconds
         if seconds == before:
-            self._message('No changes', 'The idle timeout already has this value.')
+            self._message(_('No changes'), _('The idle timeout already has this value.'))
             return
         endpoint = self.idle_verified_endpoint
         dialog = Adw.MessageDialog(transient_for=self.window,
-                                   heading='Change shared Runtime idle timeout?',
+                                   heading=_('Change shared Runtime idle timeout?'),
                                    body=(f'Current: {before} seconds. New: {seconds} seconds.\n'
                                          + ('0 disables automatic model unloading.\n' if seconds == 0 else '')
                                          + 'This affects other applications using this Runtime. '
@@ -631,7 +692,7 @@ class AIRuntimePreferences:
         self.idle_saving = True
         self.widgets['idle_save'].set_sensitive(False)
         self.widgets['idle_spin'].set_sensitive(False)
-        self.widgets['idle_scope'].set_subtitle('Saving confirmed timeout…')
+        self.widgets['idle_scope'].set_subtitle(_('Saving confirmed timeout…'))
 
         def worker():
             try:
@@ -647,7 +708,7 @@ class AIRuntimePreferences:
         self.idle_saving = False
         if generation != self.generation or endpoint != self.config['endpoint']:
             return False
-        self._message('Cannot save shared timeout' if error else 'Runtime timeout updated',
+        self._message(_('Cannot save shared timeout') if error else _('Runtime timeout updated'),
                       error or f'Saved {value} seconds to Local AI Runtime. No service restart.')
         self._start_probe(endpoint)  # always reread actual service state
         return False
@@ -671,9 +732,9 @@ class AIRuntimePreferences:
         self.widgets['idle_spin'].set_sensitive(True)
         self.widgets['idle_save'].set_sensitive(True)
         self.widgets['idle_scope'].set_subtitle(
-            'Shared Runtime setting · editing requires confirmation · 0 disables unloading')
+            _('Shared Runtime setting · editing requires confirmation · 0 disables unloading'))
         self.widgets['idle_unload'].set_subtitle(
-            'Disabled (0 seconds)' if outcome.seconds == 0 else
+            _('Disabled (0 seconds)') if outcome.seconds == 0 else
             f'{outcome.seconds} seconds · verified via Runtime preferences API')
         return False
 
@@ -682,7 +743,7 @@ class AIRuntimePreferences:
         try:
             self.config = self.settings.update(enabled=enabled)
         except (OSError, RuntimeIntegrationError) as exc:
-            self._message('Cannot save AI Runtime setting', exc)
+            self._message(_('Cannot save AI Runtime setting'), exc)
             switch.handler_block(self._enabled_handler)
             switch.set_active(self.config['enabled'])
             switch.handler_unblock(self._enabled_handler)
@@ -690,15 +751,16 @@ class AIRuntimePreferences:
         self.generation += 1
         self._reset_idle_editor()
         self._set_available(enabled)
-        self.widgets['status'].set_subtitle('Not checked' if enabled else 'Integration disabled')
-        self.widgets['effective'].set_subtitle('Not checked')
-        self.widgets['service_preference'].set_subtitle('Not checked')
-        self.widgets['actual'].set_subtitle('Not checked')
-        self.widgets['loaded'].set_subtitle('Not checked')
+        self.widgets['status'].set_subtitle(_('Not checked') if enabled else _('Integration disabled'))
+        self.widgets['version_summary'].set_subtitle(_('Not checked'))
+        self.widgets['effective'].set_subtitle(_('Not checked'))
+        self.widgets['service_preference'].set_subtitle(_('Not checked'))
+        self.widgets['actual'].set_subtitle(_('Not checked'))
+        self.widgets['loaded'].set_subtitle(_('Not checked'))
         for key in ('preload', 'preload_state', 'idle_unload'):
-            self.widgets[key].set_subtitle('Not checked')
+            self.widgets[key].set_subtitle(_('Not checked'))
         self.widgets['installation_status'].set_subtitle(
-            'Not checked' if enabled else 'Integration disabled')
+            _('Not checked') if enabled else _('Integration disabled'))
         self._set_models(())
         self.registration_generation += 1
         if enabled:
@@ -711,7 +773,7 @@ class AIRuntimePreferences:
         try:
             self.config = self.settings.update(backend_preference=preference)
         except (OSError, RuntimeIntegrationError) as exc:
-            self._message('Cannot save backend preference', exc)
+            self._message(_('Cannot save backend preference'), exc)
             dropdown.handler_block(self._backend_handler)
             dropdown.set_selected(BACKEND_PREFERENCES.index(self.config['backend_preference']))
             dropdown.handler_unblock(self._backend_handler)
@@ -723,7 +785,7 @@ class AIRuntimePreferences:
         try:
             self.config = self.settings.update(endpoint=endpoint)
         except (OSError, RuntimeIntegrationError) as exc:
-            self._message('Invalid Runtime endpoint', exc)
+            self._message(_('Invalid Runtime endpoint'), exc)
             return
         self._start_probe(self.config['endpoint'])
 
@@ -742,7 +804,7 @@ class AIRuntimePreferences:
         self.generation += 1
         self.registration_generation += 1
         generation = self.generation
-        self.widgets['status'].set_subtitle('Connecting…')
+        self.widgets['status'].set_subtitle(_('Connecting…'))
         self.widgets['check'].set_sensitive(False)
         self.widgets['refresh_models'].set_sensitive(False)
         self._set_models(())
@@ -763,26 +825,28 @@ class AIRuntimePreferences:
         self.widgets['refresh_models'].set_sensitive(error is None)
         if error:
             self.widgets['status'].set_subtitle('Unavailable: ' + error[:180])
-            self.widgets['effective'].set_subtitle('Not reported')
-            self.widgets['service_preference'].set_subtitle('Not reported')
-            self.widgets['actual'].set_subtitle('Not running')
-            self.widgets['loaded'].set_subtitle('Not loaded')
+            self.widgets['version_summary'].set_subtitle(_('Unavailable'))
+            self.widgets['effective'].set_subtitle(_('Not reported'))
+            self.widgets['service_preference'].set_subtitle(_('Not reported'))
+            self.widgets['actual'].set_subtitle(_('Not running'))
+            self.widgets['loaded'].set_subtitle(_('Not loaded'))
             for key in ('preload', 'preload_state', 'idle_unload'):
-                self.widgets[key].set_subtitle('Unavailable')
+                self.widgets[key].set_subtitle(_('Unavailable'))
             self.widgets['installation_status'].set_subtitle(
-                'Service not reachable · installation not determined')
+                _('Service not reachable · installation not determined'))
             return False
-        self.widgets['status'].set_subtitle('Connected · ' + result.health)
+        self.widgets['status'].set_subtitle(_('Connected') + ' · ' + result.health)
+        self.widgets['version_summary'].set_subtitle(result.version or _('Not reported'))
         self.widgets['effective'].set_subtitle(result.backend + (
             ' (query unavailable)' if result.backend_error else ''))
-        self.widgets['service_preference'].set_subtitle(result.configured_backend or 'Not reported')
+        self.widgets['service_preference'].set_subtitle(result.configured_backend or _('Not reported'))
         self.widgets['actual'].set_subtitle(
             result.active_backend if result.active_backend else
-            ('Running · backend unknown' if result.backend_running else 'Not running'))
+            (_('Running · backend unknown') if result.backend_running else _('Not running')))
         self.widgets['loaded'].set_subtitle(
-            result.current_model if result.current_model else 'Not loaded')
+            result.current_model if result.current_model else _('Not loaded'))
         self.widgets['preload'].set_subtitle(describe_preload(result))
-        self.widgets['preload_state'].set_subtitle(result.preload_state or 'Not reported')
+        self.widgets['preload_state'].set_subtitle(result.preload_state or _('Not reported'))
         self.widgets['idle_unload'].set_subtitle(describe_idle_unload(result))
         self._start_idle_read(generation, result.endpoint, result.version)
         self.installed_runtime_version = result.version
@@ -792,7 +856,7 @@ class AIRuntimePreferences:
             ' · version check available (manual)')
         self._set_models(result.models, snapshot=result)
         if result.models_error:
-            self.widgets['models_placeholder'].set_title('Model query unavailable')
+            self.widgets['models_placeholder'].set_title(_('Model query unavailable'))
             self.widgets['models_placeholder'].set_subtitle(result.models_error[:180])
         return False
 
@@ -802,7 +866,7 @@ class AIRuntimePreferences:
             group.remove(row)
         self.model_rows = []
         placeholder = self.widgets['models_placeholder']
-        placeholder.set_title('No models reported')
+        placeholder.set_title(_('No models reported'))
         placeholder.set_subtitle('')
         placeholder.set_visible(not names)
         details = {item.identifier: item for item in snapshot.detailed_models} if snapshot else {}
@@ -830,7 +894,7 @@ class AIRuntimePreferences:
         self.release_probe_generation += 1
         generation = self.release_probe_generation
         self.widgets['release_check'].set_sensitive(False)
-        self.widgets['release_status'].set_subtitle('Checking official pinned release metadata…')
+        self.widgets['release_status'].set_subtitle(_('Checking official pinned release metadata…'))
 
         def worker():
             try:
@@ -848,7 +912,7 @@ class AIRuntimePreferences:
         self.widgets['release_check'].set_sensitive(True)
         if error:
             self.widgets['release_status'].set_subtitle('Release check unavailable · ' + error[:140])
-            self.widgets['upgrade_preflight'].set_subtitle('Not verified · existing Runtime unchanged')
+            self.widgets['upgrade_preflight'].set_subtitle(_('Not verified · existing Runtime unchanged'))
             return False
         self.widgets['release_status'].set_subtitle(
             f'Official release {result.version} · {len(result.assets)} assets listed · no download')
@@ -871,19 +935,19 @@ class AIRuntimePreferences:
         try:
             Gio.AppInfo.launch_default_for_uri(RUNTIME_PROJECT, None)
         except GLib.Error as exc:
-            self._message('Could not open Runtime instructions', exc)
+            self._message(_('Could not open Runtime instructions'), exc)
 
     def _open_releases(self, _button):
         try:
             Gio.AppInfo.launch_default_for_uri(RUNTIME_RELEASES, None)
         except GLib.Error as exc:
-            self._message('Could not open Runtime releases', exc)
+            self._message(_('Could not open Runtime releases'), exc)
 
     def _choose_files(self, _button):
         dialog = Gtk.FileDialog.new()
-        dialog.set_title('Select GGUF model files (main, mmproj, or splits)')
+        dialog.set_title(_('Select GGUF model files (main, mmproj, or splits)'))
         filt = Gtk.FileFilter()
-        filt.set_name('GGUF models')
+        filt.set_name(_('GGUF models'))
         filt.add_pattern('*.gguf')
         filt.add_pattern('*.GGUF')
         filters = Gio.ListStore.new(Gtk.FileFilter)
@@ -898,13 +962,13 @@ class AIRuntimePreferences:
             return
         paths = [files.get_item(i).get_path() for i in range(files.get_n_items())]
         if any(path is None for path in paths):
-            self._message('Local files only', 'Please choose files on a local filesystem.')
+            self._message(_('Local files only'), _('Please choose files on a local filesystem.'))
             return
         self._preview_async(paths=paths)
 
     def _choose_folder(self, _button):
         dialog = Gtk.FileDialog.new()
-        dialog.set_title('Select local GGUF model folder')
+        dialog.set_title(_('Select local GGUF model folder'))
         dialog.select_folder(self.window, None, self._folder_chosen)
 
     def _folder_chosen(self, dialog, result):
@@ -913,7 +977,7 @@ class AIRuntimePreferences:
         except GLib.Error:
             return
         if not folder:
-            self._message('Local folder only', 'Please choose a local directory.')
+            self._message(_('Local folder only'), _('Please choose a local directory.'))
             return
         self._preview_async(folder=folder)
 
@@ -921,7 +985,7 @@ class AIRuntimePreferences:
         self.preview_generation += 1
         generation = self.preview_generation
         self.widgets['preview_placeholder'].set_visible(True)
-        self.widgets['preview_placeholder'].set_title('Inspecting model files…')
+        self.widgets['preview_placeholder'].set_title(_('Inspecting model files…'))
         # Avoid blocking GNOME's UI on removable drives or network-mounted paths.
         def work():
             try:
@@ -942,7 +1006,7 @@ class AIRuntimePreferences:
         self.preview_rows = []
         placeholder = self.widgets['preview_placeholder']
         placeholder.set_visible(bool(error) or not bundles)
-        placeholder.set_title('Cannot inspect model files' if error else 'No GGUF bundles found')
+        placeholder.set_title(_('Cannot inspect model files') if error else _('No GGUF bundles found'))
         placeholder.set_subtitle((error or '')[:240])
         for bundle in bundles:
             pieces = []
@@ -959,7 +1023,7 @@ class AIRuntimePreferences:
             group.add(row)
             self.preview_rows.append(row)
             if bundle.ready_for_review and bundle.main and not bundle.shards and len(bundle.projectors) <= 1:
-                inspect_button = Gtk.Button(label='Inspect with Runtime…')
+                inspect_button = Gtk.Button(label=_('Inspect with Runtime…'))
                 inspect_button.set_valign(Gtk.Align.CENTER)
                 inspect_button.set_sensitive(self.config['enabled'])
                 inspect_button.connect('clicked', self._inspect_bundle, bundle)
@@ -989,7 +1053,7 @@ class AIRuntimePreferences:
             return False
         button.set_sensitive(True)
         if error:
-            self._message('Runtime inspection failed', error)
+            self._message(_('Runtime inspection failed'), error)
             return False
         payload = review.payload
         message = '\n'.join((
@@ -1005,7 +1069,7 @@ class AIRuntimePreferences:
             'This changes the external Runtime custom-model registry, not the model files.'
         ))
         dialog = Adw.MessageDialog(transient_for=self.window,
-                                   heading='Register this local model?', body=message)
+                                   heading=_('Register this local model?'), body=message)
         dialog.add_response('cancel', 'Cancel')
         dialog.add_response('register', 'Register model')
         dialog.set_response_appearance('register', Adw.ResponseAppearance.SUGGESTED)
@@ -1019,7 +1083,7 @@ class AIRuntimePreferences:
         if response != 'register' or not self.config['enabled'] or self.registration_in_progress:
             return
         if self.config['endpoint'] != review.endpoint:
-            self._message('Connection changed', 'Reconnect and inspect the model again.')
+            self._message(_('Connection changed'), _('Reconnect and inspect the model again.'))
             return
         self.registration_in_progress = True
         self.registration_generation += 1
@@ -1038,9 +1102,9 @@ class AIRuntimePreferences:
         if generation != self.registration_generation:
             return False
         if error:
-            self._message('Registration failed', error)
+            self._message(_('Registration failed'), error)
         else:
-            self._message('Model registered',
+            self._message(_('Model registered'),
                           result['id'] + ' was added to Local AI Runtime. No model files were moved.')
             if self.config['enabled']:
                 self._start_probe(self.config['endpoint'], refresh_models=True)

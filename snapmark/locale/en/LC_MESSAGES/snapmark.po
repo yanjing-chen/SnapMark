@@ -1,0 +1,1212 @@
+# English translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark C3 development\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 15:09+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "About"
+msgstr ""
+
+msgid "Actual pixel size"
+msgstr ""
+
+msgid "Advanced settings"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Arrow"
+msgstr ""
+
+msgid "Automatic (GNOME screenshot folders)"
+msgstr ""
+
+msgid "Automatically detect GNOME screenshot folders"
+msgstr ""
+
+msgid "Available"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Block size"
+msgstr ""
+
+msgid "Blur"
+msgstr ""
+
+msgid "Blur radius"
+msgstr ""
+
+msgid "Brush size"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Choose a folder"
+msgstr ""
+
+msgid "Choose screenshot history folder"
+msgstr ""
+
+msgid "Choose…"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Clear text"
+msgstr ""
+
+msgid "Clear translation"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Copy annotated screenshot"
+msgstr ""
+
+msgid "Copy image"
+msgstr ""
+
+msgid "Copy text"
+msgstr ""
+
+msgid "Corner radius"
+msgstr ""
+
+msgid "Current version"
+msgstr ""
+
+msgid "Default image format"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete selected layer (Delete)"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "Disable"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Ellipse"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Eraser"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Export"
+msgstr ""
+
+msgid "Fill color"
+msgstr ""
+
+msgid "Fill shapes"
+msgstr ""
+
+msgid "Font"
+msgstr ""
+
+msgid "Font size"
+msgstr ""
+
+msgid "For images saved from SnapMark, not GNOME Print Screen"
+msgstr ""
+
+msgid "Freehand"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Higher quality uses more storage; PNG is lossless"
+msgstr ""
+
+msgid "Highlight"
+msgstr ""
+
+msgid "Highlight mode"
+msgstr ""
+
+msgid "Image"
+msgstr ""
+
+msgid "Image format"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Installed"
+msgstr ""
+
+msgid "JPEG / WebP quality"
+msgstr ""
+
+msgid "Keep the editor hidden when a status icon is available"
+msgstr ""
+
+msgid "Keyboard shortcuts"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Launch SnapMark in the background; system screenshots stay independent"
+msgstr ""
+
+msgid "Layers"
+msgstr ""
+
+msgid "Line"
+msgstr ""
+
+msgid "Load more screenshots"
+msgstr ""
+
+msgid "Manage plugins"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "Model not found"
+msgstr ""
+
+msgid "Mosaic"
+msgstr ""
+
+msgid "No annotations yet"
+msgstr ""
+
+msgid "No image"
+msgstr ""
+
+msgid "No image loaded"
+msgstr ""
+
+msgid "No models installed"
+msgstr ""
+
+msgid "No screenshots found"
+msgstr ""
+
+msgid "OCR"
+msgstr ""
+
+msgid "OCR model"
+msgstr ""
+
+msgid "Opacity"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Open Clipboard Image"
+msgstr ""
+
+msgid "Open an image…"
+msgstr ""
+
+msgid "Open failed"
+msgstr ""
+
+msgid "Open image"
+msgstr ""
+
+msgid "Open screenshot"
+msgstr ""
+
+msgid "Options"
+msgstr ""
+
+msgid "Pen"
+msgstr ""
+
+msgid "Plugin management"
+msgstr ""
+
+msgid "Plugins"
+msgstr ""
+
+msgid "Plugins and extensions"
+msgstr ""
+
+msgid "Preferences"
+msgstr ""
+
+msgid "Processing"
+msgstr ""
+
+msgid "Quit"
+msgstr ""
+
+msgid "Quit SnapMark"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Ready for a screenshot"
+msgstr ""
+
+msgid "Recent"
+msgstr ""
+
+msgid "Rectangle"
+msgstr ""
+
+msgid "Redo"
+msgstr ""
+
+msgid "Redo (Ctrl+Shift+Z)"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Restart SnapMark to apply language changes"
+msgstr ""
+
+msgid "Run OCR"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save annotated screenshot"
+msgstr ""
+
+msgid "Save as"
+msgstr ""
+
+msgid "Save as TXT"
+msgstr ""
+
+msgid "Save screenshot"
+msgstr ""
+
+msgid "Screenshot Editor"
+msgstr ""
+
+msgid "Screenshot History"
+msgstr ""
+
+msgid "Screenshot history"
+msgstr ""
+
+msgid "Screenshot history folder"
+msgstr ""
+
+msgid "Screenshots"
+msgstr ""
+
+msgid "Screenshots & Annotation"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Shortcuts"
+msgstr ""
+
+msgid "Show/hide OCR panel"
+msgstr ""
+
+msgid "Show/hide Translation panel"
+msgstr ""
+
+msgid "SnapMark Preferences"
+msgstr ""
+
+msgid "Start automatically on login"
+msgstr ""
+
+msgid "Start minimized"
+msgstr ""
+
+msgid "Straight line"
+msgstr ""
+
+msgid "Strength"
+msgstr ""
+
+msgid "Stroke color"
+msgstr ""
+
+msgid "Success"
+msgstr ""
+
+msgid "System Default"
+msgstr ""
+
+msgid "Take a screenshot with Print Screen, or open an image."
+msgstr ""
+
+msgid "Target language"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Text color"
+msgstr ""
+
+msgid "Text font and size"
+msgstr ""
+
+msgid "Time: Not run"
+msgstr ""
+
+msgid "Translate"
+msgstr ""
+
+msgid "Translation"
+msgstr ""
+
+msgid "Translation model"
+msgstr ""
+
+msgid "Triangle"
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+msgid "Undo (Ctrl+Z)"
+msgstr ""
+
+msgid "Uninstall"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Width"
+msgstr ""
+
+msgid "100%"
+msgstr ""
+
+msgid "A current Runtime 1.0.0+ status is required."
+msgstr ""
+
+msgid "AI Runtime"
+msgstr ""
+
+msgid "Activate selected version"
+msgstr ""
+
+msgid "Active inference backend"
+msgstr ""
+
+#, python-brace-format
+msgid "Active: v{}"
+msgstr ""
+
+msgid "Annotated image copied to clipboard"
+msgstr ""
+
+msgid "Apply selected backend preference"
+msgstr ""
+
+msgid "Apply to Runtime…"
+msgstr ""
+
+msgid "Auto (recommended)"
+msgstr ""
+
+msgid ""
+"Auto is recommended. Runtime decides the effective CPU/Vulkan/CUDA backend. Manual "
+"preferences are saved for future model requests; this page does not override a shared "
+"running service."
+msgstr ""
+
+msgid "Backend preference"
+msgstr ""
+
+msgid "Backend reported by Runtime"
+msgstr ""
+
+msgid "Brush size · 20 px"
+msgstr ""
+
+msgid ""
+"CPU/Vulkan and CUDA are separate Runtime-managed packages. Availability is not active "
+"inference. No operation occurs until explicitly confirmed. Click Refresh backend status to "
+"read first."
+msgstr ""
+
+msgid "Cannot change plugin state"
+msgstr ""
+
+msgid "Cannot check releases"
+msgstr ""
+
+msgid "Cannot enable plugin"
+msgstr ""
+
+msgid "Cannot inspect model files"
+msgstr ""
+
+msgid "Cannot install plugin"
+msgstr ""
+
+msgid "Cannot save AI Runtime setting"
+msgstr ""
+
+msgid "Cannot save backend preference"
+msgstr ""
+
+msgid "Cannot save shared timeout"
+msgstr ""
+
+msgid "Cannot uninstall plugin"
+msgstr ""
+
+msgid "Change shared Runtime idle timeout?"
+msgstr ""
+
+msgid "Check 1.0.0"
+msgstr ""
+
+msgid "Check Screenshots & Annotation → Screenshot history folder."
+msgstr ""
+
+msgid "Check health, registered models, and backend"
+msgstr ""
+
+msgid "Checking official GitHub Releases…"
+msgstr ""
+
+msgid "Checking official pinned release metadata…"
+msgstr ""
+
+msgid "Choose ZIP…"
+msgstr ""
+
+msgid "Choose a fill color"
+msgstr ""
+
+msgid "Choose a local destination"
+msgstr ""
+
+msgid "Choose a stroke color"
+msgstr ""
+
+msgid "Choose model files"
+msgstr ""
+
+msgid "Choose model folder"
+msgstr ""
+
+msgid "Click Refresh"
+msgstr ""
+
+msgid "Color"
+msgstr ""
+
+msgid "Colors, strokes and highlight settings are edited directly in the main editor."
+msgstr ""
+
+msgid "Configuration scope"
+msgstr ""
+
+msgid "Connecting…"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Connection changed"
+msgstr ""
+
+msgid "Connection status"
+msgstr ""
+
+msgid ""
+"Controls the local user service only, independently of the API endpoint. All actions are "
+"manual. Installing an application does not install models or GPU backends. Upgrades create a"
+" backup and do NOT restart a running service. Uninstall preserves model files, settings and "
+"backend packages by default."
+msgstr ""
+
+msgid "Corner radius · 0 px"
+msgstr ""
+
+msgid "Could not open Runtime instructions"
+msgstr ""
+
+msgid "Could not open Runtime releases"
+msgstr ""
+
+msgid "Custom idle timeout"
+msgstr ""
+
+msgid "Dependency not enabled"
+msgstr ""
+
+msgid "Disabled (0 seconds)"
+msgstr ""
+
+msgid "Disabled by default"
+msgstr ""
+
+msgid "Does not delete downloaded AI models"
+msgstr ""
+
+#, python-brace-format
+msgid "Downloading v{}…"
+msgstr ""
+
+msgid "Drag over the screenshot to select OCR pixels; Esc cancels"
+msgstr ""
+
+msgid "Enable AI Runtime integration"
+msgstr ""
+
+msgid "Enable it under Plugin Management, then restart SnapMark."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Example Settings Plugin"
+msgstr ""
+
+msgid "Existing Runtime detection"
+msgstr ""
+
+msgid "Expand or collapse plugin settings"
+msgstr ""
+
+msgid "Failed to copy image"
+msgstr ""
+
+msgid "GGUF models"
+msgstr ""
+
+msgid ""
+"GTK4 / libadwaita screenshot editor for GNOME Wayland. OCR and translation are optional "
+"plugins."
+msgstr ""
+
+msgid "Hardware acceleration"
+msgstr ""
+
+msgid "Image saved"
+msgstr ""
+
+msgid "Images"
+msgstr ""
+
+msgid "Inspect with Runtime…"
+msgstr ""
+
+msgid "Inspecting model files…"
+msgstr ""
+
+msgid "Inspects only the selected folder; never scans subfolders."
+msgstr ""
+
+msgid "Install and enable plugins to show their settings"
+msgstr ""
+
+msgid "Install executable Python plugin?"
+msgstr ""
+
+msgid "Install local plugin ZIP"
+msgstr ""
+
+msgid "Installed version"
+msgstr ""
+
+msgid "Integration disabled"
+msgstr ""
+
+msgid "Invalid Runtime endpoint"
+msgstr ""
+
+msgid "Invalid ZIP plugin"
+msgstr ""
+
+msgid "Local AI Runtime"
+msgstr ""
+
+msgid "Local AI Runtime project"
+msgstr ""
+
+msgid "Local files only"
+msgstr ""
+
+msgid "Local folder only"
+msgstr ""
+
+msgid "Local user installation"
+msgstr ""
+
+msgid "Manual read-only GitHub lookup · archive not downloaded or verified"
+msgstr ""
+
+msgid "Manually refresh model inventory (may take several seconds)."
+msgstr ""
+
+msgid "May unload the active model; requires confirmation"
+msgstr ""
+
+msgid "Model loaded in memory"
+msgstr ""
+
+msgid ""
+"Model loading and idle unloading are managed by Local AI Runtime. SnapMark reads current "
+"settings and changes the shared idle interval only after an explicit confirmation on Runtime"
+" 1.0.0 or newer. Models are loaded when a later OCR or Translation request needs them."
+msgstr ""
+
+msgid "Model memory management"
+msgstr ""
+
+msgid "Model query unavailable"
+msgstr ""
+
+msgid "Model registered"
+msgstr ""
+
+msgid "More fill colors…"
+msgstr ""
+
+msgid "More stroke colors…"
+msgstr ""
+
+msgid "No GGUF bundles found"
+msgstr ""
+
+msgid "No GNOME screenshots found"
+msgstr ""
+
+msgid "No change"
+msgstr ""
+
+msgid "No changes"
+msgstr ""
+
+msgid "No known user installation files found (remote service may still exist)"
+msgstr ""
+
+msgid "No local models inspected yet"
+msgstr ""
+
+msgid "No local user Runtime detected"
+msgstr ""
+
+msgid "No models checked yet"
+msgstr ""
+
+msgid "No models reported"
+msgstr ""
+
+msgid "No operation requested"
+msgstr ""
+
+msgid "No versions installed"
+msgstr ""
+
+msgid "Not checked"
+msgstr ""
+
+msgid "Not checked · no install, restart, downgrade or uninstall is available yet"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "Not installed / inactive"
+msgstr ""
+
+msgid "Not loaded"
+msgstr ""
+
+msgid "Not reported"
+msgstr ""
+
+msgid "Not running"
+msgstr ""
+
+msgid "Not verified · existing Runtime unchanged"
+msgstr ""
+
+msgid "OCR selection cancelled"
+msgstr ""
+
+msgid "OCR selection is too small; try again"
+msgstr ""
+
+msgid "Off by default; affects SnapMark only"
+msgstr ""
+
+msgid "Official GitHub Releases"
+msgstr ""
+
+msgid "Official Plugins"
+msgstr ""
+
+msgid "Official Runtime releases"
+msgstr ""
+
+msgid ""
+"Only models reported by the connected Runtime are listed. No model is downloaded or loaded "
+"by this page."
+msgstr ""
+
+msgid "Opacity · 25%"
+msgstr ""
+
+msgid "Open a screenshot before selecting an OCR area"
+msgstr ""
+
+msgid "Open the official source and installation instructions"
+msgstr ""
+
+msgid ""
+"Optional shared inference service. Connecting never changes it; only explicitly confirmed "
+"actions may modify shared Runtime settings."
+msgstr ""
+
+msgid "Partial user installation files detected"
+msgstr ""
+
+msgid "Please choose a local directory."
+msgstr ""
+
+msgid "Please choose files on a local filesystem."
+msgstr ""
+
+msgid "Plugin Management"
+msgstr ""
+
+msgid "Plugin downloaded"
+msgstr ""
+
+msgid "Plugin installation failed"
+msgstr ""
+
+msgid ""
+"Plugins are optional executable code: install only verified releases published by yanjing-"
+"chen/SnapMark. After changing plugins, reopen SnapMark to reload their interfaces."
+msgstr ""
+
+msgid "Preview local GGUF model bundle"
+msgstr ""
+
+msgid "Print Screen remains independent. Use Clipboard Image or Screenshot History to edit."
+msgstr ""
+
+msgid "Reconnect and inspect the model again."
+msgstr ""
+
+msgid "Refresh Models"
+msgstr ""
+
+msgid "Refresh backend status first"
+msgstr ""
+
+msgid "Refresh registered models"
+msgstr ""
+
+msgid "Refresh release versions"
+msgstr ""
+
+msgid "Refresh to check available versions"
+msgstr ""
+
+msgid "Register this local model?"
+msgstr ""
+
+msgid "Registered Models"
+msgstr ""
+
+msgid "Registration failed"
+msgstr ""
+
+msgid "Release check failed; try again"
+msgstr ""
+
+msgid "Remove selected installed version"
+msgstr ""
+
+msgid "Reuse an existing service where possible. Connection checks do not start Runtime."
+msgstr ""
+
+msgid "Review verified releases before installing; no automatic install yet"
+msgstr ""
+
+msgid "Running · backend unknown"
+msgstr ""
+
+msgid "Runtime 1.0.0 release check"
+msgstr ""
+
+msgid "Runtime already uses this backend preference."
+msgstr ""
+
+msgid "Runtime application management"
+msgstr ""
+
+msgid "Runtime backend packages and live state"
+msgstr ""
+
+msgid "Runtime backend preference"
+msgstr ""
+
+msgid "Runtime inspection failed"
+msgstr ""
+
+msgid "Runtime installation"
+msgstr ""
+
+msgid "Runtime management"
+msgstr ""
+
+msgid "Runtime management failed"
+msgstr ""
+
+msgid "Runtime manager status"
+msgstr ""
+
+msgid "Runtime preload status"
+msgstr ""
+
+msgid "Runtime timeout updated"
+msgstr ""
+
+msgid "Save & Check"
+msgstr ""
+
+msgid "Save timeout…"
+msgstr ""
+
+msgid "Saving confirmed timeout…"
+msgstr ""
+
+msgid "Seconds · 0 disables automatic unloading · 86400 = 24 hours"
+msgstr ""
+
+msgid "Select GGUF model files (main, mmproj, or splits)"
+msgstr ""
+
+msgid "Select files…"
+msgstr ""
+
+msgid "Select folder…"
+msgstr ""
+
+msgid "Select local GGUF model folder"
+msgstr ""
+
+msgid ""
+"Select multiple GGUF files or a folder. SnapMark detects main weights, mmproj and split GGUF"
+" pieces together. Registration of one complete non-split bundle requires separate inspection"
+" and explicit confirmation."
+msgstr ""
+
+msgid "Select the global Runtime preference (not SnapMark-only)"
+msgstr ""
+
+msgid "Select trusted SnapMark plugin ZIP"
+msgstr ""
+
+msgid "Service not reachable · installation not determined"
+msgstr ""
+
+msgid "Shared Runtime backend preference"
+msgstr ""
+
+msgid "Shared Runtime setting · editing requires confirmation · 0 disables unloading"
+msgstr ""
+
+msgid "Shared Runtime setting · view only until explicitly confirmed"
+msgstr ""
+
+msgid "Startup model preload"
+msgstr ""
+
+msgid "Stroke"
+msgstr ""
+
+msgid "Supports one main GGUF plus mmproj, and numbered GGUF shards."
+msgstr ""
+
+msgid "The idle timeout already has this value."
+msgstr ""
+
+msgid "The plugin could not provide its settings."
+msgstr ""
+
+msgid "The plugin could not provide its settings. Check the terminal output before trying again."
+msgstr ""
+
+msgid "Type annotation…"
+msgstr ""
+
+msgid "Unavailable"
+msgstr ""
+
+msgid "Uninstall plugin version?"
+msgstr ""
+
+msgid "Unload after inactivity"
+msgstr ""
+
+msgid "Unverified Python code. Only import ZIP files from sources you trust."
+msgstr ""
+
+msgid "Upgrade preflight"
+msgstr ""
+
+msgid "Use Version"
+msgstr ""
+
+msgid "Use existing Runtime"
+msgstr ""
+
+msgid ""
+"Use verified official releases to install or upgrade Runtime. Destructive operations require"
+" confirmation and make backups."
+msgstr ""
+
+msgid "User installation files detected"
+msgstr ""
+
+msgid "View instructions…"
+msgstr ""
+
+msgid "View releases…"
+msgstr ""
+
+msgid "Width · 4 px"
+msgstr ""
+
+msgid "ZIP installed, not enabled"
+msgstr ""
+
+msgid "ZIP plugin packages"
+msgstr ""
+
+#, python-brace-format
+msgid "{} official release version(s)"
+msgstr ""
+
+msgid "Active backend / loaded model"
+msgstr ""
+
+msgid "Backend fallback"
+msgstr ""
+
+msgid "Backend operation status"
+msgstr ""
+
+msgid "Backup current application"
+msgstr ""
+
+msgid "CPU / Vulkan package"
+msgstr ""
+
+msgid "CUDA package"
+msgstr ""
+
+msgid "Copies program, service unit and small settings; not GGUF files"
+msgstr ""
+
+msgid "Create backup"
+msgstr ""
+
+msgid "Detected backend availability"
+msgstr ""
+
+msgid "Download & verify"
+msgstr ""
+
+msgid "Download & verify Runtime 1.0.0"
+msgstr ""
+
+msgid "Explicitly start; no action on opening Preferences"
+msgstr ""
+
+msgid "Install / upgrade Runtime"
+msgstr ""
+
+msgid "Install / upgrade…"
+msgstr ""
+
+msgid "Install CPU/Vulkan…"
+msgstr ""
+
+msgid "Install CUDA…"
+msgstr ""
+
+msgid "Install ZIP"
+msgstr ""
+
+msgid "Install or upgrade Runtime CPU and Vulkan package"
+msgstr ""
+
+msgid "Install or upgrade Runtime CUDA package"
+msgstr ""
+
+msgid "Interrupts users of this Runtime; use after an upgrade"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Pinned GitHub asset and SHA256SUMS; download only"
+msgstr ""
+
+msgid "Read current package and runtime status"
+msgstr ""
+
+msgid "Refresh backend status"
+msgstr ""
+
+msgid "Remove settings…"
+msgstr ""
+
+msgid "Remove three managed configuration files, but preserve all models and GPU backends"
+msgstr ""
+
+msgid "Requires verified application archive; creates automatic backup"
+msgstr ""
+
+msgid "Restart user Runtime service"
+msgstr ""
+
+msgid "Restart…"
+msgstr ""
+
+msgid "Restore latest application backup; service restart is separate"
+msgstr ""
+
+msgid "Roll back CPU and Vulkan package"
+msgstr ""
+
+msgid "Roll back CUDA package"
+msgstr ""
+
+msgid "Rollback CPU/Vulkan…"
+msgstr ""
+
+msgid "Rollback CUDA…"
+msgstr ""
+
+msgid "Rollback application files"
+msgstr ""
+
+msgid "Rollback…"
+msgstr ""
+
+msgid "Start user Runtime service"
+msgstr ""
+
+msgid "Start…"
+msgstr ""
+
+msgid "Stop and remove application/service; preserve models and GPU backends"
+msgstr ""
+
+msgid "Stop user Runtime service"
+msgstr ""
+
+msgid "Stops shared Runtime and any current model"
+msgstr ""
+
+msgid "Stop…"
+msgstr ""
+
+msgid "Uninstall Runtime application"
+msgstr ""
+
+msgid "Uninstall and delete settings"
+msgstr ""
+
+msgid "Uninstall…"
+msgstr ""
+
+#, python-brace-format
+msgid "Installed {} v{}. Choose Use Version to activate it, then reopen SnapMark."
+msgstr ""
+
+msgid "No plugin releases published"
+msgstr ""
+
+msgid ""
+"Only install plugins from publishers you trust. Local ZIP checksums do NOT establish "
+"publisher authenticity. The plugin will remain disabled until you enable it."
+msgstr ""
+
+#, python-brace-format
+msgid "Remove {} v{}? Other versions and AI models remain."
+msgstr ""
+
+
+msgid "Open SnapMark"
+msgstr "Open SnapMark"
+
+msgid "Restart SnapMark"
+msgstr "Restart SnapMark"
+
+msgid "Restart SnapMark?"
+msgstr "Restart SnapMark?"
+
+msgid "Unsaved annotations and unsaved OCR or translation edits may be lost. Local AI Runtime and its models will remain running."
+msgstr "Unsaved annotations and unsaved OCR or translation edits may be lost. Local AI Runtime and its models will remain running."
+
+msgid "Restart"
+msgstr "Restart"
