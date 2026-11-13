@@ -27,6 +27,81 @@ def fill_or_stroke(cr, mark):
     cr.stroke()
 
 
+def rounded_rectangle_path(cr, x, y, w, h, radius):
+    """Build one path used for both filling and stroking (image coordinates)."""
+    r = max(0., min(float(radius), abs(w) / 2., abs(h) / 2.))
+    if r <= 0:
+        cr.rectangle(x, y, w, h)
+        return
+    cr.new_sub_path()
+    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
+    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
+    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
+    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
+    cr.close_path()
+
+
+def rounded_triangle_path(cr, vertices, radius):
+    """True circular tangential corners on a clockwise three-vertex path.
+
+    The uniform radius is clamped so tangent points on every side never cross.
+    Cairo image-space coordinates have y increasing downwards.
+    """
+    vertices = tuple((float(x), float(y)) for x, y in vertices)
+    requested = max(0., float(radius))
+    if requested <= 0:
+        cr.move_to(*vertices[0])
+        for vertex in vertices[1:]:
+            cr.line_to(*vertex)
+        cr.close_path()
+        return
+    directions, factors = [], []
+    for i, (x, y) in enumerate(vertices):
+        px, py = vertices[(i - 1) % 3]
+        nx, ny = vertices[(i + 1) % 3]
+        a, b = (px - x, py - y), (nx - x, ny - y)
+        la, lb = math.hypot(*a), math.hypot(*b)
+        if min(la, lb) < 1e-6:
+            rounded_triangle_path(cr, vertices, 0)
+            return
+        a, b = (a[0]/la, a[1]/la), (b[0]/lb, b[1]/lb)
+        cosine = max(-1., min(1., a[0]*b[0] + a[1]*b[1]))
+        theta = math.acos(cosine)
+        if theta < 1e-5 or abs(math.pi - theta) < 1e-5:
+            rounded_triangle_path(cr, vertices, 0)
+            return
+        directions.append((a,b,theta))
+        factors.append(1. / math.tan(theta / 2.))
+    r = requested
+    for i in range(3):
+        x,y=vertices[i]; nx,ny=vertices[(i+1)%3]
+        edge=math.hypot(nx-x,ny-y)
+        r=min(r, max(0., edge / (factors[i]+factors[(i+1)%3])))
+    if r < 1e-5:
+        rounded_triangle_path(cr, vertices, 0)
+        return
+    corners=[]
+    for i,(x,y) in enumerate(vertices):
+        a,b,theta = directions[i]
+        tangent = r * factors[i]
+        entry=(x+a[0]*tangent,y+a[1]*tangent)
+        exit=(x+b[0]*tangent,y+b[1]*tangent)
+        bx,by=a[0]+b[0], a[1]+b[1]
+        mag=math.hypot(bx,by)
+        distance=r/math.sin(theta/2.)
+        cx,cy=x+bx/mag*distance,y+by/mag*distance
+        corners.append((entry,exit,(cx,cy)))
+    cr.new_sub_path()
+    cr.move_to(*corners[0][1])
+    for i in (1,2,0):
+        entry,exit,center=corners[i]
+        cr.line_to(*entry)
+        a1=math.atan2(entry[1]-center[1], entry[0]-center[0])
+        a2=math.atan2(exit[1]-center[1], exit[0]-center[0])
+        cr.arc(center[0],center[1],r,a1,a2)
+    cr.close_path()
+
+
 def _mosaic(cr, m, pixbuf):
     if pixbuf is None:
         return
@@ -94,11 +169,10 @@ def paint_mark(cr, m, pixbuf=None):
         if not m.points:
             return
         cr.save()
-        # CLEAR removes underlying pixels including the original screenshot,
-        # producing real transparency in the exported PNG. Undo is handled by
-        # the ordinary editable mark history.
+        # CLEAR is permitted ONLY on the transparent annotation group.
+        # paint_document() never calls this on the original screenshot.
         cr.set_operator(cairo.OPERATOR_CLEAR)
-        cr.set_line_width(max(6, m.width * 3))
+        cr.set_line_width(max(2., m.width))
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.set_line_join(cairo.LINE_JOIN_ROUND)
         cr.move_to(*m.points[0])
@@ -106,7 +180,7 @@ def paint_mark(cr, m, pixbuf=None):
             cr.line_to(*point)
         if len(m.points) == 1:
             x, y = m.points[0]
-            cr.arc(x, y, max(3, m.width * 1.5), 0, math.tau)
+            cr.arc(x, y, max(1., m.width / 2.), 0, math.tau)
             cr.fill()
         else:
             cr.stroke()
@@ -131,15 +205,15 @@ def paint_mark(cr, m, pixbuf=None):
                            m.y2 - length * math.sin(angle + offset))
                 cr.stroke()
     elif m.tool == 'rectangle':
-        cr.rectangle(min(x, m.x2), min(y, m.y2), abs(dx), abs(dy))
+        rounded_rectangle_path(cr, min(x, m.x2), min(y, m.y2),
+                               abs(dx), abs(dy), getattr(m, 'corner_radius', 0))
         fill_or_stroke(cr, m)
     elif m.tool == 'triangle':
         left, right = sorted((x, m.x2))
         top, bottom = sorted((y, m.y2))
-        cr.move_to((left + right) / 2, top)
-        cr.line_to(right, bottom)
-        cr.line_to(left, bottom)
-        cr.close_path()
+        rounded_triangle_path(cr, (((left + right) / 2, top),
+                               (right, bottom), (left, bottom)),
+                              getattr(m, 'corner_radius', 0))
         fill_or_stroke(cr, m)
     elif m.tool == 'ellipse':
         cr.translate((x + m.x2) / 2, (y + m.y2) / 2)
@@ -174,9 +248,23 @@ def paint_mark(cr, m, pixbuf=None):
 
 
 def paint_document(cr, pixbuf, marks, preview=None):
+    """Composite original pixels independently from annotations.
+
+    The eraser only affects the transparent annotation group. It can never
+    clear source screenshot pixels, in on-screen previews or PNG exports.
+    Mosaic/blur are base-image operations and remain outside the eraser mask.
+    """
     Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
     cr.paint()
-    for mark in marks:
-        paint_mark(cr, mark, pixbuf)
+    sequence = list(marks)
     if preview is not None:
-        paint_mark(cr, preview, pixbuf)
+        sequence.append(preview)
+    for mark in sequence:
+        if mark.tool in ('mosaic', 'blur'):
+            paint_mark(cr, mark, pixbuf)
+    cr.push_group()
+    for mark in sequence:
+        if mark.tool not in ('mosaic', 'blur'):
+            paint_mark(cr, mark, pixbuf)
+    cr.pop_group_to_source()
+    cr.paint()

@@ -10,6 +10,8 @@ from pathlib import Path
 import cairo
 
 from gi.repository import Gio, GLib
+from .i18n import _
+from .preferences import Settings
 
 ITEM_PATH = '/StatusNotifierItem'
 MENU_PATH = '/MenuBar'
@@ -57,7 +59,16 @@ MENU_XML = '''<node><interface name="com.canonical.dbusmenu">
 <signal name="ItemsPropertiesUpdated"><arg type="a(ia{sv})"/><arg type="a(ias)"/></signal>
 </interface></node>'''
 
-MENU_ITEMS = {1: 'Open SnapMark', 2: 'Preferences', 3: 'Quit SnapMark'}
+MENU_ITEMS = {
+    1: 'Open SnapMark', 2: 'Edit/Recognize Current Screenshot', 3: 'Screenshot History',
+    4: 'Preferences', 6: 'Quit', 9: 'Restart SnapMark',
+}
+MENU_ORDER = (1, 7, 2, 3, 8, 4, 9, 6)
+MENU_ICONS = {
+    1: 'window-new-symbolic', 2: 'edit-find-symbolic',
+    3: 'document-open-recent-symbolic', 4: 'emblem-system-symbolic',
+    6: 'application-exit-symbolic', 9: 'view-refresh-symbolic',
+}
 
 
 def icon_file():
@@ -69,6 +80,10 @@ def icon_file():
         candidates.append(Path(appdir) / 'usr/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
         candidates.append(Path(appdir) / 'usr/share/snapmark/assets/io.github.yanjingchen.SnapMark-32.png')
     else:
+        # Flatpak installs the icon into /app/share/icons, not alongside the
+        # Python package in /app/share/snapmark. Never depend on a host icon.
+        if Path('/.flatpak-info').is_file():
+            candidates.append(Path('/app/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png'))
         candidates.append(Path(__file__).resolve().parent.parent / 'assets' / 'io.github.yanjingchen.SnapMark-32.png')
     candidates.append(Path.home() / '.local/share/icons/hicolor/32x32/apps/io.github.yanjingchen.SnapMark.png')
     return next((f for f in candidates if f.is_file()), None)
@@ -110,12 +125,49 @@ def icon_argb_pixmap():
         return []
 
 
+
+def _ocr_menu_icon_png():
+    import io
+    image = cairo.ImageSurface(cairo.FORMAT_ARGB32, 32, 32)
+    cr = cairo.Context(image)
+    cr.set_source_rgba(0, 0, 0, 0)
+    cr.paint()
+    cr.set_source_rgb(.23, .48, .85)
+    cr.set_line_width(2.2)
+    cr.move_to(5, 12); cr.line_to(5, 5); cr.line_to(12, 5)
+    cr.move_to(20, 5); cr.line_to(27, 5); cr.line_to(27, 12)
+    cr.move_to(5, 20); cr.line_to(5, 27); cr.line_to(12, 27)
+    cr.move_to(20, 27); cr.line_to(27, 27); cr.line_to(27, 20)
+    cr.stroke()
+    cr.select_font_face('Sans', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.set_font_size(10)
+    ext = cr.text_extents('OCR')
+    cr.move_to((32 - ext.width) / 2 - ext.x_bearing, (32 - ext.height) / 2 - ext.y_bearing)
+    cr.show_text('OCR')
+    output = io.BytesIO()
+    image.write_to_png(output)
+    return output.getvalue()
+
 class TrayIndicator:
-    def __init__(self, open_editor, open_preferences, quit_app):
+    def __init__(self, open_editor, open_preferences, quit_app,
+                 open_clipboard=None, open_history=None, restart_app=None,
+                 clipboard_ready=None):
         self.open_editor, self.open_preferences, self.quit_app = open_editor, open_preferences, quit_app
+        self.open_clipboard = open_clipboard or (lambda: None)
+        self.open_history = open_history or (lambda: None)
+        self.restart_app = restart_app or (lambda: None)
+        self.clipboard_ready = clipboard_ready or (lambda: False)
+        self._previous_clipboard = False
+        self._layout_revision = 1
         self.bus = None
         self.registration_ids = []
-        self.name = f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1'
+        # Flatpak permits owning the app ID and its subnames on the session
+        # bus; the old org.freedesktop.StatusNotifierItem-<pid>-1 name cannot
+        # be owned under its default D-Bus policy. Preserve the old name for
+        # AppImage and ordinary host Python execution.
+        self.name = ('io.github.yanjingchen.SnapMark.StatusNotifierItem'
+                     if Path('/.flatpak-info').is_file()
+                     else f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1')
         self.available = False
         self.watch_id = 0
         self.pixmaps = []
@@ -192,7 +244,7 @@ class TrayIndicator:
                  'AttentionMovieName': GLib.Variant('s', ''),
                  'IconThemePath': GLib.Variant('s', ''),
                  'ToolTip': GLib.Variant('(sa(iiay)ss)', ('SnapMark', self.pixmaps,
-                                                        'SnapMark', 'Screenshot annotation'))}
+                                                        'SnapMark', _('Screenshot annotation')))}
         return props.get(name)
 
     def _item_call(self, _bus, _sender, _path, _iface, name, _args, invocation):
@@ -202,11 +254,41 @@ class TrayIndicator:
             GLib.idle_add(self.open_preferences)
         invocation.return_value(None)
 
-    @staticmethod
-    def _item_properties(index):
-        return {'label': GLib.Variant('s', MENU_ITEMS[index]),
-                'enabled': GLib.Variant('b', True),
-                'visible': GLib.Variant('b', True)}
+    def _item_properties(self, index):
+        if index in (7, 8):
+            return {'type': GLib.Variant('s', 'separator'), 'visible': GLib.Variant('b', True)}
+        enabled = self.clipboard_ready() if index == 2 else True
+        props = {'label': GLib.Variant('s', ('编辑/识别当前截图' if Settings().language() == 'zh_CN' else 'Edit/Recognize Current Screenshot') if index == 2 else _(MENU_ITEMS[index])),
+                 'enabled': GLib.Variant('b', bool(enabled)),
+                 'visible': GLib.Variant('b', True)}
+        if index in MENU_ICONS:
+            props['icon-name'] = GLib.Variant('s', MENU_ICONS[index])
+        if index == 2:
+            try:
+                props['icon-data'] = GLib.Variant('ay', _ocr_menu_icon_png())
+            except Exception:
+                pass  # Keep theme icon fallback on hosts without PNG menu icons.
+        return props
+
+    def refresh_clipboard_status(self):
+        """Notify the StatusNotifier host when menu availability changes."""
+        enabled = bool(self.clipboard_ready())
+        if enabled == self._previous_clipboard:
+            return False
+        self._previous_clipboard = enabled
+        self._layout_revision += 1
+        if self.bus is not None:
+            try:
+                self.bus.emit_signal(
+                    None, MENU_PATH, 'com.canonical.dbusmenu', 'ItemsPropertiesUpdated',
+                    GLib.Variant('(a(ia{sv})a(ias))',
+                                 ([(2, {'enabled': GLib.Variant('b', enabled)})], [])))
+                self.bus.emit_signal(
+                    None, MENU_PATH, 'com.canonical.dbusmenu', 'LayoutUpdated',
+                    GLib.Variant('(ui)', (self._layout_revision, 0)))
+            except GLib.Error as exc:
+                print(f'SnapMark: status menu refresh failed: {exc}', flush=True)
+        return True
 
     def _menu_prop(self, _bus, _sender, _path, _iface, name):
         return {'Version': GLib.Variant('u', 2), 'TextDirection': GLib.Variant('s', 'ltr'),
@@ -218,31 +300,40 @@ class TrayIndicator:
             parent, depth, _ = args.unpack()
             if parent == 0:
                 children = [GLib.Variant('(ia{sv}av)', (i, self._item_properties(i), []))
-                            for i in MENU_ITEMS] if depth != 0 else []
+                            for i in MENU_ORDER] if depth != 0 else []
                 layout = (0, {}, children)
             else:
-                layout = (parent, self._item_properties(parent) if parent in MENU_ITEMS else {}, [])
-            invocation.return_value(GLib.Variant('(u(ia{sv}av))', (1, layout)))
+                layout = (parent, self._item_properties(parent) if parent in MENU_ORDER else {}, [])
+            invocation.return_value(GLib.Variant('(u(ia{sv}av))', (self._layout_revision, layout)))
         elif name == 'GetGroupProperties':
             ids, _ = args.unpack()
-            ids = MENU_ITEMS.keys() if not ids else ids
+            ids = MENU_ORDER if not ids else ids
             invocation.return_value(GLib.Variant('(a(ia{sv}))',
-                                                 ([(i, self._item_properties(i)) for i in ids if i in MENU_ITEMS],)))
+                                                 ([(i, self._item_properties(i)) for i in ids if i in MENU_ORDER],)))
         elif name == 'GetProperty':
             index, prop = args.unpack()
-            value = self._item_properties(index).get(prop, GLib.Variant('s', '')) if index in MENU_ITEMS else GLib.Variant('s', '')
+            value = self._item_properties(index).get(prop, GLib.Variant('s', '')) if index in MENU_ORDER else GLib.Variant('s', '')
             invocation.return_value(GLib.Variant('(v)', (value,)))
         elif name in ('Event', 'EventGroup'):
             events = [args.unpack()] if name == 'Event' else args.unpack()[0]
             for index, event_id, *_ in events:
                 if event_id == 'clicked':
-                    callbacks = {1: self.open_editor, 2: self.open_preferences, 3: self.quit_app}
-                    if index in callbacks:
+                    callbacks = {1: self.open_editor, 2: self.open_clipboard,
+                                 3: self.open_history, 4: self.open_preferences,
+                                 9: self.restart_app, 6: self.quit_app}
+                    if index in callbacks and (index != 2 or self.clipboard_ready()):
                         GLib.idle_add(callbacks[index])
             invocation.return_value(None if name == 'Event' else GLib.Variant('(ai)', ([],)))
         elif name == 'AboutToShow':
-            invocation.return_value(GLib.Variant('(b)', (False,)))
+            self.refresh_clipboard_status()
+            # A StatusNotifier host may have cached an old disabled state.
+            # Always request a fresh layout when the menu opens.
+            invocation.return_value(GLib.Variant('(b)', (True,)))
         elif name == 'AboutToShowGroup':
-            invocation.return_value(GLib.Variant('(aiai)', ([], [])))
+            self.refresh_clipboard_status()
+            ids = list(args.unpack()[0]) or [0]
+            # The host must fetch current item properties even when a previous
+            # ItemsPropertiesUpdated signal was missed while the menu was closed.
+            invocation.return_value(GLib.Variant('(aiai)', (list(ids), [])))
         else:
             invocation.return_dbus_error('org.freedesktop.DBus.Error.UnknownMethod', name)

@@ -1,0 +1,427 @@
+# Chinese (Simplified, China) translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark 1.1.0\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 15:09+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: zh_CN\n"
+"Language-Team: zh_CN <LL@li.org>\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Select"
+msgstr "选择"
+
+msgid "Preferences"
+msgstr "首选项"
+
+msgid "General"
+msgstr "常规"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "System Default"
+msgstr "跟随系统"
+
+msgid "Screenshot Editor"
+msgstr "截图编辑器"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Eraser"
+msgstr "橡皮擦"
+
+msgid "Open an image…"
+msgstr "打开图片…"
+
+msgid "Ready for a screenshot"
+msgstr "准备编辑截图"
+
+msgid "Take a screenshot with Print Screen, or open an image."
+msgstr "使用 Print Screen 截图，或打开图片。"
+
+msgid "Stroke"
+msgstr "描边"
+
+msgid "Color"
+msgstr "颜色"
+
+msgid "Width"
+msgstr "宽度"
+
+msgid "Corner radius"
+msgstr "圆角半径"
+
+msgid "Fill shapes"
+msgstr "填充图形"
+
+msgid "Fill color"
+msgstr "填充颜色"
+
+msgid "Recent"
+msgstr "最近使用"
+
+msgid "Opacity"
+msgstr "不透明度"
+
+msgid "Layers"
+msgstr "图层"
+
+msgid "Rectangle"
+msgstr "矩形"
+
+msgid "Triangle"
+msgstr "三角形"
+
+msgid "Blur"
+msgstr "模糊"
+
+msgid "Mosaic"
+msgstr "马赛克"
+
+msgid "Arrow"
+msgstr "箭头"
+
+msgid "Line"
+msgstr "直线"
+
+msgid "Ellipse"
+msgstr "椭圆"
+
+msgid "Pen"
+msgstr "画笔"
+
+msgid "Text"
+msgstr "文字"
+
+msgid "Highlight"
+msgstr "荧光笔"
+
+msgid "Screenshots & Annotation"
+msgstr "截图与标注"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Shortcuts"
+msgstr "快捷键"
+
+msgid "Default image format"
+msgstr "默认图片格式"
+
+msgid "Start minimized"
+msgstr "启动时最小化"
+
+msgid "Actual pixel size"
+msgstr "实际像素大小"
+
+msgid "Automatic (GNOME screenshot folders)"
+msgstr "自动（GNOME 截图文件夹）"
+
+msgid "Automatically detect GNOME screenshot folders"
+msgstr "自动检测 GNOME 截图文件夹"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Block size"
+msgstr "像素块大小"
+
+msgid "Blur radius"
+msgstr "模糊半径"
+
+msgid "Brush size"
+msgstr "画笔大小"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Choose a folder"
+msgstr "选择文件夹"
+
+msgid "Choose screenshot history folder"
+msgstr "选择截图历史文件夹"
+
+msgid "Choose…"
+msgstr "选择…"
+
+msgid "Clear"
+msgstr "清空"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Copy annotated screenshot"
+msgstr "复制标注后的截图"
+
+msgid "Copy text"
+msgstr "复制文本"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Delete selected layer (Delete)"
+msgstr "删除选中图层（Delete）"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "Font"
+msgstr "字体"
+
+msgid "For images saved from SnapMark, not GNOME Print Screen"
+msgstr "适用于 SnapMark 保存的图片，不影响 GNOME 截图"
+
+msgid "Freehand"
+msgstr "自由绘制"
+
+msgid "Higher quality uses more storage; PNG is lossless"
+msgstr "质量越高占用空间越大；PNG 为无损格式"
+
+msgid "Highlight mode"
+msgstr "高亮模式"
+
+msgid "Image"
+msgstr "图片"
+
+msgid "Install"
+msgstr "安装"
+
+msgid "Installed"
+msgstr "已安装"
+
+msgid "JPEG / WebP quality"
+msgstr "JPEG / WebP 质量"
+
+msgid "Keep the editor hidden when a status icon is available"
+msgstr "有状态栏图标时隐藏编辑器窗口"
+
+msgid "Keyboard shortcuts"
+msgstr "键盘快捷键"
+
+msgid "Launch SnapMark in the background; system screenshots stay independent"
+msgstr "后台启动 SnapMark；系统截图功能保持独立"
+
+msgid "Load more screenshots"
+msgstr "加载更多截图"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Model not found"
+msgstr "未找到模型"
+
+msgid "No annotations yet"
+msgstr "暂无标注"
+
+msgid "No image"
+msgstr "没有图片"
+
+msgid "No image loaded"
+msgstr "尚未加载图片"
+
+msgid "OCR"
+msgstr "OCR 识别"
+
+msgid "OCR model"
+msgstr "OCR 模型"
+
+msgid "Open"
+msgstr "打开"
+
+msgid "Open failed"
+msgstr "打开失败"
+
+msgid "Open image"
+msgstr "打开图片"
+
+msgid "Open screenshot"
+msgstr "打开截图"
+
+msgid "Quit"
+msgstr "退出"
+
+msgid "Quit SnapMark"
+msgstr "退出 SnapMark"
+
+msgid "Ready"
+msgstr "就绪"
+
+msgid "Redo"
+msgstr "重做"
+
+msgid "Redo (Ctrl+Shift+Z)"
+msgstr "重做（Ctrl+Shift+Z）"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Restart SnapMark to apply language changes"
+msgstr "重启 SnapMark 后语言设置生效"
+
+msgid "Save annotated screenshot"
+msgstr "保存标注后的截图"
+
+msgid "Save screenshot"
+msgstr "保存截图"
+
+msgid "Screenshot History"
+msgstr "截图历史"
+
+msgid "Screenshot history"
+msgstr "截图历史"
+
+msgid "Screenshot history folder"
+msgstr "截图历史文件夹"
+
+msgid "Screenshots"
+msgstr "截图"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "SnapMark Preferences"
+msgstr "SnapMark 首选项"
+
+msgid "Start automatically on login"
+msgstr "登录时自动启动"
+
+msgid "Straight line"
+msgstr "直线"
+
+msgid "Strength"
+msgstr "强度"
+
+msgid "Text font and size"
+msgstr "文字字体与字号"
+
+msgid "Translation"
+msgstr "翻译"
+
+msgid "Undo"
+msgstr "撤销"
+
+msgid "Undo (Ctrl+Z)"
+msgstr "撤销（Ctrl+Z）"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "100%"
+msgstr "100%"
+
+msgid "AI Runtime"
+msgstr "AI 运行时"
+
+msgid "Annotated image copied to clipboard"
+msgstr "已将标注图片复制到剪贴板"
+
+msgid "Brush size · 20 px"
+msgstr "画笔大小 · 20 像素"
+
+msgid "Check Screenshots & Annotation → Screenshot history folder."
+msgstr "请检查“截图与标注”→“截图历史文件夹”。"
+
+msgid "Choose a fill color"
+msgstr "选择填充颜色"
+
+msgid "Choose a local destination"
+msgstr "选择本地保存位置"
+
+msgid "Choose a stroke color"
+msgstr "选择描边颜色"
+
+msgid "Connection"
+msgstr "连接"
+
+msgid "Corner radius · 0 px"
+msgstr "圆角半径 · 0 像素"
+
+msgid "Drag over the screenshot to select OCR pixels; Esc cancels"
+msgstr "拖动鼠标选择需要 OCR 的截图区域；按 Esc 取消"
+
+msgid "Failed to copy image"
+msgstr "复制图片失败"
+
+msgid "Image saved"
+msgstr "图片已保存"
+
+msgid "Images"
+msgstr "图片"
+
+msgid "Local AI Runtime"
+msgstr "本地 AI Runtime"
+
+msgid "More fill colors…"
+msgstr "更多填充颜色…"
+
+msgid "More stroke colors…"
+msgstr "更多描边颜色…"
+
+msgid "No GNOME screenshots found"
+msgstr "未找到 GNOME 截图"
+
+msgid "OCR selection cancelled"
+msgstr "已取消 OCR 区域选择"
+
+msgid "OCR selection is too small; try again"
+msgstr "OCR 选区太小，请重试"
+
+msgid "Opacity · 25%"
+msgstr "不透明度 · 25%"
+
+msgid "Open a screenshot before selecting an OCR area"
+msgstr "请先打开截图，再选择 OCR 区域"
+
+msgid "Print Screen remains independent. Use Clipboard Image or Screenshot History to edit."
+msgstr "Print Screen 截图功能保持独立。可从剪贴板图片或截图历史中打开并编辑。"
+
+msgid "Type annotation…"
+msgstr ""
+
+msgid "Width · 4 px"
+msgstr "宽度 · 4 像素"
+
+msgid "OK"
+msgstr "确定"
+
+msgid "Properties"
+msgstr "属性"
+
+msgid "Show"
+msgstr "展开"
+
+msgid "Open SnapMark"
+msgstr "打开 SnapMark"
+
+msgid "Restart SnapMark"
+msgstr "重新启动"
+
+msgid "Restart"
+msgstr "重新启动"

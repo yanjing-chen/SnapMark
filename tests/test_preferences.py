@@ -18,6 +18,17 @@ class PreferencesTests(unittest.TestCase):
             settings.set_screenshot_directory('')
             self.assertEqual(settings.screenshot_directory(), '')
 
+    def test_screenshot_timeout_persistence_and_bounds(self):
+        with tempfile.TemporaryDirectory() as root:
+            settings = Settings(root)
+            self.assertEqual(settings.screenshot_ocr_timeout(), 60)
+            for seconds in (0, 1, 30, 60, 3600):
+                settings.set_screenshot_ocr_timeout(seconds)
+                self.assertEqual(Settings(root).screenshot_ocr_timeout(), seconds)
+            for bad in (-1, 3601, True, '30', None):
+                with self.assertRaises(ValueError):
+                    settings.set_screenshot_ocr_timeout(bad)
+
     def test_start_minimized_and_custom_colors_survive_folder_change(self):
         with tempfile.TemporaryDirectory() as root:
             parent = Path(root)

@@ -19,7 +19,8 @@ def configuration_dir() -> Path:
 
 class Settings:
     DEFAULTS = {'screenshot_directory': '', 'start_minimized': False,
-                'recent_colors': []}
+                'recent_colors': [], 'image_format': 'png', 'image_quality': 90,
+                'screenshot_ocr_timeout': 60, 'language': 'system'}
 
     def __init__(self, root=None):
         self.root = Path(root) if root else configuration_dir()
@@ -34,12 +35,67 @@ class Settings:
         except (FileNotFoundError, OSError, ValueError):
             pass
         result = self.DEFAULTS.copy()
+        from .i18n import CODES
+        lang = data.get('language', 'system')
+        # Older C3 releases allowed 30 languages and 'system'. Read them safely
+        # without changing the user's preferences.json or any other setting.
+        # An unsupported former explicit language (including nl) falls back
+        # to English; legacy 'system' follows the OS only for Simplified Chinese.
+        if lang == 'system':
+            env = next((os.environ.get(k, '') for k in ('LC_ALL', 'LC_MESSAGES', 'LANGUAGE', 'LANG')
+                        if os.environ.get(k)), '')
+            result['language'] = 'zh_CN' if env.lower().replace('-', '_').startswith('zh_cn') else 'en'
+        else:
+            result['language'] = lang if lang in CODES else 'en'
         result['screenshot_directory'] = data.get('screenshot_directory', '') if isinstance(data.get('screenshot_directory', ''), str) else ''
         result['start_minimized'] = data.get('start_minimized', False) is True
         recent = data.get('recent_colors', [])
         result['recent_colors'] = [c.lower() for c in recent if valid_color(c)][:6] if isinstance(recent, list) else []
+        raw_format = data.get('image_format', 'png')
+        result['image_format'] = raw_format if raw_format in ('png', 'jpeg', 'webp') else 'png'
+        raw_quality = data.get('image_quality', 90)
+        result['image_quality'] = raw_quality if type(raw_quality) is int and 1 <= raw_quality <= 100 else 90
+        timeout = data.get('screenshot_ocr_timeout', 60)
+        result['screenshot_ocr_timeout'] = (timeout if type(timeout) is int and 0 <= timeout <= 3600 else 60)
         return result
 
+    def screenshot_ocr_timeout(self) -> int:
+        return self.load()['screenshot_ocr_timeout']
+
+    def set_screenshot_ocr_timeout(self, seconds: int):
+        if type(seconds) is not int or not 0 <= seconds <= 3600:
+            raise ValueError('Screenshot quick action timeout must be 0–3600 seconds')
+        data = self.load()
+        data['screenshot_ocr_timeout'] = seconds
+        self._save(data)
+
+    def language(self):
+        return self.load()['language']
+
+    def set_language(self, code):
+        from .i18n import CODES
+        if code != 'system' and code not in CODES:
+            raise ValueError('Unsupported interface language')
+        data = self.load()
+        data['language'] = code
+        self._save(data)
+
+    def image_format(self):
+        return self.load()['image_format']
+    def set_image_format(self, value):
+        if value not in ('png', 'jpeg', 'webp'):
+            raise ValueError('Unsupported export format')
+        data = self.load()
+        data['image_format'] = value
+        self._save(data)
+    def image_quality(self):
+        return self.load()['image_quality']
+    def set_image_quality(self, value):
+        if type(value) is not int or not 1 <= value <= 100:
+            raise ValueError('Image quality must be 1–100')
+        data = self.load()
+        data['image_quality'] = value
+        self._save(data)
     def _save(self, data):
         self.root.mkdir(parents=True, exist_ok=True)
         import tempfile

@@ -1,230 +1,59 @@
-# SnapMark
+# SnapMark v1.1.0
 
-SnapMark is a lightweight screenshot annotation editor for the GNOME desktop.
-Built in **Python 3**, **GTK4 / PyGObject**, and **libadwaita**.
+SnapMark 是面向 **GNOME / GTK4 / libadwaita** 的截图标注与本地 OCR 工具。1.1 正式版将 OCR 集成到主程序，通过本机 **Ollama** 服务调用用户安装或导入的视觉语言模型；不再依赖插件框架、翻译插件、ONNX 轻量 OCR 或自研 Local AI Runtime。
 
-**Version:** v0.6.0-A1 development candidate (plugin framework, not the completed
-v0.6.0 release). GUI acceptance on Ubuntu GNOME Wayland and AppImage CI for this
-candidate remain unverified. Earlier v0.5.0 editing features are preserved.
+[English summary](#english-summary)
 
-## Workflow
+## 核心功能
 
-Press GNOME's normal **Print Screen**, select an area, and save the screenshot.
-SnapMark monitors the screenshot directory and automatically opens the saved
-image for markup. No system shortcut replacement is necessary. A file-only
-monitor cannot detect a screenshot copied exclusively to the clipboard.
+- 使用 GNOME 原生截图选区界面，保存截图后由 SnapMark 监听并在编辑器中打开；仍支持打开本地图像和截图历史。
+- 支持箭头、矩形、椭圆、直线、自由画笔、文字、马赛克、模糊、高亮、橡皮擦；图层编辑、撤销/重做、复制及 PNG 保存。
+- **内置 OCR**：编辑器内手动点击 OCR，识别原始截图或 OCR 选取区域，结果可编辑、复制、保存 TXT。
+- **Ollama 模型管理**：选择并启用 OCR 模型、下载模型、导入含主 GGUF 与兼容视觉投影 GGUF（mmproj）的目录；模型导入能力以所用 Ollama 版本及模型格式实际支持为准。
+- 模型清单支持刷新；只从 SnapMark 列表删除不影响 Ollama 文件，刷新可以重新发现仍存在的模型；真正删除 Ollama 模型后不能通过刷新恢复。
+- OCR 请求可配置模型驻留时间（秒，`keep_alive`），不更改 Ollama 全局配置。
+- 状态栏 **“编辑/识别当前截图”**：刚启动时不可用；新截图在指定有效期内启用，超时禁用；点击只在编辑器中打开截图，**不会自动 OCR**。有效期在截图设置中调整，默认 60 秒。
+- 简体中文、英文界面；单独 AppImage，无须安装 Local AI Runtime。已在 NVIDIA RTX 5070 / Ubuntu 26.10 GNOME 51 环境完成主要 GUI 功能的用户测试；GitHub CI 使用 Ubuntu 24.04 构建 x86_64 AppImage。
 
-Alternatively, open a local image directly (Ctrl+O).
+## 依赖
 
-## Editor
+SnapMark 主程序使用 Python 3、PyGObject、GTK4、libadwaita 与 Cairo；使用本机 `http://127.0.0.1:11434` 上的 Ollama 进行 OCR。Ollama 与 OCR 模型**不打包**到 AppImage。第一次使用 OCR 前请安装 Ollama，并通过设置页添加兼容的视觉 OCR 模型。导入单独的主模型与 mmproj GGUF 并不保证所有架构均得到 Ollama 支持。
 
-- **Select** an annotation layer to move, resize, recolor, change text, or delete.
-- **Arrow, rectangle, ellipse, line, triangle, pen** and **text**.
-- **Highlight** has Freehand and Straight line modes in the right properties panel above Color; **Mosaic**, **Blur** and the eraser remain available.
-- Custom stroke/fill colors via GTK color chooser; recent custom choices are stored.
-- Undo/redo, editable layer list, adjustable properties panel, original-pixel PNG export.
-- Copy screenshot as PNG (Ctrl+C), save PNG (Ctrl+S), fit/zoom and scrolling.
-
-Blur is a rectangular non-destructive region filter (two-pass box blur). Its width
-control sets the blur radius. It works with selection/layer history and preserves
-original source pixels. Rendering a very large blur rectangle may be slower.
-
-## General preferences
-
-Open **Preferences** from the window menu (Ctrl+,):
-
-- **Start automatically on login** — adds a user-level `.desktop` launcher.
-- **Start minimized** — starts with no editor window *only when a status notifier
-  host is available*. Otherwise it opens a window so the user can recover it.
-- **Screenshot Folder** — choose a folder, or use the small revert icon in
-  the same row to return to automatic GNOME screenshot-folder detection.
-
-Preferences are stored in `$XDG_CONFIG_HOME/snapmark/preferences.json`
-(or `~/.config/snapmark/preferences.json`).
-
-## Official plugin manager — v0.6.0-A1 development
-
-Preferences → **Plugins** manages two optional official plugin IDs: **OCR**
-and **Translation**. No model or Local AI Runtime is installed by this step.
-Click **Refresh** to check published releases in the official SnapMark repository,
-then choose a release, **Install**, and **Use Version** to enable it.
-You may keep multiple compatible versions installed, select older ones or
-uninstall versions. Disabling OCR also makes Translation unavailable without
-deleting its saved selection. Translation needs an enabled OCR plugin.
-Reopen SnapMark after changes to reload plugin buttons/pages/result views.
-
-Official plugin tags will use `ocr-vX.Y.Z` and `translation-vX.Y.Z`, with
-`SnapMark-ocr-X.Y.Z.zip` / `SnapMark-translation-X.Y.Z.zip` and adjacent `.sha256`
-assets. **These packages have not yet been published**, so Refresh can
-legitimately return zero versions. The manager validates file integrity,
-manifest API/dependencies and ZIP paths before installing into
-`$XDG_DATA_HOME/snapmark/plugins` (default `~/.local/share/snapmark/plugins`).
-It loads plugin code only once explicitly enabled at app startup. Installing
-an executable Python plugin is inherently privileged at the user's own account
-level; install only releases from the trusted project repository.
-
-The code includes an extension API for toolbar actions, custom preferences
-pages and result panels; actual OCR/Translation implementations come in later
-versions. Runtime integration and its separate Preferences page are scheduled
-for v0.6.0-B and are **not implemented in A1**.
-
-## Status indicator
-
-SnapMark implements the StatusNotifierItem interface, including a small icon
-and basic menu actions: Open, Preferences, Quit. GNOME Shell does not always
-show status indicators by itself: a compatible host such as the Ubuntu
-AppIndicator/KStatusNotifierItem Shell extension must be enabled. Without a
-host, the editor remains usable and the minimized preference never hides the
-last recovery window. The indicator is not required for screenshot monitoring.
-
-Use Ctrl+Q to quit the application, including its background watcher.
-
-## Run locally (Ryzen 7 6800H, Ubuntu GNOME Wayland)
+Ubuntu 原生源码运行（已安装 Ollama 的机器）：
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-gi python3-cairo python3-gi-cairo \
-  gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-gdkpixbuf-2.0 gir1.2-pango-1.0
+sudo apt install -y python3 python3-gi python3-gi-cairo python3-cairo \
+  gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-pango-1.0 gir1.2-gdkpixbuf-2.0
 bash scripts/run-local.sh
 ```
 
-The app can stay running in the background. For an existing screenshot directory
-watcher without an editor window use `bash scripts/run-local.sh --watch`.
-
-To install locally for the current user (optional):
+构建 x86_64 AppImage（还需要 curl、相关 GTK 库及 AppImage 工具下载网络）：
 
 ```bash
-bash scripts/install-local.sh
-bash scripts/enable-autostart.sh
+bash scripts/build-appimage.sh
 ```
 
-## AppImage-only releases
+正式版本默认输出 `dist/SnapMark-1.1.0-x86_64.AppImage`。
 
-GitHub Actions on Ubuntu 24.04 builds **only**
-`SnapMark-0.6.0-a1-x86_64.AppImage`. It bundles Python, GTK4, libadwaita,
-GI typelibs and image loaders. It does not build DEB packages.
+## GitHub 正式发布
 
-```bash
-python3 -m compileall -q snapmark
-python3 -m unittest discover -s tests -v
-```
+从干净的完整源码 ZIP 解压后，在 **Ryzen 6800H 本地**运行 `scripts/publish-v1.1.0-6800h.sh`。发布程序将检查 GitHub 身份及仓库状态、在本机备份所有远程分支与标签、以普通快进提交更新 `main`、验证 Actions、推送 `v1.1.0` 标签触发 GitHub Release；成功验收 Release 后删除远程除 `main` 外的其余分支。**不强制推送、不删除旧标签、不删除其他 GitHub Releases。** 详见 [`docs/RELEASE-6800H.md`](docs/RELEASE-6800H.md)。
 
-The workflow also performs an Xvfb GUI smoke test. This is not a substitute
-for a real GNOME Wayland test. The AppImage needs a usable desktop session.
+## 项目结构
 
-## Shortcuts
+| 路径 | 功能 |
+| --- | --- |
+| `snapmark/app.py`, `watch.py`, `screenshot_session.py` | GNOME 截图监听、状态栏生命周期、快捷入口过期状态 |
+| `snapmark/editor.py`, `model.py`, `paint.py`, `filters.py` | GTK4 截图编辑器与非破坏标注 |
+| `snapmark/ocr_builtin.py`, `ocr_ollama.py`, `ocr_selection_c2.py` | 内置 OCR、Ollama API、选区 |
+| `snapmark/preferences.py`, `preferences_sidebar_c2e.py` | 设置、模型选择与 Ollama 管理 |
+| `snapmark/tray.py`, `history_c2g.py` | 状态栏菜单与截图历史 |
+| `.github/workflows/appimage.yml` | 测试、构建 AppImage、通过标签发布 Release |
+| `scripts/` | 本地运行、AppImage 构建及 6800H 发布脚本 |
 
-| Shortcut | Action |
-|---|---|
-| Ctrl+O | Open image |
-| Ctrl+C | Copy annotated PNG |
-| Ctrl+S | Save annotated PNG |
-| Ctrl+Z | Undo |
-| Ctrl+Shift+Z / Ctrl+Y | Redo |
-| Ctrl+0 | Actual size |
-| Ctrl+, | Preferences |
-| Ctrl+Q | Quit app and watcher |
-| Delete / Backspace | Delete selected annotation |
+## English summary
 
-## Code structure
+SnapMark v1.1.0 is a GTK4/libadwaita screenshot editor for GNOME with built-in OCR using a **separately installed local Ollama service**. It retains screenshot markup, image history, editable OCR text, user-selectable vision models, and a time-limited tray shortcut that opens the screenshot without automatically recognizing text. The app does not bundle Ollama or model weights. Only x86_64 AppImage builds are published; there are no Flatpak/DEB packages.
 
-- `snapmark/app.py` — one-instance application and watcher lifecycle.
-- `snapmark/tray.py` — D-Bus status indicator, no GTK3 required.
-- `snapmark/editor.py` — GTK4 UI, tools, layers, file dialogs.
-- `snapmark/model.py` — geometry and undo/redo snapshots.
-- `snapmark/paint.py` and `snapmark/filters.py` — Cairo rendering and blur.
-- `snapmark/watch.py`, `snapmark/screenshot_paths.py` — GNOME screenshot detection.
-- `snapmark/preferences.py` — settings and autostart launcher.
-- `snapmark/plugins.py`, `snapmark/plugin_host.py`, `snapmark/plugin_ui.py` — plugin manager and extension API.
-- `.github/workflows/appimage.yml` — test and AppImage CI.
-
-Copyright © SnapMark contributors. License: MIT.
-
-## v0.4.1 editing improvements
-
-- The image eraser clears original image pixels to transparent PNG pixels (undoable).
-- The blur and mosaic filters respect the Opacity slider.
-- Custom colors use a compact four-color picker button.
-- Preferences are non-modal; GNOME system file chooser dimming while open is normal.
-- A tray host may be required to display StatusNotifierItem icons on GNOME.
-
-## v0.5.0 highlight mode and Save button
-
-- **One Highlight toolbar tool**: Freehand draws along mouse movement, while
-  Straight line keeps the start and end points. Change modes above the Color
-  options. Both retain color, width, opacity, layer editing, and undo/redo.
-- **Save** uses the libadwaita blue suggested-action style.
-
-## Roadmap
-
-*A checkbox is marked complete only after the corresponding implementation and
-applicable tests pass. GUI/Wayland and GitHub CI acceptance remain pending until
-verified on the target machine. The Roadmap is updated with each release.*
-
-### v0.6.0 — Plugin foundation and Local AI Runtime
-
-- [x] **A1:** Official plugin ZIP manifest schema and API v1.
-- [x] **A1:** Official GitHub release discovery; manual install and version selection.
-- [x] **A1:** SHA256 checks, safe ZIP extraction, version coexistence and uninstall.
-- [x] **A1:** Enable/disable, OCR prerequisite for Translation, dependency checks.
-- [x] **A1:** Plugin hooks for toolbar actions, preferences pages, result panels.
-- [x] **A1:** README Roadmap and offline plugin regression tests.
-- [ ] **A:** Complete real GTK / GNOME Wayland GUI and AppImage smoke acceptance.
-- [ ] **A:** Publish the first official OCR/Translation plugin ZIPs and checksum assets.
-- [ ] **A:** Verify release selection, upgrade, downgrade and rollback with published assets.
-- [ ] **B:** Preferences → AI Runtime, default-off integration toggle.
-- [ ] **B:** Detect/connect existing Runtime at `http://127.0.0.1:8111`.
-- [ ] **B:** Verify real Runtime APIs for model listing/registration/backend status.
-- [ ] **B:** Optional Runtime installer **without** bundled AI models; avoid changing running services.
-- [ ] **B:** Runtime installation/connection error and recovery tests.
-
-### v0.7.0 — Lightweight OCR plugin
-
-- [ ] PP-OCRv5 **and** PP-OCRv6, with model-family and model/size/language selection.
-- [ ] Separate dependency environment and process; CPU operation without Runtime.
-- [ ] Whole-image and original-pixel selected-region OCR even after zoom.
-- [ ] Model list **Refresh Models** from independently updated online catalog.
-- [ ] Scheduled, verified catalog synchronization; offline cache and compatibility checks.
-- [ ] User-confirmed model download; v5 and v6 coexist and function offline.
-- [ ] Editable OCR text (correct, add, paste, delete) and original/annotation separation.
-- [ ] Bottom resizable OCR panel; copy/save TXT, protect edits on re-OCR.
-- [ ] OCR elapsed time independently in seconds, two decimals.
-
-### v0.8.0 — Advanced OCR plugin
-
-- [ ] Lightweight / Advanced selection and shared editable result panel.
-- [ ] Connect existing Local AI Runtime, choose compatible user-loaded OCR model.
-- [ ] No automatic PaddleOCR-VL 1.6 download.
-- [ ] Backend capabilities CPU/Vulkan/CUDA where actually supported.
-- [ ] Per-model prompt, temperature and streaming controls, capability-guarded.
-- [ ] Request cancellation, timeouts, loading and inference errors.
-
-### v0.9.0 — Translation plugin (requires OCR)
-
-- [ ] Independent official ZIP and compatibility/dependency checks.
-- [ ] Translate **current edited OCR text**, including manually added/pasted text.
-- [ ] Translate button exists only inside the OCR result panel.
-- [ ] User-selected translation model in existing Runtime, no automatic download.
-- [ ] Source/target language, prompt, temperature and streaming settings.
-- [ ] Independent Translation elapsed time and error/cancellation handling.
-
-### v0.10.0 — OCR + Translation integration
-
-- [ ] OCR-only single result area; with Translation, resizable two-column source/target.
-- [ ] Separate copy/save actions for source and translation.
-- [ ] Source edits mark translation stale; explicit Translate refresh, not automatic.
-- [ ] Streaming display, editable text survives compatible plugin upgrades.
-- [ ] **No combined OCR + Translation time**; each is displayed separately.
-
-### v1.0.0 — Stable release and QA
-
-- [ ] Screenshot monitoring, layers, markup, undo/redo, copy/save regression.
-- [ ] GNOME Wayland manual acceptance; verify AMD 680M and NVIDIA where available.
-- [ ] Multilingual OCR/translation (Chinese, English, Dutch), large-image/long-text tests.
-- [ ] Plugin security, upgrades/downgrades, Runtime disconnect/reconnect, model cache.
-- [ ] GitHub Actions AppImage build + bundled startup smoke; release documentation.
-
-**Publishing:** single `yanjing-chen/SnapMark` repository. Main program tags
-`snapmark-vX.Y.Z` produce **AppImage only**, while `ocr-vX.Y.Z` and
-`translation-vX.Y.Z` produce independent **ZIP** plugins with `.sha256` files.
-No DEB/RPM, no embedded advanced AI models.
+License: MIT.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# MACHINE: Ryzen 7 6800H · Ubuntu GNOME Wayland
+# MACHINE: Ubuntu GNOME / GTK4 (including RTX 5070)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"

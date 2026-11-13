@@ -47,5 +47,3 @@ def box_blur_bytes(pixels: bytes, width: int, height: int, channels: int, radius
             for channel in range(3):
                 sums[channel] += tmp[right + channel] - tmp[left + channel]
     return bytes(dst)
-
-

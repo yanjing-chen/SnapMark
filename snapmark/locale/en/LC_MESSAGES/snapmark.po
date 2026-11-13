@@ -1,0 +1,421 @@
+# English translations for SnapMark.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the SnapMark project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: SnapMark 1.1.0\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-10-21 15:09+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+msgid "About"
+msgstr ""
+
+msgid "Actual pixel size"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Arrow"
+msgstr ""
+
+msgid "Automatic (GNOME screenshot folders)"
+msgstr ""
+
+msgid "Automatically detect GNOME screenshot folders"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Block size"
+msgstr ""
+
+msgid "Blur"
+msgstr ""
+
+msgid "Blur radius"
+msgstr ""
+
+msgid "Brush size"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Choose a folder"
+msgstr ""
+
+msgid "Choose screenshot history folder"
+msgstr ""
+
+msgid "Choose…"
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Copy annotated screenshot"
+msgstr ""
+
+msgid "Copy text"
+msgstr ""
+
+msgid "Corner radius"
+msgstr ""
+
+msgid "Default image format"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Delete selected layer (Delete)"
+msgstr ""
+
+msgid "Ellipse"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enabled"
+msgstr ""
+
+msgid "Eraser"
+msgstr ""
+
+msgid "Error"
+msgstr ""
+
+msgid "Fill color"
+msgstr ""
+
+msgid "Fill shapes"
+msgstr ""
+
+msgid "Font"
+msgstr ""
+
+msgid "For images saved from SnapMark, not GNOME Print Screen"
+msgstr ""
+
+msgid "Freehand"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Higher quality uses more storage; PNG is lossless"
+msgstr ""
+
+msgid "Highlight"
+msgstr ""
+
+msgid "Highlight mode"
+msgstr ""
+
+msgid "Image"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Installed"
+msgstr ""
+
+msgid "JPEG / WebP quality"
+msgstr ""
+
+msgid "Keep the editor hidden when a status icon is available"
+msgstr ""
+
+msgid "Keyboard shortcuts"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Launch SnapMark in the background; system screenshots stay independent"
+msgstr ""
+
+msgid "Layers"
+msgstr ""
+
+msgid "Line"
+msgstr ""
+
+msgid "Load more screenshots"
+msgstr ""
+
+msgid "Model"
+msgstr ""
+
+msgid "Model not found"
+msgstr ""
+
+msgid "Mosaic"
+msgstr ""
+
+msgid "No annotations yet"
+msgstr ""
+
+msgid "No image"
+msgstr ""
+
+msgid "No image loaded"
+msgstr ""
+
+msgid "OCR"
+msgstr ""
+
+msgid "OCR model"
+msgstr ""
+
+msgid "Opacity"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Open an image…"
+msgstr ""
+
+msgid "Open failed"
+msgstr ""
+
+msgid "Open image"
+msgstr ""
+
+msgid "Open screenshot"
+msgstr ""
+
+msgid "Pen"
+msgstr ""
+
+msgid "Preferences"
+msgstr ""
+
+msgid "Quit"
+msgstr ""
+
+msgid "Quit SnapMark"
+msgstr ""
+
+msgid "Ready"
+msgstr ""
+
+msgid "Ready for a screenshot"
+msgstr ""
+
+msgid "Recent"
+msgstr ""
+
+msgid "Rectangle"
+msgstr ""
+
+msgid "Redo"
+msgstr ""
+
+msgid "Redo (Ctrl+Shift+Z)"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Restart SnapMark to apply language changes"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save annotated screenshot"
+msgstr ""
+
+msgid "Save screenshot"
+msgstr ""
+
+msgid "Screenshot Editor"
+msgstr ""
+
+msgid "Screenshot History"
+msgstr ""
+
+msgid "Screenshot history"
+msgstr ""
+
+msgid "Screenshot history folder"
+msgstr ""
+
+msgid "Screenshots"
+msgstr ""
+
+msgid "Screenshots & Annotation"
+msgstr ""
+
+msgid "Select"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Shortcuts"
+msgstr ""
+
+msgid "SnapMark Preferences"
+msgstr ""
+
+msgid "Start automatically on login"
+msgstr ""
+
+msgid "Start minimized"
+msgstr ""
+
+msgid "Straight line"
+msgstr ""
+
+msgid "Strength"
+msgstr ""
+
+msgid "System Default"
+msgstr ""
+
+msgid "Take a screenshot with Print Screen, or open an image."
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Text font and size"
+msgstr ""
+
+msgid "Translation"
+msgstr ""
+
+msgid "Triangle"
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+msgid "Undo (Ctrl+Z)"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Width"
+msgstr ""
+
+msgid "100%"
+msgstr ""
+
+msgid "AI Runtime"
+msgstr ""
+
+msgid "Annotated image copied to clipboard"
+msgstr ""
+
+msgid "Brush size · 20 px"
+msgstr ""
+
+msgid "Check Screenshots & Annotation → Screenshot history folder."
+msgstr ""
+
+msgid "Choose a fill color"
+msgstr ""
+
+msgid "Choose a local destination"
+msgstr ""
+
+msgid "Choose a stroke color"
+msgstr ""
+
+msgid "Color"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Corner radius · 0 px"
+msgstr ""
+
+msgid "Drag over the screenshot to select OCR pixels; Esc cancels"
+msgstr ""
+
+msgid "Failed to copy image"
+msgstr ""
+
+msgid "Image saved"
+msgstr ""
+
+msgid "Images"
+msgstr ""
+
+msgid "Local AI Runtime"
+msgstr ""
+
+msgid "More fill colors…"
+msgstr ""
+
+msgid "More stroke colors…"
+msgstr ""
+
+msgid "No GNOME screenshots found"
+msgstr ""
+
+msgid "OCR selection cancelled"
+msgstr ""
+
+msgid "OCR selection is too small; try again"
+msgstr ""
+
+msgid "Opacity · 25%"
+msgstr ""
+
+msgid "Open a screenshot before selecting an OCR area"
+msgstr ""
+
+msgid "Print Screen remains independent. Use Clipboard Image or Screenshot History to edit."
+msgstr ""
+
+msgid "Stroke"
+msgstr ""
+
+msgid "Type annotation…"
+msgstr ""
+
+msgid "Width · 4 px"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Open SnapMark"
+msgstr "Open SnapMark"
+
+msgid "Restart SnapMark"
+msgstr "Restart SnapMark"
+
+msgid "Restart"
+msgstr "Restart"

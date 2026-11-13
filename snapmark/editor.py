@@ -1,3 +1,6 @@
+# C2G_COMPACT_SINGLE_ROW_COLOR_PALETTES
+# C2G_PALETTES_WITHOUT_OVERLAY_SCROLLBARS
+# C2G_PALETTE_ALLOCATED_CENTER — always center native swatches
 """SnapMark screenshot editor — GTK4/libadwaita, no Qt."""
 import io
 import math
@@ -7,11 +10,13 @@ from pathlib import Path
 import cairo
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
+from . import __version__
 from .model import History, Mark, clamp, fit_zoom, mark_bounds, resized, translated, update_highlighter_preview
 from .paint import hex_rgba, paint_document
 from .preferences import Autostart, Settings
-from .plugins import PLUGIN_IDS, PluginManager
-from .plugin_host import PluginHost, load_plugin
+from .i18n import _, configure as configure_interface_language, language_options, localize_widget_tree
+from .ocr_selection_c2 import normalize_region
+from .ocr_builtin import OCRPanel, create_ocr_preferences
 
 COLORS = ('#e82c20', '#f66b2d', '#ffbc27', '#26a269', '#3584e4', '#9141ac', '#242424')
 TOOLS = (
@@ -25,6 +30,7 @@ TOOLS = (
 def draw_tool_icon(_widget, cr, _width, _height, tool):
     """Every tool draws inside the same fixed square; no varying glyph baselines."""
     cr.save()
+    cr.scale(min(_width, _height) / 28.0, min(_width, _height) / 28.0)
     cr.set_line_width(1.8)
     cr.set_line_cap(cairo.LINE_CAP_ROUND)
     cr.set_line_join(cairo.LINE_JOIN_ROUND)
@@ -103,28 +109,41 @@ class EditorWindow(Adw.ApplicationWindow):
         self._syncing_controls = False
         self.tool_buttons = {}
         self.settings = Settings()
+        configure_interface_language(self.settings.language())
         self.color_buttons = {}
         self.fill_buttons = {}
+        self._syncing_palette = False
+        self._recent_color = None
+        self.recent_button = None
+        self.fill_recent_panel = None
+        self.fill_recent_button = None
+        self.effect_strength = 1.0
         self.color = COLORS[0]
         self.stroke = 4.
+        self.eraser_size = 20.
+        self.corner_radius = 0.
         self.highlight_mode = 'freehand'
         self.opacity = .25
         self.fill = False
         self.fill_color = COLORS[0]
         self.font = 'Sans 20'
         self.zoom = 1.
+        self._auto_fit_image = True
+        self._fit_generation = 0
         self._preferences_window = None
-        self.plugin_manager = PluginManager()
-        self.plugin_host = PluginHost(self)
-        self.plugin_errors = []
+        self._initial_layout_applied = False
+        self._ocr_visible = False
+        self._ocr_panel = None
+        self._ocr_region_callback = None
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
         self._build_ui()
-        for ident in PLUGIN_IDS:
-            try:
-                load_plugin(self.plugin_manager, ident, self.plugin_host)
-            except Exception as exc:
-                self.plugin_errors.append(f'{ident}: {exc}')
-                print(f'SnapMark: plugin {ident} failed to load: {exc}', flush=True)
+        self._init_ocr()
         self._set_actions()
+        # All current GTK captions are translated at widget construction.
+        # Legacy localization API is a no-op for real GTK widgets.
+        if callable(globals().get("localize_widget_tree")):
+            localize_widget_tree(self)
         if filename is not None:
             self.load_image(filename)
         self.present()
@@ -133,20 +152,20 @@ class EditorWindow(Adw.ApplicationWindow):
         toolbar_view = Adw.ToolbarView()
         self.set_content(toolbar_view)
         header = Adw.HeaderBar()
-        header.set_title_widget(Adw.WindowTitle(title='SnapMark', subtitle='Screenshot Editor'))
+        header.set_title_widget(Adw.WindowTitle(title='SnapMark', subtitle=_('Screenshot Editor')))
         toolbar_view.add_top_bar(header)
 
-        undo = Gtk.Button(icon_name='edit-undo-symbolic', tooltip_text='Undo (Ctrl+Z)')
+        undo = Gtk.Button(icon_name='edit-undo-symbolic', tooltip_text=_('Undo (Ctrl+Z)'))
         undo.add_css_class('snapmark-quiet')
         undo.connect('clicked', lambda *_: self.undo())
-        redo = Gtk.Button(icon_name='edit-redo-symbolic', tooltip_text='Redo (Ctrl+Shift+Z)')
+        redo = Gtk.Button(icon_name='edit-redo-symbolic', tooltip_text=_('Redo (Ctrl+Shift+Z)'))
         redo.add_css_class('snapmark-quiet')
         redo.connect('clicked', lambda *_: self.redo())
         header.pack_start(undo)
         header.pack_start(redo)
-        copy = self._text_icon_button('Copy', 'edit-copy-symbolic')
+        copy = self._text_icon_button(_('Copy'), 'edit-copy-symbolic')
         copy.connect('clicked', lambda *_: self.copy_image())
-        save = self._text_icon_button('Save', 'document-save-symbolic')
+        save = self._text_icon_button(_('Save'), 'document-save-symbolic')
         # Quiet/transparent button CSS overrode the GNOME blue suggested-action.
         save.remove_css_class('snapmark-quiet')
         save.add_css_class('suggested-action')
@@ -165,29 +184,29 @@ class EditorWindow(Adw.ApplicationWindow):
         tool_scroll = Gtk.ScrolledWindow()
         tool_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
         root.append(tool_scroll)
-        tools = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
-        self._plugin_tools = tools
+        tools = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         tools.set_halign(Gtk.Align.CENTER)
-        tools.set_margin_top(7)
-        tools.set_margin_bottom(7)
+        tools.set_margin_top(4)
+        tools.set_margin_bottom(4)
         tool_scroll.set_child(tools)
         previous = None
         for code, label in TOOLS:
-            button = Gtk.ToggleButton(tooltip_text=label)
+            button = Gtk.ToggleButton(tooltip_text=_(label))
             button.add_css_class('snapmark-tool')
-            button.set_size_request(73, 64)
-            inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            button.set_size_request(56, 52)
+            inner = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
             inner.set_valign(Gtk.Align.CENTER)
             inner.set_halign(Gtk.Align.CENTER)
             icon = Gtk.DrawingArea()
-            icon.set_content_width(28)
-            icon.set_content_height(28)
+            icon.set_content_width(22)
+            icon.set_content_height(22)
             icon.set_halign(Gtk.Align.CENTER)
             icon.set_draw_func(draw_tool_icon, code)
             inner.append(icon)
-            caption = Gtk.Label(label=label)
+            caption = Gtk.Label(label=_(label))
             caption.add_css_class('caption')
-            caption.set_size_request(68, 19)
+            caption.set_size_request(52, 17)
+            caption.set_ellipsize(Pango.EllipsizeMode.END)
             caption.set_xalign(.5)
             inner.append(caption)
             button.set_child(inner)
@@ -199,6 +218,7 @@ class EditorWindow(Adw.ApplicationWindow):
             if previous is None:
                 button.set_active(True)
             previous = button
+        self._add_ocr_toolbar_button(tools)
         root.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
 
         self.paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
@@ -219,12 +239,11 @@ class EditorWindow(Adw.ApplicationWindow):
         self._result_split.set_resize_end_child(True)
         self._result_split.set_start_child(self.stack)
         self.paned.set_start_child(self._result_split)
-        self._plugin_results_stack = None
 
-        empty = Adw.StatusPage(title='Ready for a screenshot',
-                               description='Take a screenshot with Print Screen, or open an image.',
+        empty = Adw.StatusPage(title=_('Ready for a screenshot'),
+                               description=_('Take a screenshot with Print Screen, or open an image.'),
                                icon_name='image-x-generic-symbolic')
-        button = Gtk.Button(label='Open an image…')
+        button = Gtk.Button(label=_('Open an image…'))
         button.add_css_class('suggested-action')
         button.set_halign(Gtk.Align.CENTER)
         button.connect('clicked', lambda *_: self.open_dialog())
@@ -260,14 +279,22 @@ class EditorWindow(Adw.ApplicationWindow):
         self.add_controller(keys)
 
         self._build_properties()
+        self._update_active_tool_properties()
         # Keep approx. 275 px for properties at the initial window width;
         # GTK4's draggable divider lets the user resize it at any time.
-        self.paned.set_position(945)
+        # The old absolute 945 px position could initially hide the properties
+        # area or canvas on scaled/compact Wayland workspaces. Assign divider
+        # sizes once *after* the real widget allocation, then leave drags alone.
+        self.paned.set_position(-1)
+        self.paned.connect('map', self._initial_window_layout)
+        self.paned.connect('notify::position', self._layout_fit_changed)
+        self._result_split.connect('notify::position', self._layout_fit_changed)
+        self.connect('notify::maximized', self._layout_fit_changed)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         footer.add_css_class('statusbar')
         toolbar_view.add_bottom_bar(footer)
-        self.details = Gtk.Label(label='No image')
+        self.details = Gtk.Label(label=_('No image'))
         self.details.add_css_class('dim-label')
         self.details.set_margin_start(14)
         footer.append(self.details)
@@ -280,7 +307,7 @@ class EditorWindow(Adw.ApplicationWindow):
             ('zoom-fit-best-symbolic', 'Fit to window', self.fit_image),
         ):
             if icon == 'zoom-in-symbolic':
-                self.zoom_label = Gtk.Label(label='100%')
+                self.zoom_label = Gtk.Label(label=_('100%'))
                 self.zoom_label.set_width_chars(5)
                 footer.append(self.zoom_label)
             control = Gtk.Button(icon_name=icon, tooltip_text=tooltip)
@@ -299,38 +326,128 @@ class EditorWindow(Adw.ApplicationWindow):
                 background: transparent; background-image: none;
                 border: 0; border-image: none; box-shadow: none;
                 outline: 0; }
-            button.snapmark-tool:checked { background: alpha(@accent_bg_color, 0.16); }
+            button.snapmark-tool:checked {
+                background: alpha(@accent_bg_color, 0.14);
+                border-radius: 8px;
+            }
             button.snapmark-tool:hover, button.snapmark-quiet:hover {
                 background: alpha(@window_fg_color, 0.065); }
             button.snapmark-tool:focus-visible, button.snapmark-quiet:focus-visible {
                 outline: 1px solid @accent_color; outline-offset: -2px; }
+            button.snapmark-tool { border-radius: 8px; padding: 3px 2px; }
             .snapmark-window windowcontrols button { border: 0; box-shadow: none; }
-            .palette button { padding: 1px; min-width: 29px; min-height: 29px;
-                border: 0; box-shadow: none; }
-            button.snapmark-custom-color { padding: 1px; min-width: 29px;
-                min-height: 29px; background: transparent; border: 0; box-shadow: none; }
+            .palette button { padding: 0; margin: 0; min-width: 26px; min-height: 26px;
+                border: 0; border-radius: 8px; box-shadow: none; }
+            .palette button:checked {
+                background-color: alpha(@accent_bg_color, 0.15);
+                background-image: none;
+                box-shadow: none;
+            }
+            button.snapmark-custom-color { padding: 0; margin: 0; min-width: 26px;
+                min-height: 26px; background: transparent; border: 0; box-shadow: none; }
+            .palette button.snapmark-custom-selected,
+            .snapmark-recent button:checked {
+                background: alpha(@accent_bg_color, 0.15); border-radius: 8px; }
+            .snapmark-recent button { padding: 0; margin: 0; min-width: 26px;
+                min-height: 26px; border-radius: 8px; border: 0; }
         ''')
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), css,
                                                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-    def add_plugin_action(self, ident, label, callback):
-        """Official plugin API v1 — add an action without changing built-in tools."""
-        button = Gtk.Button(label=label, tooltip_text=f'{ident}: {label}')
-        button.add_css_class('snapmark-quiet')
-        button.connect('clicked', lambda *_: callback())
-        self._plugin_tools.append(button)
-        return button
+    def _initial_window_layout(self, _pane):
+        if self._initial_layout_applied:
+            return
+        attempts = [0]
+        def adjust():
+            width = self.paned.get_width()
+            height = self._result_split.get_height()
+            if (width < 600 or height < 310) and attempts[0] < 16:
+                attempts[0] += 1
+                return GLib.SOURCE_CONTINUE
+            if width >= 600:
+                self.paned.set_position(max(300, width - 290))
+            if height >= 310:
+                if self._ocr_visible:
+                    self._result_split.set_position(max(170, int(height * 0.59)))
+                self.properties_split.set_position(max(170, int(height * 0.60)))
+            self._initial_layout_applied = True
+            return GLib.SOURCE_REMOVE
+        GLib.timeout_add(40, adjust)
 
-    def add_plugin_result(self, ident, title, builder):
-        """Official plugin API v1 — optional results below the screenshot."""
-        if self._plugin_results_stack is None:
-            self._plugin_results_stack = Gtk.Stack()
-            self._plugin_results_stack.set_vexpand(True)
-            self._result_split.set_end_child(self._plugin_results_stack)
-            self._result_split.set_position(420)
-        widget = builder(self)
-        self._plugin_results_stack.add_titled(widget, ident, title)
-        return widget
+    def _add_ocr_toolbar_button(self, tools):
+        """PaddleOCR-VL is a native editor feature, never an external plugin."""
+        button = Gtk.ToggleButton(tooltip_text=_('OCR'))
+        button.add_css_class('snapmark-tool')
+        button.set_size_request(62, 52)
+        inside = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        inside.set_valign(Gtk.Align.CENTER)
+        inside.set_halign(Gtk.Align.CENTER)
+        glyph = Gtk.Image.new_from_icon_name('edit-find-symbolic')
+        glyph.set_pixel_size(22)
+        inside.append(glyph)
+        text = Gtk.Label(label='OCR')
+        text.add_css_class('caption')
+        inside.append(text)
+        button.set_child(inside)
+        button.connect('toggled', self._toggle_ocr)
+        tools.append(button)
+        self.ocr_toggle = button
+
+    def _init_ocr(self):
+        self._ocr_panel = OCRPanel(self)
+        self._ocr_panel.set_hexpand(True)
+        self._ocr_panel.set_vexpand(True)
+
+    def _toggle_ocr(self, button):
+        self._ocr_visible = bool(button.get_active())
+        if self._ocr_visible:
+            if self._ocr_panel is None:
+                self._init_ocr()
+            self._result_split.set_end_child(self._ocr_panel)
+            def resize():
+                height = self._result_split.get_height()
+                if height >= 310:
+                    self._result_split.set_position(max(170, int(height * .59)))
+                self._schedule_auto_fit()
+                return GLib.SOURCE_REMOVE
+            GLib.idle_add(resize)
+        else:
+            self._result_split.set_end_child(None)
+            self._schedule_auto_fit()
+
+    def original_png_for_ocr(self, region=None):
+        """Return only original screenshot pixels, without annotation layers.
+
+        May be called by an enabled plugin on the GTK main thread.
+        Region coordinates are in source-image pixels, not screen/zoom pixels.
+        """
+        if self.pixbuf is None:
+            raise ValueError("Open an image before OCR")
+        from .ocr_selection_c2 import original_pixbuf_png
+        return original_pixbuf_png(self.pixbuf, region)
+
+    def request_ocr_region(self, callback):
+        """Ask user to drag a rectangle on the image; callback receives PNG bytes.
+
+        OCR never modifies annotations; the overlay is transient and not exported.
+        """
+        if not callable(callback):
+            raise ValueError("OCR region callback must be callable")
+        if self.pixbuf is None:
+            self._notice(_("Open a screenshot before selecting an OCR area"))
+            return False
+        self._ocr_region_callback = callback
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
+        self._notice(_("Drag over the screenshot to select OCR pixels; Esc cancels"))
+        self.canvas.queue_draw()
+        return True
+
+    def cancel_ocr_region(self):
+        self._ocr_region_callback = None
+        self._ocr_region_start = None
+        self._ocr_region_preview = None
+        self.canvas.queue_draw()
 
     @staticmethod
     def _text_icon_button(label, icon):
@@ -338,14 +455,14 @@ class EditorWindow(Adw.ApplicationWindow):
         button.add_css_class('snapmark-quiet')
         content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
         content.append(Gtk.Image.new_from_icon_name(icon))
-        content.append(Gtk.Label(label=label))
+        content.append(Gtk.Label(label=_(label)))
         button.set_child(content)
         return button
 
     def _menu_button(self):
         menu = Gio.Menu()
-        menu.append('Preferences', 'win.preferences')
-        button = Gtk.MenuButton(icon_name='view-more-symbolic', tooltip_text='Preferences')
+        menu.append(_('Preferences'), 'win.preferences')
+        button = Gtk.MenuButton(icon_name='view-more-symbolic', tooltip_text=_('Preferences'))
         button.add_css_class('flat')
         button.set_menu_model(menu)
         return button
@@ -370,16 +487,19 @@ class EditorWindow(Adw.ApplicationWindow):
         for prop in ('top', 'bottom', 'start', 'end'):
             getattr(panel, f'set_margin_{prop}')(12)
         side_scroll.set_child(panel)
-        title = Gtk.Label(label='Stroke', xalign=0)
+        self._style_scroll = side_scroll
+        self._style_panel = panel
+        title = Gtk.Label(label=_('Stroke'), xalign=0)
         title.add_css_class('heading')
         panel.append(title)
+        self._style_header = title
         # Highlight remains ONE toolbar tool; the two stroke styles live in
         # the properties panel immediately BEFORE its color options.
         self.highlight_mode_row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
-        self.highlight_mode_row.append(Gtk.Label(label='Highlight mode', xalign=0))
+        self.highlight_mode_row.append(Gtk.Label(label=_('Highlight mode'), xalign=0))
         highlight_modes = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        self.highlight_free_button = Gtk.ToggleButton(label='Freehand')
-        self.highlight_line_button = Gtk.ToggleButton(label='Straight line')
+        self.highlight_free_button = Gtk.ToggleButton(label=_('Freehand'))
+        self.highlight_line_button = Gtk.ToggleButton(label=_('Straight line'))
         self.highlight_line_button.set_group(self.highlight_free_button)
         self.highlight_free_button.set_hexpand(True)
         self.highlight_line_button.set_hexpand(True)
@@ -391,21 +511,32 @@ class EditorWindow(Adw.ApplicationWindow):
         self.highlight_mode_row.append(highlight_modes)
         self.highlight_mode_row.set_visible(self.tool == 'highlighter')
         panel.append(self.highlight_mode_row)
-        panel.append(Gtk.Label(label='Color', xalign=0))
+        stroke_label = Gtk.Label(label=_('Color'), xalign=0)
+        panel.append(stroke_label)
+        self._stroke_color_label = stroke_label
+        # Compact single row: 8 x 26px buttons + 7 x 1px gaps = 215px.
+        # Keep this named wrapper: Text properties use it to reorder controls.
         palette = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         palette.add_css_class('palette')
         palette.set_halign(Gtk.Align.START)
-        stroke_scroll = Gtk.ScrolledWindow()
-        stroke_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        stroke_scroll.set_child(palette)
+        stroke_scroll = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        stroke_scroll.append(palette)
         panel.append(stroke_scroll)
+        self._stroke_color_box = stroke_scroll
         previous = None
         for shade in COLORS:
             b = Gtk.ToggleButton(tooltip_text=shade)
             b.add_css_class('flat')
+            b.set_size_request(26, 26)
+            b.set_halign(Gtk.Align.CENTER)
+            b.set_valign(Gtk.Align.CENTER)
             marker = Gtk.DrawingArea()
             marker.set_content_width(20)
             marker.set_content_height(20)
+            marker.set_halign(Gtk.Align.CENTER)
+            marker.set_valign(Gtk.Align.CENTER)
+            marker.set_hexpand(False)
+            marker.set_vexpand(False)
             marker.set_draw_func(self._swatch_draw, shade)
             b.set_child(marker)
             if previous:
@@ -421,17 +552,34 @@ class EditorWindow(Adw.ApplicationWindow):
         palette.append(self.custom_stroke)
         self._add_recent_colors(panel, fill=False)
 
-        self.width_label = Gtk.Label(label='Width · 4 px', xalign=0)
+        self.width_label = Gtk.Label(label=_('Width · 4 px'), xalign=0)
         panel.append(self.width_label)
         self.width_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 1, 24, 1)
         self.width_scale.set_value(self.stroke)
         self.width_scale.set_draw_value(False)
         self.width_scale.connect('value-changed', self._width_changed)
         panel.append(self.width_scale)
-        panel.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
+        self.eraser_label = Gtk.Label(label=_('Brush size · 20 px'), xalign=0)
+        panel.append(self.eraser_label)
+        self.eraser_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 2, 100, 1)
+        self.eraser_scale.set_value(self.eraser_size)
+        self.eraser_scale.set_draw_value(False)
+        self.eraser_scale.connect('value-changed', self._eraser_size_changed)
+        panel.append(self.eraser_scale)
+        self.radius_label = Gtk.Label(label='Corner radius · 0 px', xalign=0)
+        self.radius_label.set_label(_('Corner radius · 0 px'))
+        panel.append(self.radius_label)
+        self.radius_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
+        self.radius_scale.set_draw_value(False)
+        self.radius_scale.set_value(0)
+        self.radius_scale.connect('value-changed', self._radius_changed)
+        panel.append(self.radius_scale)
+        shape_separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        panel.append(shape_separator)
+        self._shape_separator = shape_separator
 
         fill_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        fill_row.append(Gtk.Label(label='Fill shapes'))
+        fill_row.append(Gtk.Label(label=_('Fill shapes')))
         self.fill_switch = Gtk.Switch()
         self.fill_switch.set_halign(Gtk.Align.END)
         self.fill_switch.set_hexpand(True)
@@ -439,21 +587,32 @@ class EditorWindow(Adw.ApplicationWindow):
         self.fill_switch.connect('notify::active', self._fill_changed)
         fill_row.append(self.fill_switch)
         panel.append(fill_row)
-        panel.append(Gtk.Label(label='Fill color', xalign=0))
+        self._fill_row = fill_row
+        fill_label = Gtk.Label(label=_('Fill color'), xalign=0)
+        panel.append(fill_label)
+        self._fill_color_label = fill_label
+        # Same non-scrolling compact row for fill colors.
         fill_palette = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=1)
         fill_palette.add_css_class('palette')
         fill_palette.set_halign(Gtk.Align.START)
-        fill_scroll = Gtk.ScrolledWindow()
-        fill_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
-        fill_scroll.set_child(fill_palette)
+        fill_scroll = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        fill_scroll.append(fill_palette)
         panel.append(fill_scroll)
+        self._fill_color_box = fill_scroll
         previous = None
         for shade in COLORS:
             b = Gtk.ToggleButton(tooltip_text=shade)
             b.add_css_class('flat')
+            b.set_size_request(26, 26)
+            b.set_halign(Gtk.Align.CENTER)
+            b.set_valign(Gtk.Align.CENTER)
             marker = Gtk.DrawingArea()
             marker.set_content_width(20)
             marker.set_content_height(20)
+            marker.set_halign(Gtk.Align.CENTER)
+            marker.set_valign(Gtk.Align.CENTER)
+            marker.set_hexpand(False)
+            marker.set_vexpand(False)
             marker.set_draw_func(self._swatch_draw, shade)
             b.set_child(marker)
             if previous:
@@ -466,8 +625,9 @@ class EditorWindow(Adw.ApplicationWindow):
             previous = b
         self.custom_fill = self._custom_color_button(fill=True)
         fill_palette.append(self.custom_fill)
+        self._add_recent_colors(panel, fill=True)
 
-        self.opacity_label = Gtk.Label(label='Opacity · 25%', xalign=0)
+        self.opacity_label = Gtk.Label(label=_('Opacity · 25%'), xalign=0)
         panel.append(self.opacity_label)
         self.opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 5)
         self.opacity_scale.set_value(25)
@@ -477,13 +637,26 @@ class EditorWindow(Adw.ApplicationWindow):
 
         self.font_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.font_options.append(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
-        self.font_options.append(Gtk.Label(label='Text font and size', xalign=0))
+        self.font_options.append(Gtk.Label(label=_('Text font and size'), xalign=0))
         self.font_picker = Gtk.FontDialogButton.new(Gtk.FontDialog())
         self.font_picker.set_font_desc(Pango.FontDescription.from_string(self.font))
         self.font_picker.connect('notify::font-desc', self._font_changed)
         self.font_options.append(self.font_picker)
         self.font_options.set_visible(False)
         panel.append(self.font_options)
+        # Capture the actual children once. Text needs only its font
+        # chooser and foreground-color controls, not shape fill/opacity.
+        self._style_elements = []
+        item = panel.get_first_child()
+        while item is not None:
+            self._style_elements.append(item)
+            item = item.get_next_sibling()
+        self._text_style_elements = (
+            title, self.font_options, stroke_scroll.get_prev_sibling(),
+            stroke_scroll, self.recent_panel,
+        )
+        if any(widget is None for widget in self._text_style_elements):
+            raise RuntimeError('Text properties are incomplete')
 
         layers_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         layers_box.set_margin_start(10)
@@ -492,8 +665,8 @@ class EditorWindow(Adw.ApplicationWindow):
         layers_box.set_margin_bottom(10)
         self.properties_split.set_end_child(layers_box)
         layer_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        layer_header.append(Gtk.Label(label='Layers', xalign=0, hexpand=True, css_classes=['heading']))
-        remove = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text='Delete selected layer (Delete)')
+        layer_header.append(Gtk.Label(label=_('Layers'), xalign=0, hexpand=True, css_classes=['heading']))
+        remove = Gtk.Button(icon_name='user-trash-symbolic', tooltip_text=_('Delete selected layer (Delete)'))
         remove.add_css_class('flat')
         remove.connect('clicked', lambda *_: self.delete_selected())
         layer_header.append(remove)
@@ -507,11 +680,132 @@ class EditorWindow(Adw.ApplicationWindow):
         self._layers_selection_handler = self.layers.connect('row-selected', self._layer_selected)
         layer_scroll.set_child(self.layers)
         layers_box.append(layer_scroll)
-        self.layer_hint = Gtk.Label(label='No annotations yet', xalign=0)
+        self.layer_hint = Gtk.Label(label=_('No annotations yet'), xalign=0)
         self.layer_hint.add_css_class('dim-label')
         layers_box.append(self.layer_hint)
         self.properties_split.set_position(340)
         self._refresh_layers()
+        self._update_active_tool_properties()
+
+    def _update_active_tool_properties(self):
+        """Keep relevant tool controls visible at default and maximized sizes.
+
+        Text controls appear first; shape-only settings remain available again
+        as soon as the user switches to another tool. Layers stay untouched.
+        """
+        from snapmark.i18n import _  # Also available to legacy extracted-method tests.
+        if not hasattr(self, '_style_elements'):
+            return
+        selected = self._selected_mark()
+        text_mode = (self.tool == 'text' or
+                     (self.tool == 'select' and selected is not None
+                      and selected.tool == 'text'))
+        self._style_header.set_text(_('Text') if text_mode else _('Stroke'))
+        if text_mode:
+            self._style_panel.reorder_child_after(self.font_options,
+                                                   self._style_header)
+        else:
+            self._style_panel.reorder_child_after(self.font_options,
+                                                   self.opacity_scale)
+        for widget in self._style_elements:
+            if widget is self.font_options:
+                widget.set_visible(text_mode)
+            elif widget is self.highlight_mode_row:
+                widget.set_visible(not text_mode and self.tool == 'highlighter')
+            elif text_mode:
+                widget.set_visible(any(widget is allowed
+                                       for allowed in self._text_style_elements))
+            else:
+                widget.set_visible(True)
+        if hasattr(self, 'eraser_label'):
+            active = (selected.tool if self.tool == 'select' and selected is not None
+                      else self.tool)
+            eraser = active == 'eraser'
+            rounded = active in ('rectangle', 'triangle')
+            for widget in (self.eraser_label, self.eraser_scale):
+                widget.set_visible(eraser)
+            for widget in (self.radius_label, self.radius_scale):
+                widget.set_visible(rounded)
+            if eraser:
+                self._style_header.set_text(_('Eraser'))
+                for widget in self._style_elements:
+                    if widget is not self._style_header and widget not in (
+                            self.eraser_label, self.eraser_scale):
+                        widget.set_visible(False)
+            elif rounded and not text_mode:
+                self._style_header.set_text(_('Stroke'))
+                # Radius follows stroke width so it remains visible even with Layers.
+                self._style_panel.reorder_child_after(self.radius_label, self.width_scale)
+                self._style_panel.reorder_child_after(self.radius_scale, self.radius_label)
+        # Reflect actual paint_mark() behavior, not generic shared controls.
+        # Older isolated Text-UI tests use mock widgets; keep that path intact.
+        if hasattr(self, '_stroke_color_label'):
+            active = (selected.tool if self.tool == 'select' and selected is not None
+                      else self.tool)
+            shapes = active in ('rectangle', 'ellipse', 'triangle')
+            effects = active in ('mosaic', 'blur')
+            stroke = active in ('arrow', 'line', 'pen', 'highlighter') or shapes
+            allow = {self._style_header}
+            if active == 'text':
+                allow.update(self._text_style_elements)
+            elif active == 'eraser':
+                allow.update((self.eraser_label, self.eraser_scale))
+            else:
+                if stroke:
+                    allow.update((self._stroke_color_label, self._stroke_color_box,
+                                  self.recent_panel))
+                if stroke or effects:
+                    allow.update((self.width_label, self.width_scale))
+                if active == 'highlighter':
+                    allow.update((self.highlight_mode_row,
+                                  self.opacity_label, self.opacity_scale))
+                if shapes:
+                    allow.update((self._shape_separator, self._fill_row))
+                    if self.fill:
+                        allow.update((self._fill_color_label, self._fill_color_box,
+                                      self.opacity_label, self.opacity_scale))
+                        if getattr(self, 'fill_recent_panel', None) is not None:
+                            allow.add(self.fill_recent_panel)
+                if active in ('rectangle', 'triangle'):
+                    allow.update((self.radius_label, self.radius_scale))
+                if effects:
+                    allow.update((self.opacity_label, self.opacity_scale))
+            for widget in self._style_elements:
+                widget.set_visible(widget in allow)
+            self._style_header.set_text(_(
+                'Text' if active == 'text' else 'Eraser' if active == 'eraser'
+                else 'Mosaic' if active == 'mosaic' else 'Blur' if active == 'blur'
+                else 'Properties' if active == 'select' else 'Stroke'))
+            if effects:
+                unit = 3 if active == 'mosaic' else 2
+                title = 'Block size' if active == 'mosaic' else 'Blur radius'
+                self.width_label.set_text(f'{_(title)} · {round(self.stroke * unit)} px')
+                self.opacity_label.set_text(f"{_('Strength')} · {self.effect_strength:.0%}")
+                if selected is None:
+                    self._syncing_controls = True
+                    try:
+                        self.opacity_scale.set_value(round(self.effect_strength * 100))
+                    finally:
+                        self._syncing_controls = False
+            else:
+                self.width_label.set_text(f"{_('Width')} · {self.stroke:.0f} px")
+                self.opacity_label.set_text(f"{_('Opacity')} · {self.opacity:.0%}")
+                if selected is None and active in ('rectangle', 'triangle', 'ellipse',
+                                                    'highlighter'):
+                    self._syncing_controls = True
+                    try:
+                        self.opacity_scale.set_value(round(self.opacity * 100))
+                    finally:
+                        self._syncing_controls = False
+        if text_mode or (hasattr(self, 'eraser_label') and
+                         self.tool in ('eraser', 'rectangle', 'triangle', 'mosaic', 'blur')):
+            GLib.idle_add(self._reset_text_properties_scroll)
+
+    def _reset_text_properties_scroll(self):
+        adjustment = self._style_scroll.get_vadjustment()
+        if adjustment is not None:
+            adjustment.set_value(adjustment.get_lower())
+        return GLib.SOURCE_REMOVE
 
     def _layer_label(self, mark, index):
         if mark.tool == 'text':
@@ -560,6 +854,7 @@ class EditorWindow(Adw.ApplicationWindow):
             self.tool_buttons['select'].set_active(True)
             self._sync_selected_properties()
         self._refresh_layers()
+        self._update_active_tool_properties()
         self.canvas.queue_draw()
 
     def _sync_selected_properties(self):
@@ -572,19 +867,30 @@ class EditorWindow(Adw.ApplicationWindow):
             self._sync_custom_picker(self.custom_stroke, mark.color)
             if mark.color in self.color_buttons:
                 self.color_buttons[mark.color].set_active(True)
-            self.stroke = mark.width
-            self.width_scale.set_value(clamp(mark.width, 1, 24))
+            if mark.tool != 'eraser':
+                self.stroke = mark.width
+                self.width_scale.set_value(clamp(mark.width, 1, 24))
+            self.corner_radius = getattr(mark, 'corner_radius', 0.)
+            self.radius_scale.set_value(clamp(self.corner_radius, 0, 100))
+            if mark.tool == 'eraser':
+                self.eraser_size = mark.width
+                self.eraser_scale.set_value(clamp(mark.width, 2, 100))
             self.fill = mark.fill
             self.fill_switch.set_active(mark.fill)
             self.fill_color = mark.fill_color or mark.color
             self._sync_custom_picker(self.custom_fill, self.fill_color)
             if self.fill_color in self.fill_buttons:
                 self.fill_buttons[self.fill_color].set_active(True)
-            self.opacity = mark.opacity
+            if mark.tool in ('mosaic', 'blur'):
+                self.effect_strength = mark.opacity
+            else:
+                self.opacity = mark.opacity
             self.opacity_scale.set_value(clamp(mark.opacity * 100, 5, 100))
             self.font = mark.font
             self.font_picker.set_font_desc(Pango.FontDescription.from_string(mark.font))
-            self.font_options.set_visible(mark.tool == 'text')
+            self._sync_palette_selection(fill=False)
+            self._sync_palette_selection(fill=True)
+            self._update_active_tool_properties()
         finally:
             self._syncing_controls = False
 
@@ -615,7 +921,7 @@ class EditorWindow(Adw.ApplicationWindow):
     @staticmethod
     def _swatch_draw(_area, cr, _w, _h, color):
         cr.set_source_rgba(*hex_rgba(color))
-        cr.arc(11, 11, 9, 0, math.tau)
+        cr.arc(_w / 2.0, _h / 2.0, max(2.0, min(_w, _h) * 0.41), 0, math.tau)
         cr.fill()
 
     @staticmethod
@@ -626,14 +932,20 @@ class EditorWindow(Adw.ApplicationWindow):
     @staticmethod
     def _custom_color_icon(_area, cr, _width, _height):
         # Four-colour tile instead of the currently selected red swatch.
-        for x, y, rgb in ((1, 1, (.89, .17, .13)), (11, 1, (.98, .70, .15)),
-                          (1, 11, (.15, .65, .38)), (11, 11, (.21, .52, .91))):
+        side = min(_width, _height, 22.0)
+        x0 = (_width - side) / 2.0
+        y0 = (_height - side) / 2.0
+        half = side / 2.0
+        for dx, dy, rgb in ((0, 0, (.89, .17, .13)),
+                            (1, 0, (.98, .70, .15)),
+                            (0, 1, (.15, .65, .38)),
+                            (1, 1, (.21, .52, .91))):
             cr.set_source_rgb(*rgb)
-            cr.rectangle(x, y, 9, 9)
+            cr.rectangle(x0 + dx * half, y0 + dy * half, half, half)
             cr.fill()
 
     def _custom_color_button(self, fill):
-        button = Gtk.Button(tooltip_text='More fill colors…' if fill else 'More stroke colors…')
+        button = Gtk.Button(tooltip_text=_('More fill colors…') if fill else _('More stroke colors…'))
         button.add_css_class('snapmark-custom-color')
         button.add_css_class('flat')
         tile = Gtk.DrawingArea()
@@ -645,11 +957,16 @@ class EditorWindow(Adw.ApplicationWindow):
         return button
 
     def _choose_color(self, fill):
-        dialog = Gtk.ColorDialog(title='Choose a fill color' if fill else 'Choose a stroke color',
+        _translate_color_dialog = globals().get('_', lambda msg: msg)
+        dialog = Gtk.ColorDialog(title=_translate_color_dialog('Choose a fill color') if fill else _translate_color_dialog('Choose a stroke color'),
                                  with_alpha=False)
+        # Standalone, non-modal chooser: GNOME must not attach it to the
+        # editor titlebar or dim the screenshot we want to sample.
+        # GTK4 allows a NULL parent for Gtk.ColorDialog.choose_rgba().
+        dialog.set_modal(False)
         initial = Gdk.RGBA()
         initial.parse(self.fill_color if fill else self.color)
-        dialog.choose_rgba(self, initial, None,
+        dialog.choose_rgba(None, initial, None,
                            lambda dlg, result: self._color_chosen(dlg, result, fill))
 
     def _color_chosen(self, dialog, result, fill):
@@ -671,53 +988,135 @@ class EditorWindow(Adw.ApplicationWindow):
             self._change_selected(color=color)
         self.settings.remember_color(color)
         self._refresh_recent()
+        self._sync_palette_selection(fill=fill)
 
     def _add_recent_colors(self, panel, fill=False):
-        if not fill:
-            self.recent_panel = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
-            self.recent_panel.set_halign(Gtk.Align.START)
-            panel.append(self.recent_panel)
-            self._refresh_recent()
+        """One compact Recent swatch per palette; both use the saved last color."""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
+        row.set_halign(Gtk.Align.START)
+        row.add_css_class('snapmark-recent')
+        panel.append(row)
+        if fill:
+            self.fill_recent_panel = row
+        else:
+            self.recent_panel = row
+        self._refresh_recent()
 
     def _refresh_recent(self):
-        if not hasattr(self, 'recent_panel'):
-            return
-        while (child := self.recent_panel.get_first_child()) is not None:
-            self.recent_panel.remove(child)
+        """Keep stroke/fill Recent swatches and their selection states in sync."""
         recent = self.settings.recent_colors()
-        if recent:
-            label = Gtk.Label(label='Recent')
+        self._recent_color = recent[0].lower() if recent else None
+        for fill, row_attr, button_attr, palette in (
+                (False, 'recent_panel', 'recent_button', self.color_buttons),
+                (True, 'fill_recent_panel', 'fill_recent_button', self.fill_buttons)):
+            row = getattr(self, row_attr, None)
+            if row is None:
+                continue
+            while (child := row.get_first_child()) is not None:
+                row.remove(child)
+            setattr(self, button_attr, None)
+            if not self._recent_color:
+                continue
+            label = Gtk.Label(label=globals().get('_', lambda x: x)('Recent'))
             label.add_css_class('dim-label')
-            self.recent_panel.append(label)
-            for shade in recent[:5]:
-                button = Gtk.Button(tooltip_text=f'Reuse {shade}')
-                button.add_css_class('flat')
-                icon = Gtk.DrawingArea()
-                icon.set_content_width(20)
-                icon.set_content_height(20)
-                icon.set_draw_func(self._swatch_draw, shade)
-                button.set_child(icon)
-                button.connect('clicked', lambda _btn, value=shade: self._apply_recent(value))
-                self.recent_panel.append(button)
+            row.append(label)
+            button = Gtk.ToggleButton(tooltip_text=f'Reuse {self._recent_color} as '
+                                                  + ('fill' if fill else 'stroke'))
+            button.add_css_class('flat')
+            button.set_size_request(26, 26)
+            button.set_group(palette[COLORS[0]])
+            icon = Gtk.DrawingArea()
+            icon.set_content_width(20)
+            icon.set_content_height(20)
+            icon.set_draw_func(self._swatch_draw, self._recent_color)
+            button.set_child(icon)
+            button.connect('toggled', self._recent_toggled, self._recent_color, fill)
+            row.append(button)
+            setattr(self, button_attr, button)
+            self._sync_palette_selection(fill=fill)
 
-    def _apply_recent(self, color):
-        self.color = color
-        self._change_selected(color=color)
-        self._sync_custom_picker(self.custom_stroke, color)
+    def _recent_toggled(self, button, color, fill=False):
+        if button.get_active() and not self._syncing_palette:
+            self._apply_recent(color, fill=fill)
+
+    def _apply_recent(self, color, fill=False):
+        color = color.lower()
+        if fill:
+            self.fill_color = color
+            self._change_selected(fill_color=color)
+            self._sync_custom_picker(self.custom_fill, color)
+        else:
+            self.color = color
+            self._change_selected(color=color)
+            self._sync_custom_picker(self.custom_stroke, color)
+        self._sync_palette_selection(fill=fill)
+
+    def _sync_palette_selection(self, fill=False):
+        """Highlight preset, Recent, or custom swatch in the target palette."""
+        buttons = self.fill_buttons if fill else self.color_buttons
+        color = (self.fill_color if fill else self.color).lower()
+        match = next((shade for shade in buttons if shade.lower() == color), None)
+        recent_button = (getattr(self, 'fill_recent_button', None) if fill
+                         else getattr(self, 'recent_button', None))
+        recent_match = (match is None and recent_button is not None
+                        and self._recent_color == color)
+        old = self._syncing_palette
+        self._syncing_palette = True
+        try:
+            for shade, button in buttons.items():
+                button.set_active(shade == match)
+            if recent_button is not None:
+                recent_button.set_active(recent_match)
+            picker = self.custom_fill if fill else self.custom_stroke
+            if match is None and not recent_match:
+                picker.add_css_class('snapmark-custom-selected')
+            else:
+                picker.remove_css_class('snapmark-custom-selected')
+        finally:
+            self._syncing_palette = old
 
     def _sync_custom_picker(self, picker, color):
         # The custom picker now has a fixed multicolour tile; keep it neutral.
         if picker is not None:
             picker.set_tooltip_text(f'More colors… (current: {color})')
 
+    def _ocr_text_focused(self):
+        return (self._ocr_panel is not None and
+                self.get_focus() is self._ocr_panel.view)
+
+    def _copy_contextual(self):
+        if self._ocr_text_focused():
+            buffer = self._ocr_panel.view.get_buffer()
+            if buffer.get_has_selection():
+                start, end = buffer.get_selection_bounds()
+                self.get_display().get_clipboard().set(buffer.get_text(start, end, True))
+            return
+        self.copy_image()
+
+    def _undo_contextual(self):
+        if self._ocr_text_focused():
+            buffer = self._ocr_panel.view.get_buffer()
+            if buffer.can_undo():
+                buffer.undo()
+            return
+        self.undo()
+
+    def _redo_contextual(self):
+        if self._ocr_text_focused():
+            buffer = self._ocr_panel.view.get_buffer()
+            if buffer.can_redo():
+                buffer.redo()
+            return
+        self.redo()
+
     def _set_actions(self):
         callbacks = {
             'open': self.open_dialog,
             'fit': self.fit_image,
             'actual': lambda: self.set_zoom(1.),
-            'undo': self.undo,
-            'redo': self.redo,
-            'copy': self.copy_image,
+            'undo': self._undo_contextual,
+            'redo': self._redo_contextual,
+            'copy': self._copy_contextual,
             'save': self.save_dialog,
             'preferences': self.show_preferences,
             'quit': self.get_application().quit,
@@ -748,39 +1147,70 @@ class EditorWindow(Adw.ApplicationWindow):
         if not hasattr(self, 'font_options'):
             return
         selected = self._selected_mark()
-        self.font_options.set_visible(
-            code == 'text' or (code == 'select' and selected is not None
-                               and selected.tool == 'text'))
+        self._update_active_tool_properties()
 
     def _highlight_mode_toggled(self, button, mode):
         if button.get_active():
             self.highlight_mode = mode
 
     def _color_toggled(self, button, color):
-        if not button.get_active():
+        if not button.get_active() or self._syncing_palette or self._syncing_controls:
             return
         self.color = color
         if hasattr(self, 'custom_stroke'):
             self._change_selected(color=color)
             self._sync_custom_picker(self.custom_stroke, color)
+            self.settings.remember_color(color)
+            self._refresh_recent()
+            self._sync_palette_selection(fill=False)
 
     def _fill_color_toggled(self, button, color):
-        if not button.get_active():
+        if not button.get_active() or self._syncing_palette or self._syncing_controls:
             return
         self.fill_color = color
         if hasattr(self, 'custom_fill'):
             self._change_selected(fill_color=color)
             self._sync_custom_picker(self.custom_fill, color)
+            self.settings.remember_color(color)
+            self._refresh_recent()
+            self._sync_palette_selection(fill=True)
 
     def _width_changed(self, scale):
         self.stroke = float(scale.get_value())
-        self.width_label.set_text(f'Width · {self.stroke:.0f} px')
+        mark = self._selected_mark()
+        active = mark.tool if self.tool == 'select' and mark else self.tool
+        if active == 'mosaic':
+            self.width_label.set_text(f"{_('Block size')} · {round(self.stroke * 3)} px")
+        elif active == 'blur':
+            self.width_label.set_text(f"{_('Blur radius')} · {round(self.stroke * 2)} px")
+        else:
+            self.width_label.set_text(f"{_('Width')} · {self.stroke:.0f} px")
         self._change_selected(width=self.stroke)
 
+    def _eraser_size_changed(self, scale):
+        self.eraser_size = float(scale.get_value())
+        self.eraser_label.set_text(f"{_('Brush size')} · {self.eraser_size:.0f} px")
+        if self._selected_mark() is not None and self._selected_mark().tool == 'eraser':
+            self._change_selected(width=self.eraser_size)
+
+    def _radius_changed(self, scale):
+        self.corner_radius = float(scale.get_value())
+        self.radius_label.set_text(f"{_('Corner radius')} · {self.corner_radius:.0f} px")
+        selected = self._selected_mark()
+        if selected is not None and selected.tool in ('rectangle', 'triangle'):
+            self._change_selected(corner_radius=self.corner_radius)
+
     def _opacity_changed(self, scale):
-        self.opacity = float(scale.get_value()) / 100
-        self.opacity_label.set_text(f'Opacity · {self.opacity:.0%}')
-        self._change_selected(opacity=self.opacity)
+        value = float(scale.get_value()) / 100
+        mark = self._selected_mark()
+        active = mark.tool if self.tool == 'select' and mark else self.tool
+        if active in ('mosaic', 'blur'):
+            self.effect_strength = value
+            self.opacity_label.set_text(f"{_('Strength')} · {value:.0%}")
+        else:
+            self.opacity = value
+            self.opacity_label.set_text(f"{_('Opacity')} · {value:.0%}")
+        self._change_selected(opacity=value)
 
     def _font_changed(self, button, _pspec):
         desc = button.get_font_desc()
@@ -791,14 +1221,22 @@ class EditorWindow(Adw.ApplicationWindow):
     def _fill_changed(self, switch, _pspec):
         self.fill = switch.get_active()
         self._change_selected(fill=self.fill)
+        self._update_active_tool_properties()
 
     def _key_pressed(self, _controller, keyval, _keycode, _state):
-        if keyval in (Gdk.KEY_Delete, Gdk.KEY_BackSpace) and self.selected_index is not None:
+        if keyval == Gdk.KEY_Escape and self._ocr_region_callback is not None:
+            self.cancel_ocr_region()
+            self._notice(_("OCR selection cancelled"))
+            return True
+        if (keyval in (Gdk.KEY_Delete, Gdk.KEY_BackSpace) and
+                not self._ocr_text_focused() and self.selected_index is not None):
             self.delete_selected()
             return True
         return False
 
     def _canvas_pressed(self, _gesture, n_press, x, y):
+        if self._ocr_region_callback is not None:
+            return
         if self.tool == 'select' and n_press >= 2:
             index = self.selected_index
             if index is not None and self.history.marks[index].tool == 'text':
@@ -811,6 +1249,7 @@ class EditorWindow(Adw.ApplicationWindow):
         except Exception as exc:
             self._notice(f'Cannot open this image: {exc}')
             return
+        self.cancel_ocr_region()
         self.pixbuf = pixbuf
         self.filename = path
         self.history = History()
@@ -820,22 +1259,52 @@ class EditorWindow(Adw.ApplicationWindow):
         self._refresh_layers()
         self.stack.set_visible_child_name('document')
         self.details.set_text(f'{pixbuf.get_width()} × {pixbuf.get_height()} px')
+        self._auto_fit_image = True
         GLib.idle_add(self._delayed_fit)
 
     def _delayed_fit(self):
-        self.fit_image()
-        return False
+        self._schedule_auto_fit()
+        return GLib.SOURCE_REMOVE
+
+    def _layout_fit_changed(self, *_args):
+        self._schedule_auto_fit()
+
+    def _schedule_auto_fit(self):
+        """Fit after real GTK allocations, without overriding manual zoom."""
+        if not self.pixbuf or not self._auto_fit_image:
+            return
+        self._fit_generation += 1
+        generation = self._fit_generation
+        attempts = [0]
+        def after_allocation():
+            if generation != self._fit_generation or not self._auto_fit_image:
+                return GLib.SOURCE_REMOVE
+            w, h = self.scroller.get_allocated_width(), self.scroller.get_allocated_height()
+            if w >= 220 and h >= 160:
+                self._apply_fit_to_viewport()
+            attempts[0] += 1
+            return GLib.SOURCE_CONTINUE if attempts[0] < 9 else GLib.SOURCE_REMOVE
+        GLib.timeout_add(90, after_allocation)
+
+    def _apply_fit_to_viewport(self):
+        if not self.pixbuf:
+            return
+        w = self.scroller.get_allocated_width() - 30
+        h = self.scroller.get_allocated_height() - 30
+        if w > 0 and h > 0:
+            self.set_zoom(fit_zoom(self.pixbuf.get_width(), self.pixbuf.get_height(), w, h),
+                          manual=False)
 
     def fit_image(self):
-        if not self.pixbuf:
-            return
-        width = max(self.scroller.get_allocated_width() - 30, 200)
-        height = max(self.scroller.get_allocated_height() - 30, 180)
-        self.set_zoom(fit_zoom(self.pixbuf.get_width(), self.pixbuf.get_height(), width, height))
+        self._auto_fit_image = True
+        self._schedule_auto_fit()
 
-    def set_zoom(self, zoom):
+    def set_zoom(self, zoom, manual=True):
         if not self.pixbuf:
             return
+        if manual:
+            self._auto_fit_image = False
+            self._fit_generation += 1
         self.zoom = clamp(zoom, .1, 4.)
         self.canvas.set_content_width(max(1, math.ceil(self.pixbuf.get_width() * self.zoom)))
         self.canvas.set_content_height(max(1, math.ceil(self.pixbuf.get_height() * self.zoom)))
@@ -869,6 +1338,17 @@ class EditorWindow(Adw.ApplicationWindow):
         paint_document(cr, self.pixbuf, marks, self.preview)
         if self.selected_index is not None and self.selected_index < len(marks):
             self._draw_selection(cr, marks[self.selected_index])
+        if self._ocr_region_preview is not None:
+            x0, y0, x1, y1 = self._ocr_region_preview
+            cr.save()
+            cr.set_source_rgba(.15, .47, .95, .16)
+            cr.rectangle(x0, y0, x1-x0, y1-y0)
+            cr.fill_preserve()
+            cr.set_source_rgba(.15, .47, .95, .98)
+            cr.set_line_width(2 / max(self.zoom, .1))
+            cr.set_dash([5 / max(self.zoom, .1), 4 / max(self.zoom, .1)])
+            cr.stroke()
+            cr.restore()
         cr.restore()
 
     def _draw_selection(self, cr, mark):
@@ -923,6 +1403,10 @@ class EditorWindow(Adw.ApplicationWindow):
         if not self.pixbuf:
             return
         self.start_point = self._pixel(x, y)
+        if self._ocr_region_callback is not None:
+            self._ocr_region_start = self.start_point
+            self._ocr_region_preview = None
+            return
         if self.tool == 'select':
             px, py = self.start_point
             handle = self._selection_handle(px, py)
@@ -943,14 +1427,16 @@ class EditorWindow(Adw.ApplicationWindow):
             return
         if self.tool == 'eraser':
             sx, sy = self.start_point
-            self.preview = Mark('eraser', sx, sy, sx, sy, self.color,
-                                self.stroke, points=[(sx, sy)], opacity=1.0)
+            self.preview = Mark('eraser', sx, sy, sx, sy, width=self.eraser_size,
+                                points=[(sx, sy)], opacity=1.0)
             self.canvas.queue_draw()
             return
         sx, sy = self.start_point
         self.preview = Mark(self.tool, sx, sy, sx, sy, self.color, self.stroke,
-                            self.fill, self.opacity, font=self.font,
+                            self.fill, (self.effect_strength if self.tool in ('mosaic', 'blur')
+                                        else self.opacity), font=self.font,
                             fill_color=self.fill_color,
+                            corner_radius=(self.corner_radius if self.tool in ('rectangle', 'triangle') else 0),
                             highlighter_mode=(self.highlight_mode if self.tool == 'highlighter'
                                               else 'freehand'))
         if self.tool in ('pen', 'highlighter'):
@@ -963,6 +1449,15 @@ class EditorWindow(Adw.ApplicationWindow):
         if not ok:
             return
         x, y = self._pixel(sx + dx, sy + dy)
+        if self._ocr_region_callback is not None:
+            ox, oy = self._ocr_region_start
+            try:
+                self._ocr_region_preview = normalize_region(
+                    (ox, oy, x, y), self.pixbuf.get_width(), self.pixbuf.get_height())
+            except ValueError:
+                self._ocr_region_preview = None
+            self.canvas.queue_draw()
+            return
         if self.tool == 'select':
             if self._edit_start_mark is None:
                 return
@@ -993,6 +1488,19 @@ class EditorWindow(Adw.ApplicationWindow):
         self.canvas.queue_draw()
 
     def _drag_end(self, gesture, dx, dy):
+        if self._ocr_region_callback is not None:
+            callback = self._ocr_region_callback
+            region = self._ocr_region_preview
+            self.cancel_ocr_region()
+            self.start_point = None
+            if region is not None:
+                try:
+                    callback(self.original_png_for_ocr(region))
+                except Exception as exc:
+                    self._notice(f"OCR region failed: {exc}")
+            else:
+                self._notice(_("OCR selection is too small; try again"))
+            return
         if self.tool == 'select':
             if self.edit_preview is not None and self.selected_index is not None:
                 self.history.replace(self.selected_index, self.edit_preview)
@@ -1002,7 +1510,9 @@ class EditorWindow(Adw.ApplicationWindow):
             self._refresh_layers()
             self.canvas.queue_draw()
         elif self.tool == 'eraser':
-            if self.preview is not None:
+            if self.preview is not None and any(
+                m.tool not in ('eraser', 'mosaic', 'blur') for m in self.history.marks
+            ):
                 self.history.push(self.preview)
             self.preview = None
             self.selected_index = None
@@ -1022,7 +1532,7 @@ class EditorWindow(Adw.ApplicationWindow):
         rect = Gdk.Rectangle()
         rect.x, rect.y, rect.width, rect.height = int(x), int(y), 1, 1
         popover.set_pointing_to(rect)
-        entry = Gtk.Entry(placeholder_text='Type annotation…')
+        entry = Gtk.Entry(placeholder_text=_('Type annotation…'))
         if edit_index is not None:
             entry.set_text(self.history.marks[edit_index].text)
         for prop in ('top', 'bottom', 'start', 'end'):
@@ -1080,18 +1590,20 @@ class EditorWindow(Adw.ApplicationWindow):
         try:
             content = Gdk.ContentProvider.new_for_bytes('image/png', GLib.Bytes.new(self._render_png()))
             if not self.get_display().get_clipboard().set_content(content):
-                self._notice('Failed to copy image')
+                self._notice(_('Failed to copy image'))
             else:
-                self._notice('Annotated image copied to clipboard')
+                self._notice(_('Annotated image copied to clipboard'))
         except Exception as exc:
             self._notice(f'Cannot copy image: {exc}')
 
     def save_dialog(self):
         if not self.pixbuf:
             return
-        dialog = Gtk.FileDialog(title='Save annotated screenshot')
+        dialog = Gtk.FileDialog(title=_('Save annotated screenshot'))
         stem = self.filename.stem if self.filename else 'Screenshot'
-        dialog.set_initial_name(f'{stem}-marked.png')
+        fmt = self.settings.image_format()
+        ext = 'jpg' if fmt == 'jpeg' else fmt
+        dialog.set_initial_name(f'{stem}-marked.{ext}')
         dialog.save(self, None, self._save_done)
 
     def _save_done(self, dialog, result):
@@ -1101,10 +1613,50 @@ class EditorWindow(Adw.ApplicationWindow):
                 return
             path = file.get_path()
             if not path:
-                self._notice('Choose a local destination')
+                self._notice(_('Choose a local destination'))
                 return
-            Path(path).write_bytes(self._render_png())
-            self._notice('Image saved')
+            import os
+            import tempfile
+            target = Path(path)
+            suffix = target.suffix.lower()
+            formats = {'.png': 'png', '.jpg': 'jpeg', '.jpeg': 'jpeg', '.webp': 'webp'}
+            if suffix not in formats:
+                fmt = self.settings.image_format()
+                target = target.with_suffix('.jpg' if fmt == 'jpeg' else '.' + fmt)
+            fmt = formats.get(target.suffix.lower())
+            if fmt == 'png':
+                payload = self._render_png()
+                fd, temporary = tempfile.mkstemp(prefix='.snapmark-save-', dir=target.parent)
+                try:
+                    with os.fdopen(fd, 'wb') as stream:
+                        stream.write(payload)
+                    os.replace(temporary, target)
+                finally:
+                    if os.path.exists(temporary):
+                        os.unlink(temporary)
+            else:
+                loader = GdkPixbuf.PixbufLoader.new_with_type('png')
+                loader.write(self._render_png())
+                loader.close()
+                pixbuf = loader.get_pixbuf()
+                if fmt == 'jpeg' and pixbuf.get_has_alpha():
+                    rgb = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8,
+                                                pixbuf.get_width(), pixbuf.get_height())
+                    rgb.fill(0xffffffff)
+                    pixbuf.composite(rgb, 0, 0, pixbuf.get_width(), pixbuf.get_height(),
+                                     0.0, 0.0, 1.0, 1.0, GdkPixbuf.InterpType.NEAREST, 255)
+                    pixbuf = rgb
+                options = ['quality']
+                values = [str(self.settings.image_quality())]
+                fd, temporary = tempfile.mkstemp(prefix='.snapmark-save-', dir=target.parent)
+                os.close(fd)
+                try:
+                    pixbuf.savev(temporary, fmt, options, values)
+                    os.replace(temporary, target)
+                finally:
+                    if os.path.exists(temporary):
+                        os.unlink(temporary)
+            self._notice(_('Image saved'))
         except GLib.Error as exc:
             if 'dismiss' not in exc.message.lower() and 'cancel' not in exc.message.lower():
                 self._notice(f'Save failed: {exc.message}')
@@ -1112,9 +1664,9 @@ class EditorWindow(Adw.ApplicationWindow):
             self._notice(f'Save failed: {exc}')
 
     def open_dialog(self):
-        dialog = Gtk.FileDialog(title='Open screenshot')
+        dialog = Gtk.FileDialog(title=_('Open screenshot'))
         image_filter = Gtk.FileFilter()
-        image_filter.set_name('Images')
+        image_filter.set_name(_('Images'))
         for name in ('image/png', 'image/jpeg', 'image/webp', 'image/bmp'):
             image_filter.add_mime_type(name)
         filters = Gio.ListStore.new(Gtk.FileFilter)
@@ -1137,74 +1689,143 @@ class EditorWindow(Adw.ApplicationWindow):
             return
         # PreferencesPage is used for the content, with StackSidebar on the
         # LEFT instead of libadwaita's normal top-of-window page switcher.
-        window = Adw.Window(title='SnapMark Preferences', default_width=660,
-                            default_height=430, transient_for=self, modal=False)
+        window = Adw.Window(title=_('SnapMark Preferences'), default_width=920,
+                            default_height=640, transient_for=self, modal=False)
         window.add_css_class('snapmark-window')
         self._preferences_window = window
         window.connect('close-request', lambda *_: self._forget_preferences())
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(Adw.HeaderBar())
         window.set_content(toolbar)
+        from .preferences_sidebar_c2e import PreferencesNavigation
         split = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
         split.set_resize_start_child(False)
         split.set_shrink_start_child(False)
-        split.set_resize_end_child(True)
-        split.set_shrink_end_child(False)
-        split.set_position(160)
+        split.set_position(222)
         toolbar.set_content(split)
-
         stack = Gtk.Stack()
         stack.set_hexpand(True)
         stack.set_vexpand(True)
-        sidebar = Gtk.StackSidebar()
-        sidebar.set_stack(stack)
-        sidebar.set_size_request(145, -1)
-        sidebar.add_css_class('navigation-sidebar')
-        split.set_start_child(sidebar)
+        navigation = PreferencesNavigation(stack)
+        split.set_start_child(navigation)
         split.set_end_child(stack)
-
         page = Adw.PreferencesPage()
-        group = Adw.PreferencesGroup(title='General')
+        group = Adw.PreferencesGroup(title=_('General'))
         page.add(group)
+        options = language_options()
+        language_row = Adw.ComboRow(title=_('Language'),
+                                    subtitle=_('Restart SnapMark to apply language changes'))
+        language_row.set_model(Gtk.StringList.new([label for _code, label in options]))
+        current_lang = self.settings.language()
+        language_row.set_selected(next((i for i, entry in enumerate(options)
+                                        if entry[0] == current_lang), 0))
+        def on_language_changed(row, _spec):
+            selected = row.get_selected()
+            if selected >= len(options):
+                return
+            code = options[selected][0]
+            if code == self.settings.language():
+                return
+            self.settings.set_language(code)
+            self._notice(_('Restart SnapMark to apply language changes'))
+        language_row.connect('notify::selected', on_language_changed)
+        group.add(language_row)
+
         stack.add_titled(page, 'general', 'General')
-        from .plugin_ui import PluginPreferences
-        self._plugin_preferences = PluginPreferences(window, stack)
-        for ident, (title, builder) in self.plugin_host.settings_factories.items():
-            plugin_page = builder(self)
-            stack.add_titled(plugin_page, 'plugin-' + ident, title)
+        stack.get_page(page).set_title(_('General'))
+        screenshot_page = Adw.PreferencesPage()
+        screenshot_group = Adw.PreferencesGroup(title=_('Screenshots'),
+            description=_('Print Screen remains independent. Use Clipboard Image or Screenshot History to edit.'))
+        screenshot_page.add(screenshot_group)
+        stack.add_titled(screenshot_page, 'screenshot', _('Screenshots & Annotation'))
+        shortcuts_page = Adw.PreferencesPage()
+        shortcuts_group = Adw.PreferencesGroup(title=_('Keyboard shortcuts'))
+        shortcuts_page.add(shortcuts_group)
+        for key, purpose in (
+            ('Ctrl+O', 'Open image'), ('Ctrl+C', 'Copy annotated screenshot'),
+            ('Ctrl+S', 'Save screenshot'), ('Ctrl+Z', 'Undo'),
+            ('Ctrl+Shift+Z / Ctrl+Y', 'Redo'), ('Ctrl+0', 'Actual pixel size'),
+            ('Ctrl+,', 'Preferences'), ('Ctrl+Q', 'Quit SnapMark'),
+        ):
+            shortcuts_group.add(Adw.ActionRow(title=key, subtitle=purpose))
+        stack.add_titled(shortcuts_page, 'shortcuts', _('Shortcuts'))
+        ocr_page = create_ocr_preferences(self)
+        stack.add_titled(ocr_page, 'ocr', 'OCR')
+        about_page = Adw.PreferencesPage()
+        about_group = Adw.PreferencesGroup(title='SnapMark',
+            description=_('GTK4 / libadwaita screenshot editor with integrated PaddleOCR-VL via Ollama.'))
+        about_page.add(about_group)
+        # Preferences has its own About page, distinct from the tray's AboutWindow.
+        # Both must show the same authoritative application release version.
+        about_group.add(Adw.ActionRow(title=_('Version'), subtitle=__version__))
+        stack.add_titled(about_page, 'about', 'About')
+        stack.get_page(about_page).set_title(_('About'))
+        # All pages now exist; initial selection must not happen in the sidebar constructor.
+        stack.set_visible_child_name('general')
+        navigation._highlight()
         autostart = Autostart()
-        startup = Adw.SwitchRow(title='Start automatically on login',
-                                subtitle='Watch GNOME screenshots in the background')
+        startup = Adw.SwitchRow(title=_('Start automatically on login'),
+                                subtitle=_('Launch SnapMark in the background; system screenshots stay independent'))
         startup.set_active(autostart.enabled())
         group.add(startup)
-        minimized = Adw.SwitchRow(title='Start minimized',
-                                  subtitle='Keep the editor hidden when a status icon is available')
+        minimized = Adw.SwitchRow(title=_('Start minimized'),
+                                  subtitle=_('Keep the editor hidden when a status icon is available'))
         minimized.set_active(self.settings.start_minimized())
         minimized.connect('notify::active',
                           lambda widget, _pspec: self.settings.set_start_minimized(widget.get_active()))
         group.add(minimized)
+        export = Adw.ComboRow(title='Default image format',
+                              subtitle=_('For images saved from SnapMark, not GNOME Print Screen'))
+        format_names = ['PNG (.png)', 'JPEG (.jpg)', 'WebP (.webp)']
+        format_values = ['png', 'jpeg', 'webp']
+        export.set_model(Gtk.StringList.new(format_names))
+        export.set_selected(format_values.index(self.settings.image_format()))
+        def export_changed(row, _param):
+            self.settings.set_image_format(format_values[row.get_selected()])
+        export.connect('notify::selected', export_changed)
+        export.set_title(_('Default image format'))
+        group.add(export)
+        quality = Adw.SpinRow.new_with_range(1, 100, 1)
+        quality.set_title('JPEG / WebP quality')
+        quality.set_title(_('JPEG / WebP quality'))
+        quality.set_subtitle(_('Higher quality uses more storage; PNG is lossless'))
+        quality.set_value(self.settings.image_quality())
+        quality.connect('notify::value',
+                        lambda row, _p: self.settings.set_image_quality(int(row.get_value())))
+        group.add(quality)
 
-        folder = Adw.ActionRow(title='Screenshot folder',
-                               subtitle=Settings().screenshot_directory() or 'Automatic (GNOME Screenshots)')
-        button = Gtk.Button(label='Choose…')
+        folder = Adw.ActionRow(title='Screenshot history folder',
+                               subtitle=Settings().screenshot_directory() or _('Automatic (GNOME screenshot folders)'))
+        button = Gtk.Button(label=_('Choose…'))
         button.add_css_class('snapmark-quiet')
         button.set_valign(Gtk.Align.CENTER)
         folder.add_suffix(button)
         reset = Gtk.Button(icon_name='edit-undo-symbolic',
-                           tooltip_text='Use automatic screenshot folder')
+                           tooltip_text=_('Automatically detect GNOME screenshot folders'))
         reset.add_css_class('snapmark-quiet')
         reset.set_valign(Gtk.Align.CENTER)
         reset.set_sensitive(bool(self.settings.screenshot_directory()))
         folder.add_suffix(reset)
-        group.add(folder)
+        folder.set_title(_('Screenshot history folder'))
+        timeout_row = Adw.SpinRow.new_with_range(0, 3600, 1)
+        timeout_row.set_title('当前截图快捷入口有效期（秒）' if self.settings.language() == 'zh_CN'
+                              else 'Recent screenshot shortcut lifetime (seconds)')
+        timeout_row.set_subtitle('超过时限请从截图历史打开；0 表示禁用快捷入口' if self.settings.language() == 'zh_CN'
+                                 else 'Use Screenshot History after expiry; 0 disables the shortcut')
+        timeout_row.set_value(self.settings.screenshot_ocr_timeout())
+        def timeout_changed(row, _pspec):
+            self.settings.set_screenshot_ocr_timeout(int(row.get_value()))
+            self.get_application().refresh_recent_screenshot_status()
+        timeout_row.connect('notify::value', timeout_changed)
+        screenshot_group.add(timeout_row)
+        screenshot_group.add(folder)
 
         def toggle_switch(switch, _pspec):
             try:
+                # Launch-at-login is a separate preference from live screenshot
+                # monitoring.  A running SnapMark must keep watching even if
+                # autostart has been disabled by the user.
                 autostart.set_enabled(switch.get_active())
-                if switch.get_active():
-                    self.get_application().start_watching()
-                else:
-                    self.get_application().stop_watching()
             except (ValueError, OSError) as exc:
                 self._notice(str(exc))
                 switch.handler_block(toggle_handler)
@@ -1214,7 +1835,7 @@ class EditorWindow(Adw.ApplicationWindow):
         toggle_handler = startup.connect('notify::active', toggle_switch)
 
         def choose_folder(_button):
-            dialog = Gtk.FileDialog(title='Choose GNOME screenshot folder')
+            dialog = Gtk.FileDialog(title=_('Choose screenshot history folder'))
             dialog.select_folder(window, None, folder_selected)
 
         def folder_selected(dialog, result):
@@ -1223,9 +1844,9 @@ class EditorWindow(Adw.ApplicationWindow):
                 if selected is None or not selected.get_path():
                     return
                 Settings().set_screenshot_directory(selected.get_path())
+                self.get_application().refresh_watching()
                 folder.set_subtitle(selected.get_path())
                 reset.set_sensitive(True)
-                self.get_application().refresh_watching()
             except GLib.Error as exc:
                 if 'dismiss' not in exc.message.lower() and 'cancel' not in exc.message.lower():
                     self._notice(f'Folder selection failed: {exc.message}')
@@ -1235,14 +1856,17 @@ class EditorWindow(Adw.ApplicationWindow):
         def reset_folder(_button):
             try:
                 Settings().set_screenshot_directory('')
-                folder.set_subtitle('Automatic (GNOME Screenshots)')
-                reset.set_sensitive(False)
                 self.get_application().refresh_watching()
+                folder.set_subtitle(_('Automatic (GNOME screenshot folders)'))
+                reset.set_sensitive(False)
             except (OSError, ValueError) as exc:
                 self._notice(str(exc))
 
         button.connect('clicked', choose_folder)
         reset.connect('clicked', reset_folder)
+        # Keep built-in OCR labels consistent with the selected UI language.
+        if callable(globals().get("localize_widget_tree")):
+            localize_widget_tree(window)
         window.present()
 
     def _forget_preferences(self):

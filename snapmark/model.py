@@ -25,6 +25,7 @@ class Mark:
     font: str = 'Sans 20'
     fill_color: str = ''
     highlighter_mode: str = 'freehand'  # freehand | line, relevant only to Highlight
+    corner_radius: float = 0.0  # Rectangle/Triangle local-space round corner radius
 
     def is_meaningful(self):
         if self.tool == 'text':
@@ -92,8 +93,7 @@ def mark_touches(mark, x, y, radius=12.):
     """Hit-test a visible mark, with a modest tolerance for strokes."""
     if mark.tool in ('pen', 'highlighter', 'eraser'):
         pts = mark.points
-        width = mark.width * (5 if mark.tool == 'highlighter' else
-                              3 if mark.tool == 'eraser' else 1)
+        width = mark.width * (5 if mark.tool == 'highlighter' else 1)
         if mark.tool == 'eraser' and len(pts) == 1:
             return hypot(x - pts[0][0], y - pts[0][1]) <= radius + width / 2
         return any(_distance_to_segment(x, y, *a, *b) <= radius + width / 2
@@ -156,6 +156,8 @@ def resized(mark, new_bounds):
     result.y1, result.y2 = ty(mark.y1), ty(mark.y2)
     if mark.points:
         result.points = [(tx(x), ty(y)) for x, y in mark.points]
+    if mark.tool in ('rectangle', 'triangle'):
+        result.corner_radius = max(0., mark.corner_radius * min(sx, sy))
     if mark.tool == 'text':
         size = max(5., min(300., font_size(mark) * sqrt(sx * sy)))
         family = mark.font.rsplit(' ', 1)[0]
