@@ -1,26 +1,69 @@
 #!/usr/bin/env bash
-# Runtime entrypoint inside the AppImage.
+# SnapMark AppImage: prefer the host GTK4 stack where it is available.
+# The AppDir still contains a bundled fallback for hosts without native GI.
 set -euo pipefail
 APPDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export APPDIR="$APPDIR"
+export APPDIR
+
+# auto = use the host's *matched* Python/GTK/GI stack where possible;
+# system = require host stack; bundled = always use the AppDir runtime.
+mode="${SNAPMARK_APPIMAGE_GTK_MODE:-auto}"
+case "$mode" in
+  auto|system|bundled) ;;
+  *) echo "SnapMark: invalid SNAPMARK_APPIMAGE_GTK_MODE=$mode (auto|system|bundled)" >&2; exit 2 ;;
+esac
+
+host_gtk_available() {
+  [ -x /usr/bin/python3 ] || return 1
+  # Probe the exact host interpreter and GI typelibs rather than testing for
+  # a package name. Avoid running the application just to test availability.
+  /usr/bin/python3 - <<'PY' >/dev/null 2>&1
+import gi
+import cairo
+gi.require_foreign('cairo')
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, Adw, GdkPixbuf, Gio
+assert Gtk.get_major_version() == 4
+PY
+}
+
+if [ "$mode" != bundled ]; then
+  if host_gtk_available; then
+    # The program still loads source/assets from this AppImage, but its Python,
+    # GTK4, Cairo, GI and all shared libraries come from the same host system.
+    # Do not inherit any bundled typelibs, schema paths or loader caches.
+    unset PYTHONHOME GI_TYPELIB_PATH GSETTINGS_SCHEMA_DIR
+    unset GDK_PIXBUF_MODULEDIR GDK_PIXBUF_MODULE_FILE
+    unset LD_LIBRARY_PATH
+    export PYTHONPATH="$APPDIR/usr/share/snapmark"
+    export PYTHONSAFEPATH=1 PYTHONNOUSERSITE=1 PYTHONDONTWRITEBYTECODE=1
+    echo "SnapMark AppImage runtime: host GTK4 (/usr/bin/python3)" >&2
+    exec /usr/bin/python3 -m snapmark.app "$@"
+  elif [ "$mode" = system ]; then
+    echo 'SnapMark: native GTK4 mode requested but system GTK4/libadwaita/PyGObject/Cairo is unavailable.' >&2
+    echo 'Install python3-gi python3-gi-cairo python3-cairo gir1.2-gtk-4.0 gir1.2-adw-1, or use bundled mode.' >&2
+    exit 3
+  fi
+fi
+
+# Portable bundled fallback -- preserves the previously tested standalone mode.
+# Keep its entire GI/GTK/GLib stack together; never mix host typelibs into it.
 export PYTHONHOME="$APPDIR/usr"
 export PYTHONPATH="$APPDIR/usr/lib/python3/dist-packages:$APPDIR/usr/share/snapmark"
-# -m normally prepends the current directory to sys.path; that made the CI
-# smoke test import the checkout rather than the installed AppImage files.
-export PYTHONSAFEPATH=1
+export PYTHONSAFEPATH=1 PYTHONNOUSERSITE=1
 export GI_TYPELIB_PATH="$APPDIR/usr/lib/girepository-1.0"
 export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
 export GDK_PIXBUF_MODULEDIR="$APPDIR/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders"
 export PYTHONDONTWRITEBYTECODE=1
-# Rebuild cache using actual AppImage mount paths, avoiding build-time absolute paths.
 if [[ -x "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" ]]; then
   cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/snapmark"
   mkdir -p "$cache_dir"
-  # Cache is short-lived and recreated as the AppImage mounts at variable paths.
   cache="$cache_dir/gdk-pixbuf-loaders.cache"
   "$APPDIR/usr/bin/gdk-pixbuf-query-loaders" "$GDK_PIXBUF_MODULEDIR"/*.so > "$cache"
   export GDK_PIXBUF_MODULE_FILE="$cache"
 fi
+echo "SnapMark AppImage runtime: bundled GTK4" >&2
 exec "$APPDIR/usr/bin/python3" -m snapmark.app "$@"

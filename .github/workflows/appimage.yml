@@ -1,4 +1,4 @@
-name: Build & Release SnapMark AppImage
+name: Build & Release SnapMark (AppImage + DEB)
 
 on:
   push:
@@ -10,28 +10,26 @@ permissions:
   contents: read
 
 jobs:
-  appimage:
-    name: Test & build x86_64 AppImage
+  packages:
+    name: Test, build and smoke-test x86_64 packages
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check release version on tag
+      - name: Validate tag against source version
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          /usr/bin/python3 - <<'PYVALIDATE'
+          /usr/bin/python3 - <<'PY'
           import os
           from snapmark import __version__
-          expected = f'v{__version__}'
-          assert os.environ['RELEASE_TAG'] == expected, (
-              f"Tag {os.environ['RELEASE_TAG']!r} must match {expected!r}")
-          print(f'Validated release tag: {expected}')
-          PYVALIDATE
+          assert os.environ['RELEASE_TAG'] == f'v{__version__}', (
+              f"Tag {os.environ['RELEASE_TAG']} differs from v{__version__}")
+          PY
 
-      - name: Install GTK4, libadwaita and PyGObject
+      - name: Install GTK4, packaging and smoke-test requirements
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -40,63 +38,96 @@ jobs:
             gir1.2-pango-1.0 libgtk-4-1 libadwaita-1-0 \
             gobject-introspection libgdk-pixbuf2.0-bin \
             xvfb dbus-x11 curl file desktop-file-utils \
-            librsvg2-2 librsvg2-common
+            librsvg2-2 librsvg2-common dpkg-dev
 
-      - name: Verify SVG libraries
+      - name: Verify shared GTK assets
         run: |
           test -r /usr/lib/x86_64-linux-gnu/librsvg-2.so.2
           test -r /usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders/libpixbufloader-svg.so
           ldd /usr/lib/x86_64-linux-gnu/librsvg-2.so.2 | tee /tmp/snapmark-librsvg-ldd.txt
           ! grep -q 'not found' /tmp/snapmark-librsvg-ldd.txt
 
-      - name: Python tests and desktop metadata
+      - name: Python regression tests and desktop metadata
         run: |
-          /usr/bin/python3 -m compileall -q snapmark tests
+          /usr/bin/python3 -m compileall -q snapmark tests scripts
           /usr/bin/python3 -m unittest discover -s tests -v
           desktop-file-validate assets/io.github.yanjingchen.SnapMark.desktop
+          bash -n scripts/AppRun scripts/build-deb.sh scripts/build-appimage.sh
+          /usr/bin/python3 scripts/test-packaging.py -v
 
-      - name: GTK GUI smoke test (Xvfb, not GNOME Wayland acceptance)
+      - name: Native GTK GUI smoke-test (Xvfb, not Wayland acceptance)
         env:
           GDK_BACKEND: x11
           NO_AT_BRIDGE: '1'
         run: |
           xvfb-run -a -s '-screen 0 1440x900x24' \
-            dbus-run-session -- timeout 35 /usr/bin/python3 -m snapmark.app --smoke-test
+            dbus-run-session -- timeout 35 \
+            /usr/bin/python3 -m snapmark.app --smoke-test
 
-      - name: Build AppImage only
+      - name: Build native DEB
+        run: bash scripts/build-deb.sh
+
+      - name: Validate DEB control, payload and installed-source launch
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+        run: |
+          dpkg-deb --info dist/*.deb
+          dpkg-deb --contents dist/*.deb | tee dist/deb-files-checked.txt
+          /usr/bin/python3 scripts/test-packaging.py -v
+          mkdir -p build/deb-test-root
+          dpkg-deb -x dist/*.deb build/deb-test-root
+          xvfb-run -a -s '-screen 0 1440x900x24' \
+            dbus-run-session -- timeout 35 \
+            env PYTHONPATH="$PWD/build/deb-test-root/usr/share/snapmark" \
+            /usr/bin/python3 -m snapmark.app --smoke-test
+
+      - name: Build portable AppImage (bundled fallback + host GTK mode)
         run: bash scripts/build-appimage.sh
 
-      - name: AppImage startup smoke test
+      - name: Smoke-test AppImage with native system GTK (Xvfb)
         env:
           GDK_BACKEND: x11
           NO_AT_BRIDGE: '1'
           APPIMAGE_EXTRACT_AND_RUN: '1'
+          SNAPMARK_APPIMAGE_GTK_MODE: system
         run: |
-          test -s ./dist/SnapMark-1.1.0-x86_64.AppImage
           xvfb-run -a -s '-screen 0 1440x900x24' \
             dbus-run-session -- timeout 60 \
-            ./dist/SnapMark-1.1.0-x86_64.AppImage --smoke-test
+            ./dist/SnapMark-*-x86_64.AppImage --smoke-test
 
-      - name: Package full source and checksums
+      - name: Smoke-test bundled AppImage fallback (Xvfb)
+        env:
+          GDK_BACKEND: x11
+          NO_AT_BRIDGE: '1'
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+          SNAPMARK_APPIMAGE_GTK_MODE: bundled
+        run: |
+          xvfb-run -a -s '-screen 0 1440x900x24' \
+            dbus-run-session -- timeout 60 \
+            ./dist/SnapMark-*-x86_64.AppImage --smoke-test
+
+      - name: Package complete source and SHA256 checksums
         run: |
           /usr/bin/python3 scripts/make-source-archive.py
           cd dist
-          sha256sum SnapMark-1.1.0-x86_64.AppImage SnapMark-1.1.0-Full-Source.zip > SHA256SUMS.txt
+          sha256sum SnapMark-*-x86_64.AppImage snapmark_*.deb SnapMark-*-Full-Source.zip > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
 
-      - name: Upload verified build assets
+      - name: Upload four verified release assets
         uses: actions/upload-artifact@v4
         with:
-          name: SnapMark-1.1.0-x86_64
+          name: SnapMark-x86_64-all-packages
           path: |
-            dist/SnapMark-1.1.0-x86_64.AppImage
-            dist/SnapMark-1.1.0-Full-Source.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*-Full-Source.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
   release:
-    name: Publish tagged GitHub Release
-    needs: appimage
+    name: Publish version-tagged GitHub Release
+    needs: packages
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
@@ -105,27 +136,31 @@ jobs:
       - name: Checkout release notes
         uses: actions/checkout@v4
 
-      - name: Download verified AppImage and source
+      - name: Download verified packages
         uses: actions/download-artifact@v4
         with:
-          name: SnapMark-1.1.0-x86_64
+          name: SnapMark-x86_64-all-packages
           path: dist
 
-      - name: Verify uploaded checksums
+      - name: Validate downloaded release assets and SHA256
         run: |
           cd dist
+          test "$(find . -maxdepth 1 -name '*.AppImage' | wc -l)" -eq 1
+          test "$(find . -maxdepth 1 -name '*.deb' | wc -l)" -eq 1
+          test "$(find . -maxdepth 1 -name '*-Full-Source.zip' | wc -l)" -eq 1
           sha256sum -c SHA256SUMS.txt
 
-      - name: Publish release v1.1.0
+      - name: Publish AppImage, DEB, source and checksums
         uses: softprops/action-gh-release@v2
         with:
-          name: SnapMark v1.1.0
-          body_path: RELEASE_NOTES_v1.1.0.md
+          name: SnapMark ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           draft: false
-          prerelease: false
-          make_latest: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
           fail_on_unmatched_files: true
           files: |
-            dist/SnapMark-1.1.0-x86_64.AppImage
-            dist/SnapMark-1.1.0-Full-Source.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*-Full-Source.zip
             dist/SHA256SUMS.txt

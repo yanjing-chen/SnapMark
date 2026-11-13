@@ -17,7 +17,7 @@ class AboutVersionContract(unittest.TestCase):
                     and any(isinstance(t, ast.Name) and t.id == '__version__'
                             for t in node.targets)
                     and isinstance(node.value, ast.Constant)]
-        self.assertEqual(versions, ['1.1.0'])
+        self.assertEqual(versions, ['1.1.1'])
 
     def test_preferences_about_page_exposes_version_row(self):
         tree = ast.parse(EDITOR)

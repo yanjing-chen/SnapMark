@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-SM_VERSION="${SNAPMARK_VERSION:-1.1.0}"
+SM_VERSION="${SNAPMARK_VERSION:-$(/usr/bin/python3 -c 'from snapmark import __version__; print(__version__)')}"
 if [[ "$(uname -m)" != x86_64 ]]; then
   echo 'This initial AppImage workflow supports x86_64 only.' >&2
   exit 1
