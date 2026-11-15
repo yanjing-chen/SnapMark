@@ -1,6 +1,6 @@
-# SnapMark v1.1.1 — 正式版构建与 GitHub 发布
+# SnapMark v1.1.2 — 正式版构建与 GitHub 发布
 
-本版只改变版本号与打包、CI 配置，**应用代码延续 1.1.0 正式版**；没有添加 1.5 秒剪贴板轮询。
+本版保留 1.1.2-rc1 已实机验收的单托盘注册修复，新增 GTK4 事件驱动的图片剪贴板 MIME 筛选和设置开关；**没有添加 1.5 秒剪贴板轮询，也不读取文本剪贴板内容**。
 
 ## DEB
 
@@ -9,7 +9,7 @@
 ```bash
 sudo apt install -y dpkg-dev python3
 bash scripts/build-deb.sh
-sudo apt install ./dist/snapmark_1.1.1-1_amd64.deb
+sudo apt install ./dist/snapmark_1.1.2-1_amd64.deb
 /usr/bin/snapmark
 ```
 
@@ -20,9 +20,9 @@ DEB 安装系统原生 Python / GTK4 / libadwaita，安装包里不含 Ollama、
 ## AppImage
 
 ```bash
-./SnapMark-1.1.1-x86_64.AppImage
-SNAPMARK_APPIMAGE_GTK_MODE=system ./SnapMark-1.1.1-x86_64.AppImage
-SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.1-x86_64.AppImage
+./SnapMark-1.1.2-x86_64.AppImage
+SNAPMARK_APPIMAGE_GTK_MODE=system ./SnapMark-1.1.2-x86_64.AppImage
+SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.2-x86_64.AppImage
 ```
 
 - `auto`（默认）优先测试宿主机 GTK4 / Python 环境，具备完整依赖时调用宿主机 GTK；否则回退到自带的运行库。
@@ -35,25 +35,25 @@ SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.1-x86_64.AppImage
 首次发布在本机执行：
 
 ```bash
-bash scripts/publish-v1.1.1.sh
+bash scripts/publish-v1.1.2.sh
 ```
 
 发布脚本：
 
-1. 验证 GitHub 身份和 `main` 默认分支，检测 `v1.1.1` 不存在。
+1. 验证 GitHub 身份和 `main` 默认分支，检测 `v1.1.2` 不存在。
 2. 本地编译与测试，构建 DEB，生成源码归档。
 3. 克隆远程仓库并导出 **完整 Git bundle** 和 SHA256 备份。
 4. 将完整源码作为普通提交更新 `main`，等待主分支 Actions 通过。
-5. 在该成功提交上创建 `v1.1.1` 附注标签并推送，等待 Release Actions 通过。
-6. 验证 AppImage、DEB、完整源码 ZIP、SHA256 及正式 Release 状态。
+5. 在该成功提交上创建 `v1.1.2` 附注标签并推送，等待 Release Actions 通过。
+6. 验证 AppImage、DEB、完整源码 ZIP、SHA256 及正式发布（非 Pre-release）状态。
 
 此过程不会强制推送、覆盖旧标签、删除分支或修改旧版 Release。
 
 ## GitHub Release 附件
 
-- `SnapMark-1.1.1-x86_64.AppImage`
-- `snapmark_1.1.1-1_amd64.deb`
-- `SnapMark-1.1.1-Full-Source.zip`
+- `SnapMark-1.1.2-x86_64.AppImage`
+- `snapmark_1.1.2-1_amd64.deb`
+- `SnapMark-1.1.2-Full-Source.zip`
 - `SHA256SUMS.txt`
 
 GitHub Actions 的 Xvfb smoke test 不能替代真实 GNOME/Wayland 测试。

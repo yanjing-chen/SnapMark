@@ -1,4 +1,4 @@
-# SnapMark v1.1.1 · 正式版
+# SnapMark v1.1.2 · 正式版
 
 SnapMark 是专为 GNOME 打造的 GTK4 / libadwaita 截图、标注和本地 OCR 软件。
 
@@ -12,19 +12,21 @@ SnapMark 是专为 GNOME 打造的 GTK4 / libadwaita 截图、标注和本地 OC
 - GNOME 截图、截图历史、编辑、标注、撤销/重做、复制和保存 PNG。
 - 内置 OCR，使用用户独立安装的本地 Ollama 和兼容视觉模型；识别结果可编辑、复制和保存文本。
 - OCR 模型可安装、导入、启用、移除和刷新；本地导入 GGUF/mmproj 取决于 Ollama 对模型架构的支持。
-- 状态栏“编辑/识别当前截图”：仅对有效期内的新截图开放；点击后打开编辑器，需要手动启动 OCR。
-- **事件驱动监听**：GNOME 截图文件监控和 GTK 剪贴板 changed 事件，不含每 1.5 秒的后台图片轮询。
+- 状态栏“编辑/识别当前图片”：启用图片剪贴板监控时可点击并按需读取当前图片；关闭监控时，仅在近期有效截图存在时可点击。OCR 仍须在编辑器中手动启动。
+- **事件驱动监听**：GNOME 截图文件监控 + GTK 剪贴板 `changed` 事件；先核对剪贴板提供的图片 MIME 类型（PNG/JPEG/WebP 等），只在图片确实可用时异步读取。**文字、URL、HTML 不读取内容、不存储，也不会触发快捷入口**；没有 1.5 秒后台轮询。
+- 在「首选项 → 截图与标注」中可关闭「监控剪贴板图片」（默认开启）。从网页右键「复制图片」后，点击状态栏「编辑/识别当前图片」会打开编辑器并按需读取剪贴板图片；**OCR 仍须手动点击**。
+- 剪贴板复制的图片仅在本次运行的内存中临时保留，不自动写入截图历史目录；到期后仍可主动点击菜单重新读取当前剪贴板中的图片；纯文字剪贴板不被读取。
 - Ollama `keep_alive` 显存驻留秒数和截图快捷入口有效期可配置。
 
 ## 安装方式（Linux x86_64）
 
 | 安装包 | 安装 / 启动 | GTK 来源 |
 | --- | --- | --- |
-| `snapmark_1.1.1-1_amd64.deb` | `sudo apt install ./snapmark_1.1.1-1_amd64.deb` | 系统 Python / GTK4 / libadwaita |
-| `SnapMark-1.1.1-x86_64.AppImage` | `chmod +x ...AppImage && ./SnapMark-1.1.1-x86_64.AppImage` | 优先系统 GTK4，不兼容则回退自带运行时 |
-| `SnapMark-1.1.1-Full-Source.zip` | 解压后 `bash scripts/run-local.sh` | 系统 Python / GTK4 |
+| `snapmark_1.1.2-1_amd64.deb` | `sudo apt install ./snapmark_1.1.2-1_amd64.deb` | 系统 Python / GTK4 / libadwaita |
+| `SnapMark-1.1.2-x86_64.AppImage` | `chmod +x ...AppImage && ./SnapMark-1.1.2-x86_64.AppImage` | 优先系统 GTK4，不兼容则回退自带运行时 |
+| `SnapMark-1.1.2-Full-Source.zip` | 解压后 `bash scripts/run-local.sh` | 系统 Python / GTK4 |
 
-`.deb` 已在 Ryzen 8845HS 的 Ubuntu/GNOME 实机上完成候选版验收；正式版应用逻辑不变。
+`1.1.2-rc1` 的 DEB 和双托盘修复已在 Ryzen 8845HS / GNOME 51 实机验收。本版在 1.1.2-rc3 候选源码基础上定版；图片剪贴板按需读取功能仍须在 GNOME Wayland 实机中按场景验证。
 **AppImage 的新运行模式仍应在你的 8845HS 上测试，不能把 DEB 的成功等同于 AppImage 通过验收。**
 
 需要系统原生运行依赖时：
@@ -39,9 +41,9 @@ bash scripts/run-local.sh
 AppImage 可通过环境变量调整 GTK 运行方式：
 
 ```bash
-SNAPMARK_APPIMAGE_GTK_MODE=auto ./SnapMark-1.1.1-x86_64.AppImage
-SNAPMARK_APPIMAGE_GTK_MODE=system ./SnapMark-1.1.1-x86_64.AppImage
-SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.1-x86_64.AppImage
+SNAPMARK_APPIMAGE_GTK_MODE=auto ./SnapMark-1.1.2-x86_64.AppImage
+SNAPMARK_APPIMAGE_GTK_MODE=system ./SnapMark-1.1.2-x86_64.AppImage
+SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.2-x86_64.AppImage
 ```
 
 **软件包不包含 Ollama、OCR 模型、GPU 驱动或自研 Local AI Runtime，也不会自动安装它们。**
@@ -49,15 +51,19 @@ SNAPMARK_APPIMAGE_GTK_MODE=bundled ./SnapMark-1.1.1-x86_64.AppImage
 ## 构建与 GitHub 发布
 
 推送 `main`：GitHub Actions 自动测试并构建 AppImage / DEB。
-推送 **`v1.1.1`** 标签：Actions 自动发布正式 GitHub Release，包含：
+推送 **`v1.1.2`** 标签：Actions 自动发布 GitHub **正式版（非 Pre-release）**，包含：
 
-- `SnapMark-1.1.1-x86_64.AppImage`
-- `snapmark_1.1.1-1_amd64.deb`
-- `SnapMark-1.1.1-Full-Source.zip`
+- `SnapMark-1.1.2-x86_64.AppImage`
+- `snapmark_1.1.2-1_amd64.deb`
+- `SnapMark-1.1.2-Full-Source.zip`
 - `SHA256SUMS.txt`
 
-用本源码完整 ZIP 在本机进行 GitHub 推送：`bash scripts/publish-v1.1.1.sh`。
+用本源码完整 ZIP 在本机进行 GitHub 推送：`bash scripts/publish-v1.1.2.sh`。
 发布脚本保留 Git 历史，预先备份仓库，不强制推送、不删除历史 Release 或分支。
 详见 [打包与发布说明](docs/PACKAGING-AND-RELEASE.md)。
 
 源代码：https://github.com/yanjing-chen/SnapMark · MIT License。
+
+## 1.1.2 图片剪贴板兼容修复
+
+直接整合第三方上传的按需 MIME 流方案，修复了窗口获得焦点前读取、重复纹理与字节流请求、流未关闭、关闭监控仍常亮，以及超时后仅打开菜单就重置计时等问题；无后台轮询。双托盘图标修复、截图目录事件监听和手动 OCR 均未改动。

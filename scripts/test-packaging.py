@@ -10,7 +10,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-VERSION = '1.1.1'
+VERSION = '1.1.2'
 
 class PackagingTests(unittest.TestCase):
     def test_version(self):
@@ -31,7 +31,7 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn('def _poll_clipboard(',code)
 
     def test_deb_metadata_and_contents(self):
-        pkg=ROOT/'dist'/f'snapmark_1.1.1-1_amd64.deb'
+        pkg=ROOT/'dist'/f'snapmark_1.1.2-1_amd64.deb'
         if not pkg.exists():
             self.skipTest('DEB not built yet')
         lines=subprocess.check_output(['dpkg-deb','--contents',str(pkg)],text=True)
@@ -47,11 +47,12 @@ class PackagingTests(unittest.TestCase):
             self.assertTrue((Path(tmp)/'usr/share/snapmark/assets/io.github.yanjingchen.SnapMark-32.png').is_file())
 
     def test_stable_release_tag(self):
-        launcher = (ROOT/'scripts/publish-v1.1.1.sh').read_text()
-        self.assertIn("TAG='v1.1.1'", launcher)
+        launcher = (ROOT/'scripts/publish-v1.1.2.sh').read_text()
+        self.assertIn("TAG='v1.1.2'", launcher)
         self.assertIn("isPrerelease --jq .isPrerelease", launcher)
         self.assertIn("== false ]]", launcher)
-        self.assertNotIn('1.1.1-' + 'rc2', launcher)
+        self.assertNotIn('v1.1.2-rc', launcher)
+        self.assertIn('gh auth refresh -h github.com -s workflow', launcher)
         workflow=(ROOT/'.github/workflows/appimage.yml').read_text()
         self.assertIn("prerelease: ${{ contains(github.ref_name, '-') }}", workflow)
 

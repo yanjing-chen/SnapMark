@@ -69,7 +69,7 @@ class TrayApiTests(unittest.TestCase):
         def value(item_id, key):
             return unwrap(props[item_id][key])
         for item_id, label in ((1, 'Open SnapMark'),
-                               (2, '编辑/识别当前截图' if __import__('snapmark.preferences', fromlist=['Settings']).Settings().language() == 'zh_CN' else 'Edit/Recognize Current Screenshot'),
+                               (2, '编辑/识别当前图片' if __import__('snapmark.preferences', fromlist=['Settings']).Settings().language() == 'zh_CN' else 'Edit/Recognize Current Image'),
                                (3, 'Screenshot History'),
                                (4, 'Preferences'),
                                (9, 'Restart SnapMark'),

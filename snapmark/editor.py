@@ -1818,6 +1818,16 @@ class EditorWindow(Adw.ApplicationWindow):
             self.get_application().refresh_recent_screenshot_status()
         timeout_row.connect('notify::value', timeout_changed)
         screenshot_group.add(timeout_row)
+        image_monitor = Adw.SwitchRow(
+            title=('监控剪贴板图片' if self.settings.language() == 'zh_CN'
+                   else 'Monitor clipboard images'),
+            subtitle=('复制网页图片或截图后允许编辑；不读取文字、链接或 HTML，不自动 OCR'
+                      if self.settings.language() == 'zh_CN'
+                      else 'Edit newly copied images; ignores text, links and HTML; OCR is manual'))
+        image_monitor.set_active(self.settings.monitor_clipboard_images())
+        image_monitor.connect('notify::active',
+            lambda row, _param: self.settings.set_monitor_clipboard_images(row.get_active()))
+        screenshot_group.add(image_monitor)
         screenshot_group.add(folder)
 
         def toggle_switch(switch, _pspec):

@@ -60,7 +60,7 @@ MENU_XML = '''<node><interface name="com.canonical.dbusmenu">
 </interface></node>'''
 
 MENU_ITEMS = {
-    1: 'Open SnapMark', 2: 'Edit/Recognize Current Screenshot', 3: 'Screenshot History',
+    1: 'Open SnapMark', 2: 'Edit/Recognize Current Image', 3: 'Screenshot History',
     4: 'Preferences', 6: 'Quit', 9: 'Restart SnapMark',
 }
 MENU_ORDER = (1, 7, 2, 3, 8, 4, 9, 6)
@@ -151,23 +151,29 @@ def _ocr_menu_icon_png():
 class TrayIndicator:
     def __init__(self, open_editor, open_preferences, quit_app,
                  open_clipboard=None, open_history=None, restart_app=None,
-                 clipboard_ready=None):
+                 clipboard_ready=None, clipboard_probe=None):
         self.open_editor, self.open_preferences, self.quit_app = open_editor, open_preferences, quit_app
         self.open_clipboard = open_clipboard or (lambda: None)
         self.open_history = open_history or (lambda: None)
         self.restart_app = restart_app or (lambda: None)
         self.clipboard_ready = clipboard_ready or (lambda: False)
+        self.clipboard_probe = clipboard_probe or (lambda: False)
         self._previous_clipboard = False
         self._layout_revision = 1
         self.bus = None
         self.registration_ids = []
-        # Flatpak permits owning the app ID and its subnames on the session
-        # bus; the old org.freedesktop.StatusNotifierItem-<pid>-1 name cannot
-        # be owned under its default D-Bus policy. Preserve the old name for
-        # AppImage and ordinary host Python execution.
+        # Native DEB/AppImage: register the exported SNI object by its D-Bus
+        # object path, letting the watcher resolve the caller's UNIQUE bus
+        # name.  Ubuntu AppIndicators uses that same unique name when it
+        # discovers objects on the bus; both registration paths now produce
+        # the same indicator id and cannot display the same icon twice.
+        #
+        # Retain Flatpak's pre-existing app-owned subname, whose D-Bus policy
+        # explicitly permits it.  No extra well-known name is requested by a
+        # native installation (GApplication already owns the application ID).
         self.name = ('io.github.yanjingchen.SnapMark.StatusNotifierItem'
-                     if Path('/.flatpak-info').is_file()
-                     else f'org.freedesktop.StatusNotifierItem-{os.getpid()}-1')
+                     if Path('/.flatpak-info').is_file() else None)
+        self.registration_target = self.name or ITEM_PATH
         self.available = False
         self.watch_id = 0
         self.pixmaps = []
@@ -184,10 +190,13 @@ class TrayIndicator:
                 info = Gio.DBusNodeInfo.new_for_xml(xml).interfaces[0]
                 ident = self.bus.register_object(path, info, method, getprop, None)
                 self.registration_ids.append(ident)
-            self.bus.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus',
-                               'org.freedesktop.DBus', 'RequestName',
-                               GLib.Variant('(su)', (self.name, 0)), GLib.VariantType.new('(u)'),
-                               Gio.DBusCallFlags.NONE, 1500, None)
+            if self.name is not None:
+                # Flatpak only: preserve the app-owned subname registration.
+                self.bus.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus',
+                                   'org.freedesktop.DBus', 'RequestName',
+                                   GLib.Variant('(su)', (self.name, 0)),
+                                   GLib.VariantType.new('(u)'),
+                                   Gio.DBusCallFlags.NONE, 1500, None)
             # Resolve an already running host synchronously before a possible
             # start-minimized decision. The watcher also handles later hosts.
             has_host = self.bus.call_sync('org.freedesktop.DBus', '/org/freedesktop/DBus',
@@ -209,7 +218,7 @@ class TrayIndicator:
             return
         try:
             self.bus.call_sync(WATCHER, '/StatusNotifierWatcher', WATCHER,
-                               'RegisterStatusNotifierItem', GLib.Variant('(s)', (self.name,)),
+                               'RegisterStatusNotifierItem', GLib.Variant('(s)', (self.registration_target,)),
                                None, Gio.DBusCallFlags.NONE, 1500, None)
             self.available = True
             print('SnapMark: status indicator registered', flush=True)
@@ -258,7 +267,7 @@ class TrayIndicator:
         if index in (7, 8):
             return {'type': GLib.Variant('s', 'separator'), 'visible': GLib.Variant('b', True)}
         enabled = self.clipboard_ready() if index == 2 else True
-        props = {'label': GLib.Variant('s', ('编辑/识别当前截图' if Settings().language() == 'zh_CN' else 'Edit/Recognize Current Screenshot') if index == 2 else _(MENU_ITEMS[index])),
+        props = {'label': GLib.Variant('s', ('编辑/识别当前图片' if Settings().language() == 'zh_CN' else 'Edit/Recognize Current Image') if index == 2 else _(MENU_ITEMS[index])),
                  'enabled': GLib.Variant('b', bool(enabled)),
                  'visible': GLib.Variant('b', True)}
         if index in MENU_ICONS:
@@ -289,6 +298,14 @@ class TrayIndicator:
             except GLib.Error as exc:
                 print(f'SnapMark: status menu refresh failed: {exc}', flush=True)
         return True
+
+    def _probe_clipboard(self):
+        """A menu open is an explicit user request; reconcile clipboard state."""
+        try:
+            self.clipboard_probe()
+        except Exception as exc:
+            print(f'SnapMark: tray clipboard probe failed: {exc}', flush=True)
+        return False
 
     def _menu_prop(self, _bus, _sender, _path, _iface, name):
         return {'Version': GLib.Variant('u', 2), 'TextDirection': GLib.Variant('s', 'ltr'),
@@ -325,11 +342,13 @@ class TrayIndicator:
                         GLib.idle_add(callbacks[index])
             invocation.return_value(None if name == 'Event' else GLib.Variant('(ai)', ([],)))
         elif name == 'AboutToShow':
+            self._probe_clipboard()
             self.refresh_clipboard_status()
             # A StatusNotifier host may have cached an old disabled state.
             # Always request a fresh layout when the menu opens.
             invocation.return_value(GLib.Variant('(b)', (True,)))
         elif name == 'AboutToShowGroup':
+            self._probe_clipboard()
             self.refresh_clipboard_status()
             ids = list(args.unpack()[0]) or [0]
             # The host must fetch current item properties even when a previous

@@ -20,7 +20,7 @@ def configuration_dir() -> Path:
 class Settings:
     DEFAULTS = {'screenshot_directory': '', 'start_minimized': False,
                 'recent_colors': [], 'image_format': 'png', 'image_quality': 90,
-                'screenshot_ocr_timeout': 60, 'language': 'system'}
+                'screenshot_ocr_timeout': 60, 'monitor_clipboard_images': True, 'language': 'system'}
 
     def __init__(self, root=None):
         self.root = Path(root) if root else configuration_dir()
@@ -57,7 +57,18 @@ class Settings:
         result['image_quality'] = raw_quality if type(raw_quality) is int and 1 <= raw_quality <= 100 else 90
         timeout = data.get('screenshot_ocr_timeout', 60)
         result['screenshot_ocr_timeout'] = (timeout if type(timeout) is int and 0 <= timeout <= 3600 else 60)
+        result['monitor_clipboard_images'] = data.get('monitor_clipboard_images', True) is True
         return result
+
+    def monitor_clipboard_images(self) -> bool:
+        return self.load()['monitor_clipboard_images']
+
+    def set_monitor_clipboard_images(self, enabled: bool):
+        if type(enabled) is not bool:
+            raise ValueError('Image clipboard monitoring expects a boolean')
+        data = self.load()
+        data['monitor_clipboard_images'] = enabled
+        self._save(data)
 
     def screenshot_ocr_timeout(self) -> int:
         return self.load()['screenshot_ocr_timeout']
